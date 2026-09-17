@@ -94,10 +94,6 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
       const idleTimeoutMinutes = solutionConfig?.staffIdleTimeoutMinutes;
       mySessionIdRef.current = localStorage.getItem('koop_staff_session_id') || undefined;
 
-      if ("Notification" in window) {
-        setNotificationPermission(Notification.permission);
-      }
-
       // A. Check for STALE session (past reset hour)
       if (sessionStart && isStaffSessionStale(new Date(parseInt(sessionStart, 10)), resetHour)) {
         handleExitTerminal('root');
@@ -117,6 +113,17 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
       }
     }
   }, [sellerId, router, toast, solutionConfig?.dailyResetHour, solutionConfig?.staffIdleTimeoutMinutes]);
+
+  // Reading Notification.permission is a permission-status touch just like
+  // navigator.permissions.query('geolocation') above - deferred until past
+  // the LocationGate tap for the same reason: this iOS version ejects the
+  // standalone PWA into Safari chrome for permission-adjacent API access
+  // that happens before any user gesture, even a read-only status check.
+  useEffect(() => {
+    if (locationEnabled && "Notification" in window) {
+      setNotificationPermission(Notification.permission);
+    }
+  }, [locationEnabled]);
 
   // Track how long the terminal has been backgrounded (screen off, app
   // switched away, tab hidden) - a brief absence should resume silently,
