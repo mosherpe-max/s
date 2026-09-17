@@ -118,6 +118,7 @@ import { useToast } from '@/hooks/use-toast';
 import { StylizedKoopLogo } from '@/components/header';
 import { PrintMarketingKit } from '@/components/print-marketing-kit';
 import { ModifierManagement } from '@/components/modifier-management';
+import { ActiveOrdersPanel } from '@/components/active-orders-panel';
 import { ImageUploadDropzone } from '@/components/image-upload-dropzone';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { categories } from '@/lib/types';
@@ -863,6 +864,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                            <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Real-Time Mode Performance & Control</p>
                         </div>
                      </div>
+                     <ActiveOrdersPanel orders={orders || []} seller={seller} solutionConfig={solutionConfig} />
                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         {analyticsData.modes.map(mode => {
                            const stats = analyticsData.realTimeOperations[mode];
