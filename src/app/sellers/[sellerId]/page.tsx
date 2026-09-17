@@ -71,6 +71,7 @@ import Image from 'next/image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -120,7 +121,7 @@ import { ModifierManagement } from '@/components/modifier-management';
 import { ImageUploadDropzone } from '@/components/image-upload-dropzone';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { categories } from '@/lib/types';
-import type { MenuItem, Seller, Order, StaffMember, SolutionConfig, Venue } from '@/lib/types';
+import type { MenuItem, Seller, Order, StaffMember, SolutionConfig, Venue, ModifierGroup } from '@/lib/types';
 import { signOut } from 'firebase/auth';
 import { 
   BarChart, 
@@ -304,6 +305,11 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
   const menuItemsQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'sellers', sellerId, 'menuItems') : null), [firestore, sellerId]);
   const { data: menuItems } = useCollection<MenuItem>(menuItemsQuery);
+
+  const modifierGroupsQuery = useMemoFirebase(() => (
+    firestore ? query(collection(firestore, 'modifier_groups'), where('sellerId', '==', sellerId)) : null
+  ), [firestore, sellerId]);
+  const { data: modifierGroups } = useCollection<ModifierGroup>(modifierGroupsQuery);
 
   // Items staff have 86'd (temporarily out of stock), across any mode.
   const outOfStockItems = useMemo(() => {
@@ -563,6 +569,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
         category: data.category,
         isAvailable: data.isAvailable,
         imageUrl: data.imageUrl,
+        modifierGroupIds: data.modifierGroupIds,
         updatedAt: serverTimestamp(),
       };
       updateDoc(docRef, payload)
@@ -586,7 +593,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
         rank: menuItems?.length ?? 0,
         availableOn: [],
         featuredOn: [],
-        modifierGroupIds: [],
+        modifierGroupIds: data.modifierGroupIds,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       };
@@ -1514,6 +1521,39 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                     </FormItem>
                   )}
                 />
+                {(modifierGroups || []).length > 0 && (
+                  <FormField
+                    control={itemForm.control}
+                    name="modifierGroupIds"
+                    render={() => (
+                      <FormItem className="text-left">
+                        <FormLabel className="text-[10px] font-black uppercase">Modifiers</FormLabel>
+                        <div className="space-y-2">
+                          {(modifierGroups || []).map(group => (
+                            <FormField
+                              key={group.id}
+                              control={itemForm.control}
+                              name="modifierGroupIds"
+                              render={({ field }) => (
+                                <FormItem className="flex flex-row items-center space-x-3 space-y-0 p-3 rounded-xl border-2 bg-slate-50 border-slate-100">
+                                  <FormControl>
+                                    <Checkbox
+                                      checked={field.value?.includes(group.id)}
+                                      onCheckedChange={(checked) => checked
+                                        ? field.onChange([...(field.value || []), group.id])
+                                        : field.onChange((field.value || []).filter((id: string) => id !== group.id))}
+                                    />
+                                  </FormControl>
+                                  <FormLabel className="text-[10px] font-black uppercase cursor-pointer">{group.name}</FormLabel>
+                                </FormItem>
+                              )}
+                            />
+                          ))}
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+                )}
                 {!editingItem && (
                   <p className="text-[9px] text-muted-foreground uppercase font-medium leading-relaxed">
                     New products start unassigned to any service mode. Use the Service Modes tab to make it orderable.
