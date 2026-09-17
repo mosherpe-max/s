@@ -55,7 +55,7 @@ export interface Venue {
   ownerUid: string;
   stripeAccountId?: string;
   stripeConnectId?: string;
-  solutionFeeFixed?: number;
+  solutionFeeFixed?: number; // Cents of the Stripe processing fee Koop covers per transaction; the rest is charged to the venue's Stripe balance via on_behalf_of
   solutionFeePercent?: number;
   patronConvenienceFee?: number; // Master fee in cents
   serviceFees?: Record<string, number>; // Individual overrides in cents
