@@ -124,7 +124,13 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
   }, []);
 
   useEffect(() => {
-    if (paymentMethod === 'Digital Payment' && !isFetchingIntent && baseTotalForBackend > 0) {
+    if (
+      paymentMethod === 'Digital Payment' &&
+      !isFetchingIntent &&
+      baseTotalForBackend > 0 &&
+      !isSellerLoading &&
+      !isVenueLoading
+    ) {
       const fetchIntent = async () => {
         setIsFetchingIntent(true);
         try {
@@ -173,7 +179,7 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
       };
       fetchIntent();
     }
-  }, [paymentMethod, baseTotalForBackend, sellerId, firebaseApp, user, auth]);
+  }, [paymentMethod, baseTotalForBackend, sellerId, firebaseApp, user, auth, isSellerLoading, isVenueLoading, solutionFee]);
 
   const handleManualOrder = async () => {
     if (!firestore || activeOrderItems.length === 0) return;
