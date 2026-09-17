@@ -411,7 +411,7 @@ function OrderTrackingContent() {
                </div>
                <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
                  <div className="flex items-center gap-1.5">
-                   <span>Platform Fee</span>
+                   <span>Convenience Fee</span>
                    <Popover>
                     <PopoverTrigger asChild>
                       <button className="text-slate-300 hover:text-primary"><Info className="h-3 w-3" /></button>
