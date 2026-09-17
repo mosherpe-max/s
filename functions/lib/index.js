@@ -140,6 +140,15 @@ export const createPaymentIntent = onCall({
         // real cost lands on the venue's own balance via on_behalf_of below,
         // rather than being deducted from the platform's balance.
         const applicationFeeAmount = Math.max(0, convenienceFeeCents - koopStripeFeeCoverageCents);
+        logger.info("createPaymentIntent fee split", {
+            sellerId,
+            venueDocExists: venueDoc.exists,
+            solutionFeeFixedRaw: venueDoc.data()?.solutionFeeFixed,
+            convenienceFeeCents,
+            koopStripeFeeCoverageCents,
+            applicationFeeAmount,
+            totalCents,
+        });
         let stripeCustomerId = clientProvidedCustomerId;
         let isReturningCustomer = !!stripeCustomerId;
         if (!stripeCustomerId && buyerUid) {
