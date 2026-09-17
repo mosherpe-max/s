@@ -10,7 +10,7 @@ import type { Order, Seller, StaffMember, SolutionConfig } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { Package, LogOut, MapPin, LayoutList, ChevronLeft, ShieldAlert, History, AlertTriangle, BellRing, User, Ban } from 'lucide-react';
+import { Package, LogOut, MapPin, LayoutList, ChevronLeft, ShieldAlert, History, AlertTriangle, User, Ban } from 'lucide-react';
 import { StockToggleDialog } from '@/components/stock-toggle-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -47,7 +47,6 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isStockOpen, setIsStockOpen] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
-  const [notificationPermission, setNotificationPermission] = useState<string>('default');
   
   const lastOrderIdsRef = useRef<Set<string>>(new Set());
   const initialLoadRef = useRef(true);
@@ -79,10 +78,6 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
       const resetHour = solutionConfig?.dailyResetHour ?? 4;
       const idleTimeoutMinutes = solutionConfig?.staffIdleTimeoutMinutes;
       mySessionIdRef.current = localStorage.getItem('koop_staff_session_id') || undefined;
-
-      if ("Notification" in window) {
-        setNotificationPermission(Notification.permission);
-      }
 
       // A. Check for STALE session (past reset hour)
       if (sessionStart && isStaffSessionStale(new Date(parseInt(sessionStart, 10)), resetHour)) {
@@ -277,19 +272,11 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
     const currentOrderIds = new Set(lanesideOrders.map(o => o.id));
     const newOrders = lanesideOrders.filter(o => !lastOrderIdsRef.current.has(o.id));
     if (newOrders.length > 0 && !initialLoadRef.current) {
-      // 1. Audible Alert
+      // Audible + in-app alert only - the standalone PWA on this iOS
+      // version ejects into Safari chrome the moment any code touches the
+      // Notification API (even a permission status read), regardless of
+      // gesture timing, so system notifications are never used here.
       playNotificationSound();
-
-      // 2. System Notification
-      if ("Notification" in window && Notification.permission === "granted") {
-        newOrders.forEach(o => {
-          new Notification("New Lane Order", {
-            body: `${o.customerName} - ${o.items.length} items`,
-            icon: '/icon'
-          });
-        });
-      }
-
       toast({ title: "NEW LANE ORDER!" });
     }
     lastOrderIdsRef.current = currentOrderIds;
@@ -359,11 +346,6 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
               <div className="flex items-center gap-1.5">
                 <Badge className="bg-primary/20 text-primary border-0 h-4 px-1.5 text-[8px] font-black uppercase tracking-widest">Lane Delivery</Badge>
               </div>
-              {notificationPermission === 'granted' && (
-                <Badge className="bg-green-500/20 text-green-400 border-0 h-3 px-1 text-[6px] font-black uppercase tracking-widest gap-1">
-                  <BellRing className="h-2 w-2" /> Alerts Active
-                </Badge>
-              )}
             </div>
           </div>
         </div>
