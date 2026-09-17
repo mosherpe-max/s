@@ -1,13 +1,37 @@
 'use client'
 
 import { Truck, User, AlertCircle, Loader2 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { cn, getDriverColor } from '@/lib/utils';
-import { Map, Marker, useMap, useApiIsLoaded, APIProvider } from '@vis.gl/react-google-maps';
+import { Map, Marker, AdvancedMarker, useMap, useApiIsLoaded, APIProvider } from '@vis.gl/react-google-maps';
 import { useEffect, useState, useRef, useMemo } from 'react';
 
-// Specialized SVG Paths for high-fidelity markers
-const PATH_CLUBHOUSE = "M -10,10 L 10,10 L 10,-2 L 0,-12 L -10,-2 Z M -2,10 L -2,6 L 2,6 L 2,10";
-const PATH_CART = "M -12,3 L -8,-7 L 4,-7 L 8,3 L -12,3 Z M -9,4 A 2.5,2.5 0 1 1 -9,9 A 2.5,2.5 0 1 1 -9,4 M 5,4 A 2.5,2.5 0 1 1 5,9 A 2.5,2.5 0 1 1 5,4";
+// On-foot staff (Clubhouse, Lane Delivery) vs. a wheeled cart (Beverage Cart) -
+// matches the icons already used for these modes elsewhere in the app
+// (e.g. the venue dashboard's mode cards) instead of the old hand-drawn
+// SVG silhouettes (a boxy cart shape, and a house shape for Clubhouse that
+// read as a building rather than a moving staff member).
+function getDriverIcon(type: string | undefined): LucideIcon {
+  if (type === 'Clubhouse' || type === 'Lane Delivery') return User;
+  return Truck;
+}
+
+/**
+ * Colored badge rendered as AdvancedMarker content - keeps the per-driver
+ * color-coding the old vector Symbol icons had, but with a real Lucide
+ * icon instead of a custom SVG path, matching the icon language used
+ * everywhere else in the app.
+ */
+function DriverMarkerBadge({ icon: Icon, color, large }: { icon: LucideIcon; color: string; large?: boolean }) {
+  return (
+    <div
+      className="rounded-full flex items-center justify-center shadow-lg border-2 border-white"
+      style={{ backgroundColor: color, width: large ? 36 : 30, height: large ? 36 : 30 }}
+    >
+      <Icon className={large ? "h-5 w-5 text-white" : "h-4 w-4 text-white"} strokeWidth={2.5} />
+    </div>
+  );
+}
 
 interface MapViewProps {
   buyerLocation?: { latitude: number; longitude: number };
@@ -151,10 +175,6 @@ function MapInternal({ buyerLocation, sellerLocation, showPrimaryMarker, primary
     buyerLocation ? { lat: buyerLocation.latitude, lng: buyerLocation.longitude } : (sellerLocation ? { lat: sellerLocation.latitude, lng: sellerLocation.longitude } : { lat: 0, lng: 0 }),
   [buyerLocation, sellerLocation]);
 
-  const getPathForType = (type: string | undefined) => {
-    if (type === 'Clubhouse' || type === 'Lane Delivery') return PATH_CLUBHOUSE;
-    return PATH_CART; 
-  };
 
   return (
     <div className="relative w-full h-full bg-[#1a2d44]">
@@ -166,6 +186,7 @@ function MapInternal({ buyerLocation, sellerLocation, showPrimaryMarker, primary
       )}
 
       <Map
+        mapId={process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID?.trim() || 'DEMO_MAP_ID'}
         defaultCenter={center}
         defaultZoom={15}
         mapTypeId="satellite"
@@ -201,37 +222,25 @@ function MapInternal({ buyerLocation, sellerLocation, showPrimaryMarker, primary
           if (primaryDriverId && driver.id === primaryDriverId) return null;
           
           return (
-            <Marker 
-              key={`driver-item-${driver.id}`} 
+            <AdvancedMarker
+              key={`driver-item-${driver.id}`}
               position={{ lat: driver.location.latitude, lng: driver.location.longitude }}
               title={`${driver.name} (${driver.type})`}
-              icon={{
-                path: getPathForType(driver.type),
-                fillColor: driver.colorOverride || getDriverColor(driver.id),
-                fillOpacity: 1,
-                strokeWeight: 1.5,
-                strokeColor: '#FFFFFF',
-                scale: 1.2,
-              }}
-            />
+            >
+              <DriverMarkerBadge icon={getDriverIcon(driver.type)} color={driver.colorOverride || getDriverColor(driver.id)} />
+            </AdvancedMarker>
           );
         })}
 
         {/* Local Primary Driver Marker ("YOU") */}
         {sellerLocation && sellerLocation.latitude && sellerLocation.latitude !== 0 && showPrimaryMarker && (
-          <Marker 
+          <AdvancedMarker
             key="primary-seller-marker"
             position={{ lat: sellerLocation.latitude, lng: sellerLocation.longitude }}
             title="Your Current Location"
-            icon={{
-              path: getPathForType(primaryType),
-              fillColor: primaryDriverId ? getDriverColor(primaryDriverId) : '#213147',
-              fillOpacity: 1,
-              strokeWeight: 2,
-              strokeColor: '#FFFFFF',
-              scale: 1.4,
-            }}
-          />
+          >
+            <DriverMarkerBadge icon={getDriverIcon(primaryType)} color={primaryDriverId ? getDriverColor(primaryDriverId) : '#213147'} large />
+          </AdvancedMarker>
         )}
 
         {buyerLocation && (
@@ -290,7 +299,7 @@ export function MapView(props: MapViewProps) {
   }
 
   return (
-    <APIProvider apiKey={apiKey!}>
+    <APIProvider apiKey={apiKey!} libraries={['marker']}>
       <MapInternal {...props} />
     </APIProvider>
   );
