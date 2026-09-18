@@ -35,12 +35,18 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const urlToOpen = event.notification.data?.url || '/';
-  
+  // Compare by pathname only (not the full URL string) so an already-open
+  // standalone window still counts as "open" even if its query string
+  // differs from the notification's target - an exact-string match was
+  // missing that and falling through to openWindow(), which on iOS opens
+  // in Safari instead of focusing the running standalone app.
+  const targetPath = new URL(urlToOpen, self.location.origin).pathname;
+
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
       for (let i = 0; i < windowClients.length; i++) {
         const client = windowClients[i];
-        if (client.url === urlToOpen && 'focus' in client) {
+        if (new URL(client.url).pathname === targetPath && 'focus' in client) {
           return client.focus();
         }
       }
