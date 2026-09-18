@@ -94,7 +94,7 @@ service cloud.firestore {
         // location - without full staff-editing rights (PIN, name, role).
         allow update: if isSignedIn() &&
                       request.resource.data.diff(resource.data).affectedKeys()
-                      .hasOnly(['activeMode', 'activeSessionId', 'lastActive', 'isAvailable', 'latitude', 'longitude']);
+                      .hasOnly(['activeMode', 'activeSessionId', 'lastActive', 'isAvailable', 'latitude', 'longitude', 'pushSubscription', 'pushSubscriptionUpdatedAt']);
       }
 
       match /menuItems/{itemId} {

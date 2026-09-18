@@ -7,6 +7,7 @@ import { initializeApp } from "firebase-admin/app";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import Stripe from 'stripe';
 import twilio from 'twilio';
+import webpush from 'web-push';
 
 /**
  * Initialize the Firebase Admin SDK.
@@ -549,5 +550,159 @@ export const handleStripeWebhook = onRequest({
   } catch (err: any) {
     logger.error("Stripe Webhook Error", err);
     res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+});
+
+// Same 4-digit display id derivation as getNumericOrderId in src/lib/utils.ts -
+// duplicated here since functions/ is a separate TS project that can't import
+// from src/.
+function getNumericOrderId(id: string): string {
+  if (!id) return '0000';
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = id.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return (Math.abs(hash) % 10000).toString().padStart(4, '0');
+}
+
+function modePathFor(mode: string): string {
+  if (mode === 'Clubhouse') return 'clubhouse';
+  if (mode === 'Lane Delivery') return 'laneside';
+  return 'bevcart';
+}
+
+const VAPID_SUBJECT = 'mailto:support@koop.app';
+
+/**
+ * Web Push counterpart to the in-app audible/toast alerts on the staff
+ * pages - reaches on-shift staff even when the installed PWA is
+ * backgrounded or the screen is off, which the in-app alert (only runs
+ * while the tab/app is actually open) can't do. No-ops gracefully if the
+ * VAPID keys haven't been configured yet.
+ */
+function getWebPushClient(): typeof webpush | null {
+  const publicKey = process.env.VAPID_PUBLIC_KEY;
+  const privateKey = process.env.VAPID_PRIVATE_KEY;
+  if (!publicKey || !privateKey) return null;
+  webpush.setVapidDetails(VAPID_SUBJECT, publicKey, privateKey);
+  return webpush;
+}
+
+interface StaffPushPayload {
+  title: string;
+  body: string;
+  url: string;
+}
+
+/**
+ * Sends to every staff member currently on shift for this exact venue +
+ * service mode (activeMode match) - a Beverage Cart order never reaches a
+ * Clubhouse-logged-in device and vice versa, and a staff member who has
+ * clocked out (activeMode cleared) receives nothing. Clears any
+ * subscription Web Push reports as gone (expired/unsubscribed) instead of
+ * retrying it forever.
+ */
+async function pushToActiveStaff(sellerId: string, mode: string, payload: StaffPushPayload) {
+  const client = getWebPushClient();
+  if (!client) return;
+
+  const staffSnap = await db.collection('sellers').doc(sellerId).collection('staff')
+    .where('activeMode', '==', mode)
+    .get();
+  if (staffSnap.empty) return;
+
+  const body = JSON.stringify(payload);
+
+  await Promise.all(staffSnap.docs.map(async (staffDoc) => {
+    const subscription = staffDoc.data()?.pushSubscription;
+    if (!subscription?.endpoint) return;
+    try {
+      await client.sendNotification(subscription, body);
+    } catch (err: any) {
+      if (err?.statusCode === 404 || err?.statusCode === 410) {
+        await staffDoc.ref.update({ pushSubscription: FieldValue.delete() }).catch(() => {});
+      } else {
+        logger.error(`Push failed for staff ${staffDoc.id}`, err);
+      }
+    }
+  }));
+}
+
+/**
+ * notifyStaffOnNewOrder
+ */
+export const notifyStaffOnNewOrder = onDocumentWritten({
+  document: "orders/{orderId}",
+  secrets: ["VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY"],
+  region: 'us-central1'
+}, async (event) => {
+  // Only brand-new orders - status transitions on existing orders are not
+  // a "new order" event.
+  if (event.data?.before?.exists) return;
+  const after = event.data?.after;
+  if (!after?.exists) return;
+
+  const order = after.data();
+  if (!order?.sellerId || !order?.menuType) return;
+
+  try {
+    const itemCount = (order.items || []).length;
+    await pushToActiveStaff(order.sellerId, order.menuType, {
+      title: 'New Order',
+      body: `${order.customerName || 'Guest'} - ${itemCount} item${itemCount === 1 ? '' : 's'}`,
+      url: `/sellers/${order.sellerId}/${modePathFor(order.menuType)}`,
+    });
+  } catch (err) {
+    logger.error("notifyStaffOnNewOrder failed", err);
+  }
+});
+
+/**
+ * checkLateOrders
+ * Scheduled sweep for orders that have exceeded their venue's configured
+ * max processing time. Unlike notifyStaffOnNewOrder (a per-write trigger),
+ * "has now been open too long" is a pure time-passing condition with no
+ * new document write to hang a trigger off of, so this polls instead.
+ */
+export const checkLateOrders = onSchedule({
+  schedule: "every 2 minutes",
+  region: 'us-central1',
+  secrets: ["VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY"],
+}, async () => {
+  const activeSnap = await db.collection('orders')
+    .where('status', 'in', ['Placed', 'Preparing', 'Out for Delivery'])
+    .get();
+  if (activeSnap.empty) return;
+
+  const sellerCache = new Map<string, FirebaseFirestore.DocumentData | undefined>();
+  const configSnap = await db.collection('solution').doc('config').get();
+  const solutionConfig = configSnap.exists ? configSnap.data() : undefined;
+
+  for (const orderDoc of activeSnap.docs) {
+    const order = orderDoc.data();
+    if (order.lateAlertSentAt || !order.createdAt || !order.sellerId || !order.menuType) continue;
+
+    if (!sellerCache.has(order.sellerId)) {
+      const sellerSnap = await db.collection('sellers').doc(order.sellerId).get();
+      sellerCache.set(order.sellerId, sellerSnap.exists ? sellerSnap.data() : undefined);
+    }
+    const seller = sellerCache.get(order.sellerId);
+    const thresholds = seller?.orderThresholds?.[order.menuType]
+      || solutionConfig?.orderThresholds?.[order.menuType]
+      || { maxOrderProcessingMinutes: 25 };
+
+    const elapsedMinutes = (Date.now() - order.createdAt.toDate().getTime()) / 60000;
+    if (elapsedMinutes < thresholds.maxOrderProcessingMinutes) continue;
+
+    try {
+      await pushToActiveStaff(order.sellerId, order.menuType, {
+        title: 'Order Running Late',
+        body: `#${getNumericOrderId(orderDoc.id)} has been open ${Math.floor(elapsedMinutes)}+ minutes`,
+        url: `/sellers/${order.sellerId}/${modePathFor(order.menuType)}`,
+      });
+      await orderDoc.ref.update({ lateAlertSentAt: FieldValue.serverTimestamp() });
+    } catch (err) {
+      logger.error(`checkLateOrders push failed for order ${orderDoc.id}`, err);
+    }
   }
 });
