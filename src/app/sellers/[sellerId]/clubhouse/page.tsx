@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { useRouter } from 'next/navigation';
 import { MapView } from '@/components/map-view';
 import { LocationGate } from '@/components/location-gate';
+import { NotificationGate } from '@/components/notification-gate';
 import { useHasInteracted } from '@/hooks/use-has-interacted';
 import { isToday, differenceInSeconds, differenceInMinutes, format } from 'date-fns';
 import { cn, getSignalColor, getDriverColor, SUPER_ADMIN_ID, isStaffSessionStale, isStaffSessionIdle, getNumericOrderId, playNotificationSound } from '@/lib/utils';
@@ -59,6 +60,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isStockOpen, setIsStockOpen] = useState(false);
   const [locationEnabled, setLocationEnabled] = useState(false);
+  const [notificationGateComplete, setNotificationGateComplete] = useState(false);
   const hasInteracted = useHasInteracted();
 
   const lastOrderIdsRef = useRef<Set<string>>(new Set());
@@ -433,6 +435,17 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
 
   if (!locationEnabled) {
     return <LocationGate venueName={primarySeller?.courseName} onEnabled={handleLocationReady} />;
+  }
+
+  if (currentStaffId && !notificationGateComplete) {
+    return (
+      <NotificationGate
+        venueName={primarySeller?.courseName}
+        sellerId={sellerId}
+        staffId={currentStaffId}
+        onDone={() => setNotificationGateComplete(true)}
+      />
+    );
   }
 
   return (

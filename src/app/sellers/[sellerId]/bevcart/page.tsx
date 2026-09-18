@@ -5,6 +5,7 @@ import { collection, query, where, doc, updateDoc, serverTimestamp, setDoc, dele
 import { useCollection, useFirestore, useMemoFirebase, useDoc, useUser } from '@/firebase';
 import { MapView } from '@/components/map-view';
 import { LocationGate } from '@/components/location-gate';
+import { NotificationGate } from '@/components/notification-gate';
 import { useHasInteracted } from '@/hooks/use-has-interacted';
 import { useEffect, useState, useMemo, useRef, use } from 'react';
 import { Switch } from '@/components/ui/switch';
@@ -62,6 +63,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isStockOpen, setIsStockOpen] = useState(false);
   const [locationEnabled, setLocationEnabled] = useState(false);
+  const [notificationGateComplete, setNotificationGateComplete] = useState(false);
   const hasInteracted = useHasInteracted();
 
   const lastOrderIdsRef = useRef<Set<string>>(new Set());
@@ -440,6 +442,17 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
 
   if (!locationEnabled) {
     return <LocationGate venueName={primarySeller?.courseName} onEnabled={handleLocationReady} />;
+  }
+
+  if (currentStaffId && !notificationGateComplete) {
+    return (
+      <NotificationGate
+        venueName={primarySeller?.courseName}
+        sellerId={sellerId}
+        staffId={currentStaffId}
+        onDone={() => setNotificationGateComplete(true)}
+      />
+    );
   }
 
   return (

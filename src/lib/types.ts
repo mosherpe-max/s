@@ -82,6 +82,11 @@ export interface StaffMember {
   latitude?: number;
   longitude?: number;
   lastActive?: Timestamp;
+  // Refreshed on every PIN login (not per-device) so a shared terminal
+  // always pushes to whoever is currently signed in on it, and a staff
+  // member who logs in from a different device gets it moved there too.
+  pushSubscription?: PushSubscriptionJSON;
+  pushSubscriptionUpdatedAt?: Timestamp;
 }
 
 export interface Seller {
@@ -234,6 +239,9 @@ export interface Order {
   assignedStaffId?: string;
   assignedStaffName?: string;
   paymentMethod?: PaymentMethodType;
+  // Set once the "running late" staff push fires, so the scheduled check
+  // never re-sends it on every pass for the same order.
+  lateAlertSentAt?: Timestamp;
 }
 
 export interface Prospect {
