@@ -16,6 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { isToday, differenceInSeconds, differenceInMinutes, format } from 'date-fns';
 import { cn, SUPER_ADMIN_ID, isStaffSessionStale, isStaffSessionIdle, getNumericOrderId, playNotificationSound } from '@/lib/utils';
+import { useHasInteracted } from '@/hooks/use-has-interacted';
 import Link from 'next/link';
 import {
   Dialog,
@@ -47,6 +48,7 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isStockOpen, setIsStockOpen] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
+  const hasInteracted = useHasInteracted();
   
   const lastOrderIdsRef = useRef<Set<string>>(new Set());
   const initialLoadRef = useRef(true);
@@ -276,12 +278,16 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
       // version ejects into Safari chrome the moment any code touches the
       // Notification API (even a permission status read), regardless of
       // gesture timing, so system notifications are never used here.
-      playNotificationSound();
+      // The tone itself (Web Audio's AudioContext) is the same class of
+      // restricted API - only play it once the staff member has made a
+      // real tap on this page. Laneside has no LocationGate-style tap
+      // screen at all, so this hook is what supplies that gesture check.
+      if (hasInteracted) playNotificationSound();
       toast({ title: "NEW LANE ORDER!" });
     }
     lastOrderIdsRef.current = currentOrderIds;
     initialLoadRef.current = false;
-  }, [lanesideOrders, now, toast]);
+  }, [lanesideOrders, now, toast, hasInteracted]);
 
   useEffect(() => {
     const interval = setInterval(() => setNow(Date.now()), 15000);

@@ -5,6 +5,7 @@ import { collection, query, where, doc, updateDoc, serverTimestamp, setDoc, dele
 import { useCollection, useFirestore, useMemoFirebase, useDoc, useUser } from '@/firebase';
 import { MapView } from '@/components/map-view';
 import { LocationGate } from '@/components/location-gate';
+import { useHasInteracted } from '@/hooks/use-has-interacted';
 import { useEffect, useState, useMemo, useRef, use } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -61,6 +62,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isStockOpen, setIsStockOpen] = useState(false);
   const [locationEnabled, setLocationEnabled] = useState(false);
+  const hasInteracted = useHasInteracted();
 
   const lastOrderIdsRef = useRef<Set<string>>(new Set());
   const initialLoadRef = useRef(true);
@@ -296,12 +298,16 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
       // version ejects into Safari chrome the moment any code touches the
       // Notification API (even a permission status read), regardless of
       // gesture timing, so system notifications are never used here.
-      playNotificationSound();
+      // The tone itself (Web Audio's AudioContext) is the same class of
+      // restricted API - only play it once the staff member has made a
+      // real tap on this page, same protection LocationGate already gives
+      // geolocation.
+      if (hasInteracted) playNotificationSound();
       toast({ title: "NEW ORDER RECEIVED!" });
     }
     lastOrderIdsRef.current = currentOrderIds;
     initialLoadRef.current = false;
-  }, [driverOrders, now, toast]);
+  }, [driverOrders, now, toast, hasInteracted]);
 
   useEffect(() => {
     setNow(Date.now());

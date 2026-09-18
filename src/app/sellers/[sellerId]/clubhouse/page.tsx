@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { useRouter } from 'next/navigation';
 import { MapView } from '@/components/map-view';
 import { LocationGate } from '@/components/location-gate';
+import { useHasInteracted } from '@/hooks/use-has-interacted';
 import { isToday, differenceInSeconds, differenceInMinutes, format } from 'date-fns';
 import { cn, getSignalColor, getDriverColor, SUPER_ADMIN_ID, isStaffSessionStale, isStaffSessionIdle, getNumericOrderId, playNotificationSound } from '@/lib/utils';
 import Link from 'next/link';
@@ -58,6 +59,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isStockOpen, setIsStockOpen] = useState(false);
   const [locationEnabled, setLocationEnabled] = useState(false);
+  const hasInteracted = useHasInteracted();
 
   const lastOrderIdsRef = useRef<Set<string>>(new Set());
   const initialLoadRef = useRef(true);
@@ -350,12 +352,16 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
       // version ejects into Safari chrome the moment any code touches the
       // Notification API (even a permission status read), regardless of
       // gesture timing, so system notifications are never used here.
-      playNotificationSound();
+      // The tone itself (Web Audio's AudioContext) is the same class of
+      // restricted API - only play it once the staff member has made a
+      // real tap on this page, same protection LocationGate already gives
+      // geolocation.
+      if (hasInteracted) playNotificationSound();
       toast({ title: "NEW CLUBHOUSE ORDER!" });
     }
     lastOrderIdsRef.current = currentOrderIds;
     initialLoadRef.current = false;
-  }, [clubhouseOrders, now, toast]);
+  }, [clubhouseOrders, now, toast, hasInteracted]);
 
   useEffect(() => {
     const interval = setInterval(() => setNow(Date.now()), 15000);
