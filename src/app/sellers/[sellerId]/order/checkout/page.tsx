@@ -76,6 +76,7 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
   const [useNewCard, setUseNewCard] = useState(false);
   const [isFetchingIntent, setIsFetchingIntent] = useState(false);
   const [orderJustPlaced, setOrderJustPlaced] = useState(false);
+  const [isKnownPatron, setIsKnownPatron] = useState(false);
 
   const activeOrderItems = useMemo(() => orderItems.filter((item) => item.quantity > 0), [orderItems]);
   const subtotal = useMemo(() => activeOrderItems.reduce((acc, item) => {
@@ -120,6 +121,12 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
 
     if (cachedName || cachedEmail || cachedPhone || cachedCustomerId) {
       setSaveInfo(true);
+    }
+
+    // All three, not just any one - a partial cache (e.g. name only) falls
+    // back to the normal open form rather than showing a summary with gaps.
+    if (cachedName && cachedEmail && cachedPhone) {
+      setIsKnownPatron(true);
     }
   }, []);
 
@@ -342,6 +349,7 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
               patronEmail={patronEmail} setPatronEmail={setPatronEmail}
               patronName={patronName} setPatronName={setPatronName}
               patronPhone={patronPhone} setPatronPhone={setPatronPhone}
+              isReturningCustomer={isKnownPatron}
             />
           )}
 
@@ -418,6 +426,7 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
                     patronEmail={patronEmail} setPatronEmail={setPatronEmail}
                     patronName={patronName} setPatronName={setPatronName}
                     patronPhone={patronPhone} setPatronPhone={setPatronPhone}
+                    isReturningCustomer={isKnownPatron}
                   />
                   <div className="border-t-2 border-white" />
                   <div className="flex flex-col items-center gap-4 py-16 animate-in fade-in duration-300">
@@ -455,6 +464,7 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
                       patronEmail={patronEmail} setPatronEmail={setPatronEmail}
                       patronName={patronName} setPatronName={setPatronName}
                       patronPhone={patronPhone} setPatronPhone={setPatronPhone}
+                      isReturningCustomer={isKnownPatron}
                     />
                     <div className="border-t-2 border-white" />
                     {savedPaymentMethod && !useNewCard ? (
