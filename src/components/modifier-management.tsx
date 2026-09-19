@@ -20,9 +20,12 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 import type { ModifierGroup } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { StarterModifierPicker } from '@/components/starter-modifier-picker';
+import { Library } from 'lucide-react';
 
 interface ModifierManagementProps {
   sellerId: string;
+  venueType: 'golf' | 'bowling';
 }
 
 const optionSchema = z.object({
@@ -46,7 +49,7 @@ function slugify(text: string) {
 
 const emptyOption = { name: '', priceAdjustment: 0, isAvailable: true };
 
-export function ModifierManagement({ sellerId }: ModifierManagementProps) {
+export function ModifierManagement({ sellerId, venueType }: ModifierManagementProps) {
   const firestore = useFirestore();
   const { toast } = useToast();
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -145,9 +148,20 @@ export function ModifierManagement({ sellerId }: ModifierManagementProps) {
             <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Add-on Groups & Options</p>
           </div>
         </div>
-        <Button onClick={openCreateForm} className="bg-[#213147] font-black uppercase text-xs tracking-widest shadow-lg rounded-xl h-11 px-6">
-          <Plus className="h-4 w-4 mr-2" /> Add Modifier Group
-        </Button>
+        <div className="flex items-center gap-3">
+          <StarterModifierPicker
+            sellerId={sellerId}
+            venueType={venueType}
+            trigger={
+              <Button variant="outline" className="font-black uppercase text-xs tracking-widest rounded-xl h-11 px-6 gap-2 border-2">
+                <Library className="h-4 w-4" /> Import From Library
+              </Button>
+            }
+          />
+          <Button onClick={openCreateForm} className="bg-[#213147] font-black uppercase text-xs tracking-widest shadow-lg rounded-xl h-11 px-6">
+            <Plus className="h-4 w-4 mr-2" /> Add Modifier Group
+          </Button>
+        </div>
       </div>
 
       <Card className="border-2 rounded-[2rem] overflow-hidden shadow-sm bg-white">

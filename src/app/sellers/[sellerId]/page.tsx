@@ -65,7 +65,8 @@ import {
   CheckCircle2,
   Sparkles,
   Ban,
-  SlidersHorizontal
+  SlidersHorizontal,
+  Library
 } from 'lucide-react';
 import Image from 'next/image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -118,6 +119,7 @@ import { useToast } from '@/hooks/use-toast';
 import { StylizedKoopLogo } from '@/components/header';
 import { PrintMarketingKit } from '@/components/print-marketing-kit';
 import { ModifierManagement } from '@/components/modifier-management';
+import { StarterItemPicker } from '@/components/starter-item-picker';
 import { ActiveOrdersPanel } from '@/components/active-orders-panel';
 import { ImageUploadDropzone } from '@/components/image-upload-dropzone';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -203,6 +205,12 @@ const getModeColor = (mode: string) => {
     case 'Lane Delivery': return '#4f46e5';
     default: return '#94a3b8';
   }
+};
+
+const MODE_KEY_BY_LABEL: Record<string, 'beverageCart' | 'clubhouse' | 'laneService'> = {
+  'Beverage Cart': 'beverageCart',
+  'Clubhouse': 'clubhouse',
+  'Lane Delivery': 'laneService',
 };
 
 function SortableItem({ id, item, isFeatured, onToggleFeature, onRemove }: { 
@@ -1015,12 +1023,27 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                 <div className="space-y-6 animate-in fade-in duration-500">
                   <div className="flex items-center justify-between">
                     <h2 className="text-xl font-black uppercase text-[#213147]">Service Modes</h2>
-                    <div className="flex gap-2 bg-[#213147] p-1 rounded-xl">
-                      {seller?.menuTypes?.filter(m => AUTHORIZED_SERVICE_MODES.includes(m)).map(mode => (
-                        <Button key={mode} variant={activeModeTab === mode ? 'default' : 'ghost'} size="sm" onClick={() => setActiveModeTab(mode)} className={cn("text-[9px] font-black uppercase tracking-widest h-9 px-4 rounded-lg", activeModeTab === mode ? "bg-primary text-white shadow-lg" : "text-white/40 hover:text-white hover:bg-white/5")}>
-                          {mode}
-                        </Button>
-                      ))}
+                    <div className="flex items-center gap-3">
+                      {activeModeTab && MODE_KEY_BY_LABEL[activeModeTab] && (
+                        <StarterItemPicker
+                          sellerId={sellerId}
+                          venueType={seller?.type === 'Golf Course' ? 'golf' : 'bowling'}
+                          mode={MODE_KEY_BY_LABEL[activeModeTab]}
+                          modeLabel={activeModeTab}
+                          trigger={
+                            <Button variant="outline" size="sm" className="text-[9px] font-black uppercase tracking-widest h-9 px-4 rounded-lg border-2 gap-2">
+                              <Library className="h-3.5 w-3.5" /> Import From Library
+                            </Button>
+                          }
+                        />
+                      )}
+                      <div className="flex gap-2 bg-[#213147] p-1 rounded-xl">
+                        {seller?.menuTypes?.filter(m => AUTHORIZED_SERVICE_MODES.includes(m)).map(mode => (
+                          <Button key={mode} variant={activeModeTab === mode ? 'default' : 'ghost'} size="sm" onClick={() => setActiveModeTab(mode)} className={cn("text-[9px] font-black uppercase tracking-widest h-9 px-4 rounded-lg", activeModeTab === mode ? "bg-primary text-white shadow-lg" : "text-white/40 hover:text-white hover:bg-white/5")}>
+                            {mode}
+                          </Button>
+                        ))}
+                      </div>
                     </div>
                   </div>
                   <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
@@ -1287,7 +1310,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
               )}
 
               {activeNav === 'modifiers' && (
-                <ModifierManagement sellerId={sellerId} />
+                <ModifierManagement sellerId={sellerId} venueType={seller?.type === 'Golf Course' ? 'golf' : 'bowling'} />
               )}
 
               {activeNav === 'settings' && (

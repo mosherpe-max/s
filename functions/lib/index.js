@@ -253,25 +253,26 @@ export const initializeVenueStripeOnboarding = onCall({
 });
 /**
  * applyStarterMenu
- * Clones global starter modifier-group templates (starter_modifier_library,
- * filtered by venueType) into the venue's modifier_groups.
+ * Copies specific global starter modifier-group templates
+ * (starter_modifier_library) into the venue's modifier_groups. Callable by
+ * a super admin (building out a venue's initial setup) or that venue's own
+ * authorized admin (pulling in a modifier whenever they want) - both pass
+ * the same assertVenueAuthorized check.
  */
 export const applyStarterMenu = onCall({ region: 'us-central1' }, async (request) => {
     try {
-        const { venueId, venueType } = request.data || {};
+        const { venueId, modifierIds } = request.data || {};
         if (!venueId)
             throw new HttpsError('invalid-argument', 'Missing venueId.');
-        if (!venueType)
-            throw new HttpsError('invalid-argument', 'Missing venueType.');
+        if (!Array.isArray(modifierIds) || modifierIds.length === 0) {
+            throw new HttpsError('invalid-argument', 'Missing modifierIds.');
+        }
         await assertVenueAuthorized(request, venueId);
         const librarySnap = await db.collection('starter_modifier_library').get();
-        const relevant = librarySnap.docs.filter(d => {
-            const vt = d.data().venueType;
-            return Array.isArray(vt) && vt.includes(venueType);
-        });
+        const selected = librarySnap.docs.filter(d => modifierIds.includes(d.id));
         const modifierGroupsRef = db.collection('modifier_groups');
         const batch = db.batch();
-        relevant.forEach(templateDoc => {
+        selected.forEach(templateDoc => {
             const template = templateDoc.data();
             const groupId = `${venueId}-${slugify(template.name)}`;
             batch.set(modifierGroupsRef.doc(groupId), {
@@ -290,65 +291,91 @@ export const applyStarterMenu = onCall({ region: 'us-central1' }, async (request
             }, { merge: true });
         });
         await batch.commit();
-        return { totalCreated: relevant.length };
+        return { totalCreated: selected.length };
     }
     catch (err) {
         logger.error("applyStarterMenu Error", err);
         if (err instanceof HttpsError)
             throw err;
-        throw new HttpsError('internal', err.message || 'Failed to clone modifier templates.');
+        throw new HttpsError('internal', err.message || 'Failed to import modifier templates.');
     }
 });
 /**
  * applyStarterItems
- * Clones global starter menu-item templates (starter_menu_item_library,
- * filtered by venueType) into the venue's sellers/{venueId}/menuItems.
+ * Copies specific global starter menu-item templates
+ * (starter_menu_item_library) into the venue's sellers/{venueId}/menuItems,
+ * onto the given service mode. An item already on the venue's menu (e.g.
+ * imported earlier for a different mode) gets this mode added to its
+ * availableOn list instead of being overwritten, so the same item can live
+ * on multiple modes without duplicate docs or clobbering prior edits.
+ * Also opts the item's category into that mode's categoryVisibility so an
+ * import doesn't silently end up invisible on the buyer-facing menu.
+ * Callable by a super admin or the venue's own authorized admin.
  */
 export const applyStarterItems = onCall({ region: 'us-central1' }, async (request) => {
     try {
-        const { venueId, venueType } = request.data || {};
+        const { venueId, itemIds, mode } = request.data || {};
         if (!venueId)
             throw new HttpsError('invalid-argument', 'Missing venueId.');
-        if (!venueType)
-            throw new HttpsError('invalid-argument', 'Missing venueType.');
+        if (!Array.isArray(itemIds) || itemIds.length === 0) {
+            throw new HttpsError('invalid-argument', 'Missing itemIds.');
+        }
+        if (!SERVICE_MODE_LABELS[mode])
+            throw new HttpsError('invalid-argument', 'Missing or invalid mode.');
         await assertVenueAuthorized(request, venueId);
+        const modeLabel = SERVICE_MODE_LABELS[mode];
         const librarySnap = await db.collection('starter_menu_item_library').get();
-        const relevant = librarySnap.docs.filter(d => {
-            const vt = d.data().venueType;
-            return Array.isArray(vt) && vt.includes(venueType);
-        });
+        const selected = librarySnap.docs.filter(d => itemIds.includes(d.id));
         const menuItemsRef = db.collection('sellers').doc(venueId).collection('menuItems');
+        const itemRefs = selected.map(templateDoc => menuItemsRef.doc(`${venueId}-${templateDoc.id}`));
+        const existingDocs = itemRefs.length ? await db.getAll(...itemRefs) : [];
+        const existingById = new Map(existingDocs.map(d => [d.id, d]));
         const existingCountSnap = await menuItemsRef.count().get();
-        const startRank = existingCountSnap.data().count;
+        let nextRank = existingCountSnap.data().count + 1;
         const batch = db.batch();
-        relevant.forEach((templateDoc, index) => {
+        const categoriesTouched = new Set();
+        selected.forEach((templateDoc, index) => {
             const template = templateDoc.data();
-            const itemId = `${venueId}-${slugify(template.name)}-${slugify(template.serviceMode || '')}`;
-            const modifierGroupIds = Array.from(new Set((template.suggestedModifierGroups || []).map((name) => `${venueId}-${slugify(name)}`)));
-            const availableOn = SERVICE_MODE_LABELS[template.serviceMode] ? [SERVICE_MODE_LABELS[template.serviceMode]] : [];
-            batch.set(menuItemsRef.doc(itemId), {
-                id: itemId,
-                name: template.name,
-                description: template.description || '',
-                price: template.price,
-                category: template.category,
-                rank: startRank + index + 1,
-                imageUrl: template.imageUrl || '',
-                modifierGroupIds,
-                availableOn,
-                isAvailable: true,
-                createdAt: FieldValue.serverTimestamp(),
-                updatedAt: FieldValue.serverTimestamp(),
-            }, { merge: true });
+            const itemRef = itemRefs[index];
+            const existing = existingById.get(itemRef.id);
+            categoriesTouched.add(template.category);
+            if (existing?.exists) {
+                batch.update(itemRef, {
+                    availableOn: FieldValue.arrayUnion(modeLabel),
+                    updatedAt: FieldValue.serverTimestamp(),
+                });
+            }
+            else {
+                const modifierGroupIds = Array.from(new Set((template.suggestedModifierGroups || []).map((name) => `${venueId}-${slugify(name)}`)));
+                batch.set(itemRef, {
+                    id: itemRef.id,
+                    name: template.name,
+                    description: template.description || '',
+                    price: template.price,
+                    category: template.category,
+                    rank: nextRank++,
+                    imageUrl: template.imageUrl || '',
+                    modifierGroupIds,
+                    availableOn: [modeLabel],
+                    isAvailable: true,
+                    createdAt: FieldValue.serverTimestamp(),
+                    updatedAt: FieldValue.serverTimestamp(),
+                });
+            }
         });
+        if (categoriesTouched.size > 0) {
+            batch.set(db.collection('sellers').doc(venueId), {
+                categoryVisibility: { [modeLabel]: FieldValue.arrayUnion(...Array.from(categoriesTouched)) },
+            }, { merge: true });
+        }
         await batch.commit();
-        return { totalCreated: relevant.length };
+        return { totalCreated: selected.length };
     }
     catch (err) {
         logger.error("applyStarterItems Error", err);
         if (err instanceof HttpsError)
             throw err;
-        throw new HttpsError('internal', err.message || 'Failed to clone menu item templates.');
+        throw new HttpsError('internal', err.message || 'Failed to import menu item templates.');
     }
 });
 /**
