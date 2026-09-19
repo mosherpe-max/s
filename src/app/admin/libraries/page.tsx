@@ -28,7 +28,7 @@ import {
 } from '@/components/ui/table';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, doc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
-import type { StarterMenuItem, StarterModifierGroup } from '@/lib/types';
+import { categories, type StarterMenuItem, type StarterModifierGroup } from '@/lib/types';
 import { seedGlobalStarterMenuLibrary } from '@/lib/seed-data';
 import { ImageUploadDropzone } from '@/components/image-upload-dropzone';
 import { useToast } from '@/hooks/use-toast';
@@ -291,7 +291,17 @@ export default function GlobalLibrariesPage() {
                   <div className="space-y-2"><Label className="text-[10px] font-black uppercase">Template Name</Label><Input name="name" defaultValue={editingItem?.name} required className="h-11 border-2 font-bold" /></div>
                   <div className="space-y-2"><Label className="text-[10px] font-black uppercase">Description</Label><Input name="description" defaultValue={editingItem?.description} className="h-11 border-2 font-bold" /></div>
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2"><Label className="text-[10px] font-black uppercase">Category</Label><Input name="category" defaultValue={editingItem?.category} required className="h-11 border-2 font-bold" /></div>
+                    <div className="space-y-2">
+                       <Label className="text-[10px] font-black uppercase">Category</Label>
+                       <Select name="category" defaultValue={editingItem?.category} required>
+                          <SelectTrigger className="h-11 border-2 font-bold"><SelectValue placeholder="Select..." /></SelectTrigger>
+                          <SelectContent>
+                             {categories.filter(c => c !== 'Featured').map(c => (
+                               <SelectItem key={c} value={c}>{c}</SelectItem>
+                             ))}
+                          </SelectContent>
+                       </Select>
+                    </div>
                     <div className="space-y-2"><Label className="text-[10px] font-black uppercase">Price</Label><Input name="price" type="number" step="0.01" defaultValue={editingItem?.price} required className="h-11 border-2 font-bold" /></div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
