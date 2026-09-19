@@ -295,7 +295,7 @@ export default function GlobalLibrariesPage() {
                        <Label className="text-[10px] font-black uppercase">Category</Label>
                        <Select name="category" defaultValue={editingItem?.category} required>
                           <SelectTrigger className="h-11 border-2 font-bold"><SelectValue placeholder="Select..." /></SelectTrigger>
-                          <SelectContent>
+                          <SelectContent position="item-aligned">
                              {categories.filter(c => c !== 'Featured').map(c => (
                                <SelectItem key={c} value={c}>{c}</SelectItem>
                              ))}
