@@ -87,14 +87,22 @@ export default function GlobalLibrariesPage() {
     const formData = new FormData(e.currentTarget);
     const id = editingItem?.id || formData.get('name')?.toString().toLowerCase().replace(/\s+/g, '-') || Math.random().toString(36).substr(2, 9);
     
+    const venueType = formData.getAll('venueType') as string[];
+    if (venueType.length === 0) {
+      toast({ variant: 'destructive', title: 'Select at Least One Market', description: 'Choose Golf, Bowling, or both.' });
+      setIsProcessing(false);
+      return;
+    }
+
     const data: any = {
       id,
       name: formData.get('name'),
       description: formData.get('description'),
       price: parseFloat(formData.get('price') as string) || 0,
       category: formData.get('category'),
-      venueType: (formData.get('venueType') as string).split(','),
+      venueType,
       serviceMode: formData.get('serviceMode'),
+      suggestedModifierGroups: formData.getAll('suggestedModifierGroups') as string[],
       sortOrder: parseInt(formData.get('sortOrder') as string) || 0,
       imageUrl: formData.get('imageUrl'),
       updatedAt: serverTimestamp()
@@ -116,11 +124,18 @@ export default function GlobalLibrariesPage() {
     
     const formData = new FormData(e.currentTarget);
     const id = editingMod?.id || formData.get('name')?.toString().toLowerCase().replace(/\s+/g, '-') || Math.random().toString(36).substr(2, 9);
-    
+
+    const modVenueType = formData.getAll('venueType') as string[];
+    if (modVenueType.length === 0) {
+      toast({ variant: 'destructive', title: 'Select at Least One Market', description: 'Choose Golf, Bowling, or both.' });
+      setIsProcessing(false);
+      return;
+    }
+
     const data: any = {
       id,
       name: formData.get('name'),
-      venueType: (formData.get('venueType') as string).split(','),
+      venueType: modVenueType,
       category: formData.get('category'),
       selectionType: formData.get('selectionType'),
       required: formData.get('required') === 'on',
@@ -305,7 +320,19 @@ export default function GlobalLibrariesPage() {
                     <div className="space-y-2"><Label className="text-[10px] font-black uppercase">Price</Label><Input name="price" type="number" step="0.01" defaultValue={editingItem?.price} required className="h-11 border-2 font-bold" /></div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2"><Label className="text-[10px] font-black uppercase">Markets (Comma Sep)</Label><Input name="venueType" defaultValue={editingItem?.venueType?.join(',')} placeholder="golf,bowling" required className="h-11 border-2 font-bold" /></div>
+                    <div className="space-y-2">
+                       <Label className="text-[10px] font-black uppercase">Markets</Label>
+                       <div className="flex items-center gap-4 h-11 px-3 border-2 rounded-lg bg-slate-50">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <Checkbox name="venueType" value="golf" defaultChecked={editingItem?.venueType?.includes('golf') ?? true} />
+                            <span className="text-[10px] font-bold text-muted-foreground uppercase">Golf</span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <Checkbox name="venueType" value="bowling" defaultChecked={editingItem?.venueType?.includes('bowling')} />
+                            <span className="text-[10px] font-bold text-muted-foreground uppercase">Bowling</span>
+                          </label>
+                       </div>
+                    </div>
                     <div className="space-y-2">
                        <Label className="text-[10px] font-black uppercase">Initial Service Mode</Label>
                        <Select name="serviceMode" defaultValue={editingItem?.serviceMode || 'beverageCart'}>
@@ -316,6 +343,19 @@ export default function GlobalLibrariesPage() {
                              <SelectItem value="laneService">Lane Delivery</SelectItem>
                           </SelectContent>
                        </Select>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase">Suggested Modifiers</Label>
+                    <div className="max-h-40 overflow-y-auto space-y-1 p-3 border-2 rounded-lg bg-slate-50">
+                      {(modTemplates || []).length === 0 ? (
+                        <p className="text-[9px] font-bold text-muted-foreground uppercase">No modifier templates yet</p>
+                      ) : (modTemplates || []).map(mod => (
+                        <label key={mod.id} className="flex items-center gap-2 cursor-pointer py-1">
+                          <Checkbox name="suggestedModifierGroups" value={mod.name} defaultChecked={editingItem?.suggestedModifierGroups?.includes(mod.name)} />
+                          <span className="text-[10px] font-bold uppercase">{mod.name}</span>
+                        </label>
+                      ))}
                     </div>
                   </div>
                   <div className="space-y-2">
@@ -344,7 +384,19 @@ export default function GlobalLibrariesPage() {
           <form onSubmit={handleSaveMod}>
             <div className="p-8 space-y-6">
                <div className="space-y-2"><Label className="text-[10px] font-black uppercase">Group Name</Label><Input name="name" defaultValue={editingMod?.name} required className="h-11 border-2 font-bold" /></div>
-               <div className="space-y-2"><Label className="text-[10px] font-black uppercase">Markets (Comma Sep)</Label><Input name="venueType" defaultValue={editingMod?.venueType?.join(',')} placeholder="golf,bowling" required className="h-11 border-2 font-bold" /></div>
+               <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase">Markets</Label>
+                  <div className="flex items-center gap-4 h-11 px-3 border-2 rounded-lg bg-slate-50">
+                     <label className="flex items-center gap-2 cursor-pointer">
+                       <Checkbox name="venueType" value="golf" defaultChecked={editingMod?.venueType?.includes('golf') ?? true} />
+                       <span className="text-[10px] font-bold text-muted-foreground uppercase">Golf</span>
+                     </label>
+                     <label className="flex items-center gap-2 cursor-pointer">
+                       <Checkbox name="venueType" value="bowling" defaultChecked={editingMod?.venueType?.includes('bowling')} />
+                       <span className="text-[10px] font-bold text-muted-foreground uppercase">Bowling</span>
+                     </label>
+                  </div>
+               </div>
                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label className="text-[10px] font-black uppercase">Selection Type</Label>

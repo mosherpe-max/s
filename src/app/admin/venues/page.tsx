@@ -21,13 +21,14 @@ import {
   CheckCircle2,
   FlaskConical,
   Copy,
-  Sparkles,
   Power,
   Timer,
   QrCode,
   RefreshCcw,
   XCircle,
-  Download
+  Download,
+  Library,
+  Tags
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -67,9 +68,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useFirestore, useCollection, useMemoFirebase, useFirebaseApp } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, doc, updateDoc, setDoc, deleteDoc, serverTimestamp, writeBatch, getDoc } from 'firebase/firestore';
-import { getFunctions, httpsCallable } from 'firebase/functions';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 import type { Seller, Venue } from '@/lib/types';
@@ -80,6 +80,14 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormDescription } from '@/components/ui/form';
 import { cn, AUTHORIZED_SERVICE_MODES } from '@/lib/utils';
+import { StarterItemPicker } from '@/components/starter-item-picker';
+import { StarterModifierPicker } from '@/components/starter-modifier-picker';
+
+const MODE_KEY_BY_LABEL: Record<string, 'beverageCart' | 'clubhouse' | 'laneService'> = {
+  'Beverage Cart': 'beverageCart',
+  'Clubhouse': 'clubhouse',
+  'Lane Delivery': 'laneService',
+};
 
 const SERVICE_MODES = [
   { id: 'Beverage Cart', label: 'Beverage Cart' },
@@ -131,7 +139,6 @@ const newVenueSchema = z.object({
 type NewVenueData = z.infer<typeof newVenueSchema>;
 
 export default function AdminVenueRegistryPage() {
-  const firebaseApp = useFirebaseApp();
   const firestore = useFirestore();
   const { toast } = useToast();
   
@@ -140,7 +147,6 @@ export default function AdminVenueRegistryPage() {
   const [venueToDelete, setVenueToDelete] = useState<string | null>(null);
   const [selectedVenue, setSelectedVenue] = useState<Venue | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isCloning, setIsCloning] = useState(false);
   const [baseUrl, setBaseUrl] = useState('');
 
   useEffect(() => {
@@ -282,27 +288,6 @@ export default function AdminVenueRegistryPage() {
       .finally(() => setIsProcessing(false));
   };
 
-  const handleApplyTemplates = async (type: 'mods' | 'items') => {
-    if (!selectedVenue || !firebaseApp) return;
-    setIsCloning(true);
-    const functions = getFunctions(firebaseApp, 'us-central1');
-    const funcName = type === 'mods' ? 'applyStarterMenu' : 'applyStarterItems';
-    const func = httpsCallable(functions, funcName);
-    
-    const seller = sellers?.find(s => s.id === selectedVenue.venueId);
-    const venueType = seller?.type === 'Golf Course' ? 'golf' : 'bowling';
-
-    try {
-      const result = await func({ venueId: selectedVenue.venueId, venueType });
-      const data = result.data as { totalCreated: number };
-      toast({ title: "Cloning Complete", description: `Initialized ${data.totalCreated} records for this venue.` });
-    } catch (e: any) {
-      toast({ variant: "destructive", title: "Cloning Failed", description: e.message });
-    } finally {
-      setIsCloning(false);
-    }
-  };
-
   const handleCreateVenue = async (data: NewVenueData) => {
     if (!firestore) return;
     setIsProcessing(true);
@@ -409,6 +394,8 @@ export default function AdminVenueRegistryPage() {
   const qrUrl = currentSeller?.qrActive && currentSeller?.qrSecret
     ? `${baseUrl}/sellers/${currentSeller.id}/order?key=${currentSeller.qrSecret}`
     : '';
+  const currentVenueType: 'golf' | 'bowling' = currentSeller?.type === 'Golf Course' ? 'golf' : 'bowling';
+  const currentSellerModes = (currentSeller?.menuTypes || []).filter(m => AUTHORIZED_SERVICE_MODES.includes(m));
 
   // Launch readiness - everything a Koop admin needs to have set up before a
   // venue is ready to take real orders. Recomputed live as fields are edited
@@ -861,18 +848,39 @@ export default function AdminVenueRegistryPage() {
                </Form>
 
                <div className="space-y-6 pt-10 border-t-4 border-primary/10">
-                  <Label className="text-[11px] font-black uppercase tracking-[0.3em] text-primary flex items-center gap-2"><Sparkles className="h-4 w-4" /> Template Cloning</Label>
-                  <p className="text-[10px] font-medium text-muted-foreground leading-relaxed uppercase">Push global starter templates to this venue's local catalog.</p>
-                  <div className="grid grid-cols-2 gap-4">
-                     <Button variant="outline" disabled={isCloning} onClick={() => handleApplyTemplates('mods')} className="h-16 flex-col gap-1 border-2 rounded-2xl border-indigo-100 text-indigo-600 hover:bg-indigo-50">
-                        {isCloning ? <Loader2 className="animate-spin h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                        <span className="text-[10px] font-black uppercase tracking-widest">Clone Modifiers</span>
-                     </Button>
-                     <Button variant="outline" disabled={isCloning} onClick={() => handleApplyTemplates('items')} className="h-16 flex-col gap-1 border-2 rounded-2xl border-primary/10 text-primary hover:bg-primary/5">
-                        {isCloning ? <Loader2 className="animate-spin h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
-                        <span className="text-[10px] font-black uppercase tracking-widest">Clone Items</span>
-                     </Button>
-                  </div>
+                  <Label className="text-[11px] font-black uppercase tracking-[0.3em] text-primary flex items-center gap-2"><Library className="h-4 w-4" /> Build Menu From Library</Label>
+                  <p className="text-[10px] font-medium text-muted-foreground leading-relaxed uppercase">Pick specific items and modifiers to add to this venue &mdash; nothing is bulk-loaded.</p>
+                  {selectedVenue && (
+                    <div className="space-y-3">
+                      <StarterModifierPicker
+                        sellerId={selectedVenue.venueId}
+                        venueType={currentVenueType}
+                        trigger={
+                          <Button variant="outline" className="w-full h-14 gap-2 border-2 rounded-2xl border-indigo-100 text-indigo-600 hover:bg-indigo-50">
+                            <Tags className="h-4 w-4" />
+                            <span className="text-[10px] font-black uppercase tracking-widest">Import Modifiers</span>
+                          </Button>
+                        }
+                      />
+                      {currentSellerModes.length === 0 ? (
+                        <p className="text-[9px] font-bold text-muted-foreground uppercase text-center py-4">Select at least one service mode above first</p>
+                      ) : currentSellerModes.map(modeLabel => (
+                        <StarterItemPicker
+                          key={modeLabel}
+                          sellerId={selectedVenue.venueId}
+                          venueType={currentVenueType}
+                          mode={MODE_KEY_BY_LABEL[modeLabel]}
+                          modeLabel={modeLabel}
+                          trigger={
+                            <Button variant="outline" className="w-full h-14 gap-2 border-2 rounded-2xl border-primary/10 text-primary hover:bg-primary/5">
+                              <Library className="h-4 w-4" />
+                              <span className="text-[10px] font-black uppercase tracking-widest">Import Items &mdash; {modeLabel}</span>
+                            </Button>
+                          }
+                        />
+                      ))}
+                    </div>
+                  )}
                </div>
             </div>
           </ScrollArea>
