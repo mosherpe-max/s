@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
   Library,
@@ -224,8 +225,17 @@ export default function GlobalLibrariesPage() {
                   ) : (menuTemplates || []).map(item => (
                     <TableRow key={item.id} className="group hover:bg-slate-50/50 transition-colors">
                       <TableCell className="px-8 py-4">
-                        <p className="font-black text-sm uppercase text-[#213147]">{item.name}</p>
-                        <p className="text-[9px] font-bold text-muted-foreground uppercase truncate max-w-xs">{item.description}</p>
+                        <div className="flex items-center gap-3">
+                          {item.imageUrl && (
+                            <div className="relative h-10 w-10 rounded-lg overflow-hidden shrink-0 border border-slate-200">
+                              <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <p className="font-black text-sm uppercase text-[#213147]">{item.name}</p>
+                            <p className="text-[9px] font-bold text-muted-foreground uppercase truncate max-w-xs">{item.description}</p>
+                          </div>
+                        </div>
                       </TableCell>
                       <TableCell><Badge variant="outline" className="text-[8px] font-black uppercase bg-slate-100">{item.category}</Badge></TableCell>
                       <TableCell>
