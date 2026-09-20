@@ -64,6 +64,7 @@ export interface Venue {
   serviceStartDate?: Timestamp;
   isFoundingPartner?: boolean;
   isDemo?: boolean;
+  stripeOnboardingComplete?: boolean;
   enabledPaymentMethods?: PaymentMethodType[];
   createdAt: Timestamp;
   updatedAt: Timestamp;
@@ -272,6 +273,7 @@ export interface Order {
   total: number;
   status: 'Placed' | 'Preparing' | 'Out for Delivery' | 'Delivered' | 'Cancelled';
   createdAt: Timestamp;
+  updatedAt?: Timestamp;
   acknowledgedAt?: Timestamp;
   deliveredAt?: Timestamp;
   assignedStaffId?: string;
@@ -285,7 +287,7 @@ export interface Order {
 export interface Prospect {
   id: string;
   venueName: string;
-  venueType: string;
+  venueType: SellerType;
   stage: 'Contacted' | 'Demo Scheduled' | 'Proposal Sent' | 'Closed' | 'Lost';
   contactName: string;
   contactEmail: string;
