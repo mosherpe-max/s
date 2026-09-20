@@ -88,7 +88,7 @@ export function StarterItemPicker({ sellerId, venueType, mode, modeLabel, trigge
   return (
     <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setSelected(new Set()); }}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent className="sm:max-w-[600px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
+      <DialogContent closeClassName="text-white hover:text-white/80" className="sm:max-w-[600px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
         <DialogHeader className="p-8 bg-[#213147] text-white">
           <DialogTitle className="font-headline font-black uppercase text-xl flex items-center gap-2">
             <Library className="h-5 w-5" /> Import Items &mdash; {modeLabel}

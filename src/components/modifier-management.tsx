@@ -216,12 +216,14 @@ export function ModifierManagement({ sellerId, venueType }: ModifierManagementPr
       </Card>
 
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="uppercase font-black text-[#213147]">{editingGroup ? 'Edit Modifier Group' : 'New Modifier Group'}</DialogTitle>
+        <DialogContent closeClassName="text-white hover:text-white/80" className="max-w-lg rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left max-h-[90vh] flex flex-col">
+          <DialogHeader className="p-8 bg-[#213147] text-white shrink-0">
+            <DialogTitle className="font-headline font-black uppercase text-xl">{editingGroup ? 'Edit Modifier Group' : 'New Modifier Group'}</DialogTitle>
           </DialogHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSave)} className="space-y-5">
+            <form onSubmit={form.handleSubmit(onSave)} className="flex flex-col flex-1 min-h-0">
+            <div className="flex-1 min-h-0 overflow-y-auto">
+            <div className="p-8 space-y-5">
               <FormField control={form.control} name="name" render={({ field }) => (
                 <FormItem>
                   <FormLabel className="text-[9px] font-black uppercase">Group Name</FormLabel>
@@ -269,9 +271,13 @@ export function ModifierManagement({ sellerId, venueType }: ModifierManagementPr
                 ))}
               </div>
 
+            </div>
+            </div>
+            <div className="p-8 pt-0 shrink-0">
               <Button type="submit" disabled={isSaving} className="w-full h-12 font-black uppercase tracking-widest">
                 {isSaving ? 'Saving...' : editingGroup ? 'Save Changes' : 'Create Modifier Group'}
               </Button>
+            </div>
             </form>
           </Form>
         </DialogContent>

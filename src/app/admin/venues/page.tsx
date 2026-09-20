@@ -542,7 +542,7 @@ export default function AdminVenueRegistryPage() {
       </div>
 
       <Dialog open={isNewVenueOpen} onOpenChange={setIsNewVenueOpen}>
-        <DialogContent className="sm:max-w-[550px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
+        <DialogContent closeClassName="text-white hover:text-white/80" className="sm:max-w-[550px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
           <DialogHeader className="p-8 bg-[#213147] text-white">
             <DialogTitle className="font-headline font-black uppercase text-xl">Venue Onboarding</DialogTitle>
           </DialogHeader>
@@ -626,7 +626,7 @@ export default function AdminVenueRegistryPage() {
       </Dialog>
 
       <Dialog open={isManagementOpen} onOpenChange={setIsManagementOpen}>
-        <DialogContent className="sm:max-w-[550px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
+        <DialogContent closeClassName="text-white hover:text-white/80" className="sm:max-w-[550px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
           <DialogHeader className="p-8 bg-[#213147] text-white">
             <div className="flex items-center justify-between gap-4">
               <DialogTitle className="font-headline font-black uppercase text-xl">Venue Controls</DialogTitle>

@@ -304,7 +304,7 @@ export default function GlobalLibrariesPage() {
 
       {/* ITEM DIALOG */}
       <Dialog open={isItemDialogOpen} onOpenChange={(o) => { setIsItemDialogOpen(o); if (!o) setEditingItem(null); }}>
-        <DialogContent className="sm:max-w-[550px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left max-h-[90vh] flex flex-col">
+        <DialogContent closeClassName="text-white hover:text-white/80" className="sm:max-w-[550px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left max-h-[90vh] flex flex-col">
           <DialogHeader className="p-8 bg-[#213147] text-white shrink-0">
             <DialogTitle className="font-headline font-black uppercase text-xl">{editingItem ? 'Edit Product Template' : 'New Product Template'}</DialogTitle>
           </DialogHeader>
@@ -386,8 +386,8 @@ export default function GlobalLibrariesPage() {
 
       {/* MOD DIALOG */}
       <Dialog open={isModDialogOpen} onOpenChange={(o) => { setIsModDialogOpen(o); if (!o) setEditingMod(null); }}>
-        <DialogContent className="sm:max-w-[450px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
-          <DialogHeader className="p-8 bg-indigo-600 text-white">
+        <DialogContent closeClassName="text-white hover:text-white/80" className="sm:max-w-[450px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
+          <DialogHeader className="p-8 bg-[#213147] text-white">
             <DialogTitle className="font-headline font-black uppercase text-xl">Modifier Template</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSaveMod}>
@@ -422,7 +422,7 @@ export default function GlobalLibrariesPage() {
                     </div>
                   </div>
                </div>
-               <Button type="submit" disabled={isProcessing} className="w-full h-14 bg-indigo-600 font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl rounded-2xl">
+               <Button type="submit" disabled={isProcessing} className="w-full h-14 bg-primary font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl rounded-2xl">
                  {isProcessing ? <Loader2 className="animate-spin" /> : <Save className="h-4 w-4" />} Save Global Modifier
                </Button>
             </div>
