@@ -1450,15 +1450,16 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       </div>
 
       <Dialog open={isItemFormOpen} onOpenChange={setIsItemFormOpen}>
-        <DialogContent className="sm:max-w-[450px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
-          <DialogHeader className="p-8 bg-[#213147] text-white">
+        <DialogContent className="sm:max-w-[450px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left max-h-[90vh] flex flex-col">
+          <DialogHeader className="p-8 bg-[#213147] text-white shrink-0">
             <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">
               {editingItem ? 'Edit Product' : 'New Product'}
             </DialogTitle>
           </DialogHeader>
-          <div className="p-8">
-            <Form {...itemForm}>
-              <form onSubmit={itemForm.handleSubmit(onSaveItem)} className="space-y-6">
+          <Form {...itemForm}>
+            <form onSubmit={itemForm.handleSubmit(onSaveItem)} className="flex flex-col flex-1 min-h-0">
+              <ScrollArea className="flex-1 min-h-0">
+                <div className="p-8 space-y-6">
                 <FormField
                   control={itemForm.control}
                   name="name"
@@ -1584,12 +1585,15 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                     New products start unassigned to any service mode. Use the Service Modes tab to make it orderable.
                   </p>
                 )}
+                </div>
+              </ScrollArea>
+              <div className="p-8 pt-0 shrink-0">
                 <Button type="submit" disabled={isProcessingItemSave} className="w-full h-14 bg-[#213147] font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">
                   {isProcessingItemSave ? <Loader2 className="animate-spin" /> : <Save className="h-4 w-4" />} {editingItem ? 'Save Changes' : 'Add Product'}
                 </Button>
-              </form>
-            </Form>
-          </div>
+              </div>
+            </form>
+          </Form>
         </DialogContent>
       </Dialog>
 
