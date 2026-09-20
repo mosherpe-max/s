@@ -17,7 +17,6 @@ import { useRouter } from 'next/navigation';
 import { isToday, differenceInSeconds, differenceInMinutes, format } from 'date-fns';
 import { cn, SUPER_ADMIN_ID, isStaffSessionStale, isStaffSessionIdle, getNumericOrderId, playNotificationSound } from '@/lib/utils';
 import { useHasInteracted } from '@/hooks/use-has-interacted';
-import { NotificationGate } from '@/components/notification-gate';
 import Link from 'next/link';
 import {
   Dialog,
@@ -51,7 +50,6 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isStockOpen, setIsStockOpen] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
-  const [notificationGateComplete, setNotificationGateComplete] = useState(false);
   const hasInteracted = useHasInteracted();
   
   const lastOrderIdsRef = useRef<Set<string>>(new Set());
@@ -332,17 +330,6 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
   };
 
   const isLoading = areActiveOrdersLoading || isPrimaryLoading;
-
-  if (currentStaffId && !notificationGateComplete) {
-    return (
-      <NotificationGate
-        venueName={primarySeller?.courseName}
-        sellerId={sellerId}
-        staffId={currentStaffId}
-        onDone={() => setNotificationGateComplete(true)}
-      />
-    );
-  }
 
   return (
     <div className="flex flex-col h-screen overflow-x-auto bg-muted/20 text-left">

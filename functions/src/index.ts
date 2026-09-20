@@ -626,12 +626,19 @@ interface StaffPushPayload {
 }
 
 /**
- * Sends to every staff member currently on shift for this exact venue +
- * service mode (activeMode match) - a Beverage Cart order never reaches a
- * Clubhouse-logged-in device and vice versa, and a staff member who has
- * clocked out (activeMode cleared) receives nothing. Clears any
- * subscription Web Push reports as gone (expired/unsubscribed) instead of
- * retrying it forever.
+ * Sends to every device currently signed into this exact venue + service
+ * mode (activeMode match on the staff doc) - a Beverage Cart order never
+ * reaches a Clubhouse-logged-in device and vice versa, and a staff member
+ * who has clocked out (activeMode cleared) receives nothing. The push
+ * subscription itself lives on a separate per-device doc
+ * (sellers/{sellerId}/pushDevices/{deviceId}), not on the staff doc -
+ * set up once from Safari before the PWA is added to the Home Screen,
+ * since requesting notification permission from inside the already-
+ * installed standalone app ejects it into Safari chrome on this iOS
+ * build. Each staff doc just points at the device it last logged in from
+ * (currentDeviceId), so the actual subscription outlives any one staff
+ * member on a shared terminal. Deletes any device doc Web Push reports as
+ * gone (expired/unsubscribed) instead of retrying it forever.
  */
 async function pushToActiveStaff(sellerId: string, mode: string, payload: StaffPushPayload) {
   const client = getWebPushClient();
@@ -642,18 +649,27 @@ async function pushToActiveStaff(sellerId: string, mode: string, payload: StaffP
     .get();
   if (staffSnap.empty) return;
 
+  const deviceIds = Array.from(new Set(
+    staffSnap.docs.map(d => d.data()?.currentDeviceId).filter((id): id is string => !!id)
+  ));
+  if (deviceIds.length === 0) return;
+
+  const devicesRef = db.collection('sellers').doc(sellerId).collection('pushDevices');
+  const deviceDocs = await db.getAll(...deviceIds.map(id => devicesRef.doc(id)));
+
   const body = JSON.stringify(payload);
 
-  await Promise.all(staffSnap.docs.map(async (staffDoc) => {
-    const subscription = staffDoc.data()?.pushSubscription;
+  await Promise.all(deviceDocs.map(async (deviceDoc) => {
+    if (!deviceDoc.exists) return;
+    const subscription = deviceDoc.data()?.subscription;
     if (!subscription?.endpoint) return;
     try {
       await client.sendNotification(subscription, body);
     } catch (err: any) {
       if (err?.statusCode === 404 || err?.statusCode === 410) {
-        await staffDoc.ref.update({ pushSubscription: FieldValue.delete() }).catch(() => {});
+        await deviceDoc.ref.delete().catch(() => {});
       } else {
-        logger.error(`Push failed for staff ${staffDoc.id}`, err);
+        logger.error(`Push failed for device ${deviceDoc.id}`, err);
       }
     }
   }));

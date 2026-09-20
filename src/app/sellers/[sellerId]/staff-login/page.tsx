@@ -8,12 +8,15 @@ import { useFirestore, useDoc, useMemoFirebase, useAuth } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, Lock, Smartphone, User, ShieldCheck, ChevronRight, X, Eraser, CheckCircle2, Truck, Building, Users, MapPin, AlertTriangle } from 'lucide-react';
+import { Loader2, Lock, Smartphone, User, ShieldCheck, ChevronRight, X, Eraser, CheckCircle2, Truck, Building, Users, MapPin, AlertTriangle, BellRing, Share } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn, AUTHORIZED_SERVICE_MODES } from '@/lib/utils';
 import type { Seller, StaffMember } from '@/lib/types';
 import { StylizedKoopLogo } from '@/components/header';
+import { subscribeDeviceToPush, getOrCreateDeviceId } from '@/lib/push-notifications';
 import Link from 'next/link';
+
+const PUSH_SETUP_DONE_KEY = 'koop_push_setup_done';
 
 const roleIcons: Record<string, any> = {
   'Beverage Cart': Truck,
@@ -32,6 +35,42 @@ export default function StaffLoginPage({ params }: { params: Promise<{ sellerId:
   const [isVerifying, setIsVerifying] = useState(false);
   const [authenticatedStaff, setAuthenticatedStaff] = useState<StaffMember | null>(null);
   const [venueName, setVenueName] = useState('This Venue');
+
+  // Device notification setup - only ever shown in Safari, before this
+  // device has been added to the Home Screen. Calling
+  // Notification.requestPermission() from inside the already-installed
+  // standalone PWA ejects it into Safari chrome on this iOS build
+  // (confirmed on-device, regardless of gesture gating), so this step
+  // can't run inside the app itself - see push-notifications.ts.
+  const [deviceSetupChecked, setDeviceSetupChecked] = useState(false);
+  const [showDeviceSetup, setShowDeviceSetup] = useState(false);
+  const [isEnablingPush, setIsEnablingPush] = useState(false);
+  const [pushOutcome, setPushOutcome] = useState<'success' | 'denied' | 'unsupported' | 'unconfigured' | null>(null);
+
+  useEffect(() => {
+    const isStandalone = (window.navigator as any).standalone === true;
+    const alreadyDone = localStorage.getItem(PUSH_SETUP_DONE_KEY) === 'true';
+    setShowDeviceSetup(!isStandalone && !alreadyDone);
+    setDeviceSetupChecked(true);
+  }, []);
+
+  const finishDeviceSetup = () => {
+    localStorage.setItem(PUSH_SETUP_DONE_KEY, 'true');
+    setShowDeviceSetup(false);
+  };
+
+  const handleEnablePush = async () => {
+    if (!firestore) { finishDeviceSetup(); return; }
+    setIsEnablingPush(true);
+    const result = await subscribeDeviceToPush(firestore, sellerId).catch(() => 'denied' as const);
+    setIsEnablingPush(false);
+    setPushOutcome(result === 'subscribed' ? 'success' : result);
+    if (result !== 'subscribed') {
+      // Denied/unsupported/unconfigured - nothing more to try on this
+      // device, so don't keep showing the prompt on future visits.
+      localStorage.setItem(PUSH_SETUP_DONE_KEY, 'true');
+    }
+  };
 
   // AGGRESSIVE SESSION PURGE ON MOUNT
   useEffect(() => {
@@ -128,10 +167,14 @@ export default function StaffLoginPage({ params }: { params: Promise<{ sellerId:
     // sign itself out, instead of two devices silently fighting over one shift.
     const sessionId = crypto.randomUUID();
 
-    // Update Personnel document with active role
+    // Update Personnel document with active role - currentDeviceId points
+    // this staff member at whichever device's push subscription (if any)
+    // should receive alerts, set up separately in Safari before this
+    // device was ever added to the Home Screen.
     await updateDoc(doc(firestore, 'sellers', sellerId, 'staff', authenticatedStaff.id), {
       activeMode: menuType,
       activeSessionId: sessionId,
+      currentDeviceId: getOrCreateDeviceId(),
       lastActive: serverTimestamp()
     }).catch(() => {});
 
@@ -164,6 +207,55 @@ export default function StaffLoginPage({ params }: { params: Promise<{ sellerId:
     if (!seller) return [];
     return (seller.menuTypes || []).filter(mode => AUTHORIZED_SERVICE_MODES.includes(mode));
   }, [seller]);
+
+  if (deviceSetupChecked && showDeviceSetup) {
+    return (
+      <div className="flex flex-col h-screen items-center justify-center bg-[#213147] text-white p-8 text-center">
+        <div className="bg-primary/10 p-6 rounded-[2rem] mb-6">
+          <BellRing className="h-12 w-12 text-primary" />
+        </div>
+
+        {pushOutcome === 'success' ? (
+          <>
+            <h1 className="font-headline text-xl font-black uppercase tracking-tight mb-3">Notifications Enabled</h1>
+            <p className="text-white/60 text-sm font-medium leading-relaxed max-w-xs mb-6">
+              This device is set up for order alerts. Now add {venueName} to your Home Screen so staff can launch it like an app:
+            </p>
+            <div className="flex items-center gap-2 text-white/80 text-xs font-bold uppercase tracking-widest mb-8">
+              Tap <Share className="h-4 w-4" /> then &ldquo;Add to Home Screen&rdquo;
+            </div>
+          </>
+        ) : pushOutcome ? (
+          <>
+            <h1 className="font-headline text-xl font-black uppercase tracking-tight mb-3">
+              {pushOutcome === 'denied' ? 'Notifications Off' : 'Alerts Unavailable'}
+            </h1>
+            <p className="text-white/60 text-sm font-medium leading-relaxed max-w-xs mb-8">
+              {pushOutcome === 'denied'
+                ? 'You can still use this device to take orders, but staff here won’t get push alerts for new orders.'
+                : 'This browser can’t receive push alerts. You can still use this device to take orders.'}
+            </p>
+          </>
+        ) : (
+          <>
+            <h1 className="font-headline text-xl font-black uppercase tracking-tight mb-3">Enable Notifications</h1>
+            <p className="text-white/60 text-sm font-medium leading-relaxed max-w-xs mb-8">
+              {venueName} can alert this device when new orders come in - do this once before adding Koop to your Home Screen.
+            </p>
+          </>
+        )}
+
+        <Button
+          onClick={pushOutcome ? finishDeviceSetup : handleEnablePush}
+          disabled={isEnablingPush}
+          className="h-14 px-8 bg-primary font-black uppercase tracking-widest text-xs gap-2 shadow-xl"
+        >
+          {isEnablingPush ? <Loader2 className="h-4 w-4 animate-spin" /> : <BellRing className="h-4 w-4" />}
+          {pushOutcome ? 'Continue' : 'Enable Notifications'}
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-muted/30 flex flex-col items-center justify-center p-4 text-left">
