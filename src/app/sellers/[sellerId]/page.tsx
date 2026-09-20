@@ -1289,6 +1289,30 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                             </TableCell>
                             <TableCell className="text-right px-8">
                               <div className="flex justify-end gap-1">
+                                {staff.activeMode && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 hover:text-amber-600"
+                                    title="Force sign out - clears their active shift so a fresh PIN login on any device won't be blocked as 'signed in elsewhere'"
+                                    onClick={() => {
+                                      const docRef = doc(firestore!, 'sellers', sellerId, 'staff', staff.id);
+                                      updateDoc(docRef, {
+                                        activeMode: null,
+                                        activeSessionId: null,
+                                        currentDeviceId: null,
+                                        latitude: null,
+                                        longitude: null,
+                                      }).then(() => {
+                                        toast({ title: "Signed Out", description: `${staff.name} has been signed out of their active shift.` });
+                                      }).catch(async () => {
+                                        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: docRef.path, operation: 'update' } satisfies SecurityRuleContext));
+                                      });
+                                    }}
+                                  >
+                                    <LogOut className="h-4 w-4" />
+                                  </Button>
+                                )}
                                 <Button variant="ghost" size="icon" onClick={() => { setEditingStaff(staff); staffForm.reset(staff); setIsStaffFormOpen(true); }} className="h-8 w-8 hover:text-primary">
                                   <Edit className="h-4 w-4" />
                                 </Button>
