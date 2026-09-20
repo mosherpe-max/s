@@ -1458,7 +1458,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
           </DialogHeader>
           <Form {...itemForm}>
             <form onSubmit={itemForm.handleSubmit(onSaveItem)} className="flex flex-col flex-1 min-h-0">
-              <ScrollArea className="flex-1 min-h-0">
+              <div className="flex-1 min-h-0 overflow-y-auto">
                 <div className="p-8 space-y-6">
                 <FormField
                   control={itemForm.control}
@@ -1586,7 +1586,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                   </p>
                 )}
                 </div>
-              </ScrollArea>
+              </div>
               <div className="p-8 pt-0 shrink-0">
                 <Button type="submit" disabled={isProcessingItemSave} className="w-full h-14 bg-[#213147] font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">
                   {isProcessingItemSave ? <Loader2 className="animate-spin" /> : <Save className="h-4 w-4" />} {editingItem ? 'Save Changes' : 'Add Product'}
