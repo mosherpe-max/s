@@ -104,8 +104,8 @@ export function ModifierSelector({ item, onConfirm, onCancel }: ModifierSelector
 
   return (
     <div className="flex flex-col h-full overflow-hidden text-left">
-      <ScrollArea className="flex-1">
-        <div className="px-6 py-8 space-y-10 pb-32">
+      <ScrollArea className="flex-1 min-h-0">
+        <div className="px-6 py-8 space-y-10">
           {/* Header */}
           <div className="flex gap-4">
             <div className="relative h-20 w-20 rounded-2xl border-2 border-slate-100 overflow-hidden shrink-0 shadow-sm">
@@ -199,7 +199,7 @@ export function ModifierSelector({ item, onConfirm, onCancel }: ModifierSelector
       </ScrollArea>
 
       {/* Persistent Footer */}
-      <div className="absolute bottom-0 left-0 right-0 p-4 bg-white/90 backdrop-blur-md border-t z-20">
+      <div className="shrink-0 p-4 bg-white/90 backdrop-blur-md border-t">
         <div className="max-w-xl mx-auto space-y-4">
           <div className="flex items-center justify-between px-2">
              <div className="flex items-center gap-3 bg-slate-100 p-1 rounded-xl border-2">
