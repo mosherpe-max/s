@@ -295,12 +295,12 @@ export default function GlobalLibrariesPage() {
 
       {/* ITEM DIALOG */}
       <Dialog open={isItemDialogOpen} onOpenChange={(o) => { setIsItemDialogOpen(o); if (!o) setEditingItem(null); }}>
-        <DialogContent className="sm:max-w-[550px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
-          <DialogHeader className="p-8 bg-[#213147] text-white">
+        <DialogContent className="sm:max-w-[550px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left max-h-[90vh] flex flex-col">
+          <DialogHeader className="p-8 bg-[#213147] text-white shrink-0">
             <DialogTitle className="font-headline font-black uppercase text-xl">{editingItem ? 'Edit Product Template' : 'New Product Template'}</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSaveItem}>
-            <ScrollArea className="max-h-[70vh]">
+          <form onSubmit={handleSaveItem} className="flex flex-col flex-1 min-h-0">
+            <ScrollArea className="flex-1 min-h-0">
               <div className="p-8 space-y-6">
                 <div className="space-y-4">
                   <div className="space-y-2"><Label className="text-[10px] font-black uppercase">Template Name</Label><Input name="name" defaultValue={editingItem?.name} required className="h-11 border-2 font-bold" /></div>
@@ -366,7 +366,7 @@ export default function GlobalLibrariesPage() {
                 </div>
               </div>
             </ScrollArea>
-            <div className="p-8 pt-0">
+            <div className="p-8 pt-0 shrink-0">
                <Button type="submit" disabled={isProcessing} className="w-full h-14 bg-primary font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl rounded-2xl">
                  {isProcessing ? <Loader2 className="animate-spin" /> : <Save className="h-4 w-4" />} Synchronize Template
                </Button>
