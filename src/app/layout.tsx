@@ -9,7 +9,6 @@ import { CartProvider } from '@/lib/cart-context';
 import { OrderNotificationListener } from '@/components/order-notification-listener';
 import { NavigationStateTracker } from '@/components/navigation-state-tracker';
 import { BrandingFooter } from '@/components/branding-footer';
-import { StandaloneDebugBadge } from '@/components/standalone-debug-badge';
 
 export const metadata: Metadata = {
   title: 'KOOP',
@@ -49,7 +48,6 @@ export default function RootLayout({
         />
       </head>
       <body className={cn("font-body antialiased min-h-screen flex flex-col pb-7")}>
-        <StandaloneDebugBadge />
         <FirebaseClientProvider>
           <CartProvider>
             <Suspense fallback={null}>
