@@ -11,7 +11,7 @@ import { useEffect, useState, useMemo, useRef, use } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { OrderCard } from '@/components/order-card';
-import type { Order, Seller, StaffMember, SolutionConfig } from '@/lib/types';
+import type { Order, Seller, StaffMember, SolutionConfig, OrderFulfillmentThresholds } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
@@ -45,6 +45,8 @@ type LatLng = {
   latitude: number;
   longitude: number;
 };
+
+const DEFAULT_HISTORY_THRESHOLDS: OrderFulfillmentThresholds = { maxOrderAcknowledgeSeconds: 120, warningOrderProcessingMinutes: 15, maxOrderProcessingMinutes: 25 };
 
 export default function BevCartDriverDashboardPage({ params }: { params: Promise<{ sellerId: string }> }) {
   const { sellerId } = use(params);
@@ -603,23 +605,30 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {personalHistory.map(o => (
+                        {personalHistory.map(o => {
+                          const thresholds = primarySeller?.orderThresholds?.[o.menuType] || solutionConfig?.orderThresholds?.[o.menuType] || DEFAULT_HISTORY_THRESHOLDS;
+                          const ackSeconds = o.acknowledgedAt && o.createdAt ? differenceInSeconds(o.acknowledgedAt.toDate(), o.createdAt.toDate()) : null;
+                          const durationMinutes = o.deliveredAt && o.createdAt ? differenceInMinutes(o.deliveredAt.toDate(), o.createdAt.toDate()) : null;
+                          const isAckOver = ackSeconds !== null && ackSeconds > thresholds.maxOrderAcknowledgeSeconds;
+                          const isDurationOver = durationMinutes !== null && durationMinutes > thresholds.maxOrderProcessingMinutes;
+                          return (
                           <TableRow key={o.id}>
                             <TableCell className="font-mono font-black text-[10px]">#{getNumericOrderId(o.id)}</TableCell>
                             <TableCell>
                               <p className="font-bold text-[10px] uppercase truncate max-w-[80px]">{o.customerName}</p>
                               <p className="text-[8px] text-muted-foreground uppercase">{o.deliveredAt ? format(o.deliveredAt.toDate(), 'h:mm a') : ''}</p>
                             </TableCell>
-                            <TableCell className="text-right font-bold text-[10px]">
-                              {o.acknowledgedAt && o.createdAt ? `${differenceInSeconds(o.acknowledgedAt.toDate(), o.createdAt.toDate())}s` : '--'}
+                            <TableCell className={cn("text-right font-bold text-[10px]", isAckOver && "text-destructive")}>
+                              {ackSeconds !== null ? `${ackSeconds}s` : '--'}
                             </TableCell>
-                            <TableCell className="text-right font-bold text-[10px]">
-                              {o.deliveredAt && o.createdAt ? `${differenceInMinutes(o.deliveredAt.toDate(), o.createdAt.toDate())}m` : '--'}
+                            <TableCell className={cn("text-right font-bold text-[10px]", isDurationOver && "text-destructive")}>
+                              {durationMinutes !== null ? `${durationMinutes}m` : '--'}
                             </TableCell>
                             <TableCell className="text-right font-bold text-[10px] text-[#213147]">${o.total.toFixed(2)}</TableCell>
                             <TableCell className="text-right font-black text-[10px] text-green-600">${(o.tip || 0).toFixed(2)}</TableCell>
                           </TableRow>
-                        ))}
+                          );
+                        })}
                       </TableBody>
                     </Table>
                   )}
