@@ -125,26 +125,45 @@ export interface Seller {
   enabledPaymentMethods?: PaymentMethodType[];
   qrActive?: boolean;
   qrSecret?: string;
-  upsellItems?: Record<string, string[]>; // Map of Mode -> up to 2 menuItem ids, offered on the Review screen
 }
 
 export type Category = 'Featured' | 'Beer' | 'Spirits' | 'Soft Drinks' | 'Snacks' | 'Other' | 'Handhelds' | 'Appetizers' | 'Entrees' | 'Pizza' | 'Salad' | 'Dessert' | 'Kids';
 
 export const categories: readonly Category[] = [
   'Featured',
-  'Beer', 
-  'Spirits', 
-  'Soft Drinks', 
-  'Snacks', 
-  'Other', 
-  'Handhelds', 
-  'Appetizers', 
-  'Entrees', 
-  'Pizza', 
-  'Salad', 
+  'Beer',
+  'Spirits',
+  'Soft Drinks',
+  'Snacks',
+  'Other',
+  'Handhelds',
+  'Appetizers',
+  'Entrees',
+  'Pizza',
+  'Salad',
   'Dessert',
   'Kids'
 ];
+
+// Coarse food/beverage grouping per category, used to pick a complementary
+// upsell suggestion (e.g. offer food when the cart is all drinks). 'other'
+// categories don't participate in that matching either direction - they're
+// still eligible items, just not used to judge cart composition.
+export const CATEGORY_SUPERTYPE: Record<Category, 'food' | 'beverage' | 'other'> = {
+  'Featured': 'other',
+  'Beer': 'beverage',
+  'Spirits': 'beverage',
+  'Soft Drinks': 'beverage',
+  'Snacks': 'food',
+  'Other': 'other',
+  'Handhelds': 'food',
+  'Appetizers': 'food',
+  'Entrees': 'food',
+  'Pizza': 'food',
+  'Salad': 'food',
+  'Dessert': 'food',
+  'Kids': 'food',
+};
 
 export interface ModifierOption {
   id: string;
@@ -198,6 +217,7 @@ export interface MenuItem {
     imageUrl?: string;
     availableOn?: string[];
     featuredOn?: string[]; // Mode-specific featured flag
+    upsellEligible?: string[]; // Mode-specific flag - candidate for the Review-screen upsell rail, same shape as featuredOn so it can never dangle on a deleted/renamed item
     menuRanks?: Record<string, number>; // Mode-specific sort ranking within category
     featuredRanks?: Record<string, number>; // Mode-specific sort ranking within Featured category
     isAvailable?: boolean; // Permanent, admin-only, global on/off switch
