@@ -13,6 +13,7 @@ import { TipSelector } from '@/components/tip-selector';
 import { Button } from '@/components/ui/button';
 import { Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { FEE_DISCLOSURES, getDisclosureCategory } from '@/config/fee-disclosures';
+import { pickUpsellItemIds } from '@/lib/upsell';
 
 function ReviewOrderContent({ sellerId }: { sellerId: string }) {
   const firestore = useFirestore();
@@ -35,6 +36,10 @@ function ReviewOrderContent({ sellerId }: { sellerId: string }) {
   const checkoutUrl = `/sellers/${sellerId}/order/checkout?${searchParams.toString()}`;
 
   const activeOrderItems = useMemo(() => orderItems.filter((item) => item.quantity > 0), [orderItems]);
+  const upsellItemIds = useMemo(
+    () => pickUpsellItemIds(activeOrderItems, menuItems || [], menuTypeFromUrl),
+    [activeOrderItems, menuItems, menuTypeFromUrl]
+  );
   const subtotal = useMemo(() => activeOrderItems.reduce((acc, item) => {
     const modsPrice = item.selectedModifiers ? Object.values(item.selectedModifiers).flat().reduce((s, m) => s + m.priceAdjustment, 0) : 0;
     return acc + (item.price + modsPrice) * item.quantity;
@@ -96,7 +101,7 @@ function ReviewOrderContent({ sellerId }: { sellerId: string }) {
             than a fixed band - reads as a natural next section instead of
             an ever-present banner wedged in front of the price/pay footer. */}
         <UpsellRail
-          upsellItemIds={seller?.upsellItems?.[menuTypeFromUrl] || []}
+          upsellItemIds={upsellItemIds}
           menuItems={menuItems || []}
           onAdd={updateItem}
           orderItems={orderItems}

@@ -213,11 +213,13 @@ const MODE_KEY_BY_LABEL: Record<string, 'beverageCart' | 'clubhouse' | 'laneServ
   'Lane Delivery': 'laneService',
 };
 
-function SortableItem({ id, item, isFeatured, onToggleFeature, onRemove }: { 
-  id: string, 
-  item: MenuItem, 
-  isFeatured: boolean, 
+function SortableItem({ id, item, isFeatured, onToggleFeature, isUpsell, onToggleUpsell, onRemove }: {
+  id: string,
+  item: MenuItem,
+  isFeatured: boolean,
   onToggleFeature: (id: string) => void,
+  isUpsell: boolean,
+  onToggleUpsell: (id: string) => void,
   onRemove: (id: string) => void
 }) {
   const {
@@ -254,6 +256,9 @@ function SortableItem({ id, item, isFeatured, onToggleFeature, onRemove }: {
       <div className="flex items-center gap-1">
         <Button variant="ghost" size="icon" onClick={() => onToggleFeature(item.id)} className={cn("h-8 w-8 rounded-full", isFeatured ? "text-amber-500 hover:text-amber-600" : "text-slate-200 hover:text-amber-500")}>
           <Star className={cn("h-4 w-4", isFeatured && "fill-current")} />
+        </Button>
+        <Button variant="ghost" size="icon" onClick={() => onToggleUpsell(item.id)} className={cn("h-8 w-8 rounded-full", isUpsell ? "text-indigo-500 hover:text-indigo-600" : "text-slate-200 hover:text-indigo-500")}>
+          <Sparkles className={cn("h-4 w-4", isUpsell && "fill-current")} />
         </Button>
         <Button variant="ghost" size="icon" onClick={() => onRemove(item.id)} className="h-8 w-8 rounded-full text-slate-200 hover:text-destructive">
           <X className="h-4 w-4" />
@@ -602,6 +607,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
         rank: menuItems?.length ?? 0,
         availableOn: [],
         featuredOn: [],
+        upsellEligible: [],
         modifierGroupIds: data.modifierGroupIds,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
@@ -724,12 +730,38 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     const item = menuItems?.find(i => i.id === itemId);
     if (!item) return;
     const featuredOn = item.featuredOn || [];
-    const newFeaturedOn = featuredOn.includes(mode) ? featuredOn.filter(m => m !== mode) : [...featuredOn, mode];
+    const isAdding = !featuredOn.includes(mode);
+    const newFeaturedOn = isAdding ? [...featuredOn, mode] : featuredOn.filter(m => m !== mode);
+
+    // Featured is fully patron-visible up front, all at once - unlike
+    // upsell-eligible, an unbounded list here just stops being "featured"
+    // and starts being "most of the menu." Soft nudge only, never blocks.
+    if (isAdding) {
+      const totalFeaturedAfter = (menuItems || []).filter(i =>
+        i.id === itemId ? true : i.featuredOn?.includes(mode)
+      ).length;
+      if (totalFeaturedAfter >= 6) {
+        toast({ title: 'Featured Is Growing', description: `${totalFeaturedAfter} items are now Featured for ${mode}. Consider trimming for a tighter highlight strip.` });
+      }
+    }
 
     const updateData = { featuredOn: newFeaturedOn };
     const docRef = doc(firestore, 'sellers', sellerId, 'menuItems', itemId);
 
     updateDoc(docRef, updateData).catch(() => {
+      toast({ variant: 'destructive', title: 'Update Failed', description: 'Sign in as the venue owner or admin to change menu items.' });
+    });
+  };
+
+  const handleToggleUpsellInMode = (itemId: string, mode: string) => {
+    if (!firestore || !sellerId) return;
+    const item = menuItems?.find(i => i.id === itemId);
+    if (!item) return;
+    const upsellEligible = item.upsellEligible || [];
+    const newUpsellEligible = upsellEligible.includes(mode) ? upsellEligible.filter(m => m !== mode) : [...upsellEligible, mode];
+
+    const docRef = doc(firestore, 'sellers', sellerId, 'menuItems', itemId);
+    updateDoc(docRef, { upsellEligible: newUpsellEligible }).catch(() => {
       toast({ variant: 'destructive', title: 'Update Failed', description: 'Sign in as the venue owner or admin to change menu items.' });
     });
   };
@@ -1071,52 +1103,16 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                       <Card className="border-2 shadow-sm overflow-hidden">
                         <CardHeader className="bg-[#213147] text-white py-4 border-b">
                           <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
-                            <Sparkles className="h-3.5 w-3.5" /> Upsell Picks
+                            <Sparkles className="h-3.5 w-3.5" /> Upsell
                           </CardTitle>
                           <CardDescription className="text-[8px] font-bold text-white/50 uppercase tracking-wider">
                             Offered on the Review screen for {activeModeTab}
                           </CardDescription>
                         </CardHeader>
-                        <CardContent className="pt-6 space-y-3">
-                          {(() => {
-                            // Excludes items with modifiers - the patron-side quick add has no
-                            // way to collect required modifier choices, so only offer items
-                            // that can be added with a single tap.
-                            const modeItems = (menuItems || []).filter(i => i.availableOn?.includes(activeModeTab) && !(i.modifierGroupIds && i.modifierGroupIds.length > 0));
-                            const currentPicks = seller?.upsellItems?.[activeModeTab] || [];
-                            const updatePick = (slot: number, itemId: string) => {
-                              const next = [...currentPicks];
-                              if (itemId === 'none') {
-                                next.splice(slot, 1);
-                              } else {
-                                next[slot] = itemId;
-                              }
-                              handleUpdateField(`upsellItems.${activeModeTab}`, next.filter(Boolean));
-                            };
-                            return [0, 1].map((slot) => {
-                              const selectedId = currentPicks[slot] || 'none';
-                              return (
-                                <div key={slot} className="space-y-1.5">
-                                  <Label className="text-[8px] font-black uppercase text-muted-foreground">Slot {slot + 1}</Label>
-                                  <Select value={selectedId} onValueChange={(val) => updatePick(slot, val)}>
-                                    <SelectTrigger className="h-10 border-2 rounded-xl text-[10px] font-black uppercase">
-                                      <SelectValue placeholder="None" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="none" className="text-[10px] font-bold uppercase text-muted-foreground">None</SelectItem>
-                                      {modeItems
-                                        .filter(i => i.id === selectedId || !currentPicks.includes(i.id))
-                                        .map(i => (
-                                          <SelectItem key={i.id} value={i.id} className="text-[10px] font-bold uppercase">
-                                            {i.name} · ${i.price.toFixed(2)}
-                                          </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-                              );
-                            });
-                          })()}
+                        <CardContent className="pt-6">
+                          <p className="text-[9px] font-bold text-muted-foreground uppercase leading-relaxed">
+                            Tap the <Sparkles className="h-3 w-3 inline-block text-indigo-500 mx-0.5" /> icon on any item below to make it upsell-eligible. Koop automatically offers a complementary pick on the Review screen &mdash; a drink if the cart is food-only, food if it's drinks-only.
+                          </p>
                         </CardContent>
                       </Card>
                     </div>
@@ -1139,7 +1135,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                                   <SortableContext items={itemsInMode.map(i => i.id)} strategy={verticalListSortingStrategy}>
                                     <div className="grid gap-2">
                                       {itemsInMode.map(item => (
-                                        <SortableItem key={item.id} id={item.id} item={item} isFeatured={item.featuredOn?.includes(activeModeTab) ?? false} onToggleFeature={() => handleToggleFeatureInMode(item.id, activeModeTab)} onRemove={() => handleToggleItemInMode(item.id, activeModeTab, 'remove')} />
+                                        <SortableItem key={item.id} id={item.id} item={item} isFeatured={item.featuredOn?.includes(activeModeTab) ?? false} onToggleFeature={() => handleToggleFeatureInMode(item.id, activeModeTab)} isUpsell={item.upsellEligible?.includes(activeModeTab) ?? false} onToggleUpsell={() => handleToggleUpsellInMode(item.id, activeModeTab)} onRemove={() => handleToggleItemInMode(item.id, activeModeTab, 'remove')} />
                                       ))}
                                     </div>
                                   </SortableContext>
