@@ -71,8 +71,8 @@ export function StarterModifierPicker({ sellerId, venueType, trigger, onImported
   return (
     <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setSelected(new Set()); }}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent className="sm:max-w-[500px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
-        <DialogHeader className="p-8 bg-indigo-600 text-white">
+      <DialogContent closeClassName="text-white hover:text-white/80" className="sm:max-w-[500px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
+        <DialogHeader className="p-8 bg-[#213147] text-white">
           <DialogTitle className="font-headline font-black uppercase text-xl flex items-center gap-2">
             <Tags className="h-5 w-5" /> Import Modifiers
           </DialogTitle>
@@ -96,7 +96,7 @@ export function StarterModifierPicker({ sellerId, venueType, trigger, onImported
           </div>
         </ScrollArea>
         <div className="p-8 pt-4">
-          <Button onClick={handleImport} disabled={isImporting || selected.size === 0} className="w-full h-14 bg-indigo-600 font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl rounded-2xl">
+          <Button onClick={handleImport} disabled={isImporting || selected.size === 0} className="w-full h-14 bg-primary font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl rounded-2xl">
             {isImporting ? <Loader2 className="animate-spin h-4 w-4" /> : <Tags className="h-4 w-4" />}
             Import {selected.size > 0 ? `${selected.size} ` : ''}Modifier{selected.size === 1 ? '' : 's'}
           </Button>

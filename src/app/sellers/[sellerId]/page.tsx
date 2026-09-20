@@ -1450,7 +1450,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       </div>
 
       <Dialog open={isItemFormOpen} onOpenChange={setIsItemFormOpen}>
-        <DialogContent className="sm:max-w-[450px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left max-h-[90vh] flex flex-col">
+        <DialogContent closeClassName="text-white hover:text-white/80" className="sm:max-w-[450px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left max-h-[90vh] flex flex-col">
           <DialogHeader className="p-8 bg-[#213147] text-white shrink-0">
             <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">
               {editingItem ? 'Edit Product' : 'New Product'}
@@ -1598,7 +1598,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       </Dialog>
 
       <Dialog open={isStaffFormOpen} onOpenChange={setIsStaffFormOpen}>
-        <DialogContent className="sm:max-w-[450px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
+        <DialogContent closeClassName="text-white hover:text-white/80" className="sm:max-w-[450px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
           <DialogHeader className="p-8 bg-[#213147] text-white">
             <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">
               {editingStaff ? 'Edit Personnel' : 'Add Fulfillment Staff'}

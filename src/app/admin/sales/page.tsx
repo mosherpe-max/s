@@ -194,7 +194,7 @@ export default function AdminSalesCRMPage() {
       </div>
 
       <Dialog open={isLeadFormOpen} onOpenChange={setIsLeadFormOpen}>
-        <DialogContent className="sm:max-w-[750px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
+        <DialogContent closeClassName="text-white hover:text-white/80" className="sm:max-w-[750px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
           <DialogHeader className="p-8 bg-[#213147] text-white">
             <DialogTitle className="font-headline font-black uppercase text-xl">{editingLead ? 'Modify Prospect' : 'New CRM Prospect'}</DialogTitle>
           </DialogHeader>
