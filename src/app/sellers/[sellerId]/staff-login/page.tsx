@@ -346,7 +346,7 @@ export default function StaffLoginPage({ params }: { params: Promise<{ sellerId:
                   authorizedServiceModes.map((type) => {
                     const Icon = roleIcons[type] || Building;
                     const fieldMap: any = { 'Beverage Cart': 'bevcartActive', 'Clubhouse': 'clubhouseActive', 'Lane Delivery': 'lanedeliveryActive' };
-                    const isDeactivated = seller && !(seller as any)?.[fieldMap[type]];
+                    const isDeactivated = !!seller && !(seller as any)?.[fieldMap[type]];
 
                     return (
                       <Button
