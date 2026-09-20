@@ -94,7 +94,16 @@ service cloud.firestore {
         // location - without full staff-editing rights (PIN, name, role).
         allow update: if isSignedIn() &&
                       request.resource.data.diff(resource.data).affectedKeys()
-                      .hasOnly(['activeMode', 'activeSessionId', 'lastActive', 'isAvailable', 'latitude', 'longitude', 'pushSubscription', 'pushSubscriptionUpdatedAt']);
+                      .hasOnly(['activeMode', 'activeSessionId', 'lastActive', 'isAvailable', 'latitude', 'longitude', 'currentDeviceId']);
+      }
+
+      // A browser/device's Web Push subscription (see PushDevice type) -
+      // written once from Safari before the PWA is added to the Home
+      // Screen. Not staff-specific; a shared terminal's subscription
+      // outlives whichever staff member happens to be signed into it.
+      match /pushDevices/{deviceId} {
+        allow read: if isSuperAdmin() || isVenueOwner(sellerId);
+        allow write: if isSignedIn();
       }
 
       match /menuItems/{itemId} {

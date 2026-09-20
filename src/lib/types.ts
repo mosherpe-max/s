@@ -82,11 +82,29 @@ export interface StaffMember {
   latitude?: number;
   longitude?: number;
   lastActive?: Timestamp;
-  // Refreshed on every PIN login (not per-device) so a shared terminal
-  // always pushes to whoever is currently signed in on it, and a staff
-  // member who logs in from a different device gets it moved there too.
-  pushSubscription?: PushSubscriptionJSON;
-  pushSubscriptionUpdatedAt?: Timestamp;
+  // Set fresh on every PIN login to whichever device the login happened on
+  // (see PushDevice) - a shared terminal always pushes to whoever is
+  // currently signed in on it, and a staff member who logs in from a
+  // different device gets it moved there too. The push subscription itself
+  // lives on the device doc, not here - it's set up once in Safari before
+  // the app is ever added to the Home Screen (see push-notifications.ts).
+  currentDeviceId?: string;
+}
+
+// A browser/device's Web Push subscription, set up once from Safari before
+// the PWA is added to the Home Screen - calling Notification.requestPermission()
+// from inside the already-installed standalone app ejects it into Safari
+// chrome on this iOS build, confirmed on-device, regardless of gesture
+// gating. Keyed by a random id generated client-side and cached in
+// localStorage, independent of any specific staff member, so a shared
+// terminal's subscription survives across every staff member who logs
+// into it (see StaffMember.currentDeviceId).
+export interface PushDevice {
+  id: string;
+  sellerId: string;
+  subscription: PushSubscriptionJSON;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
 }
 
 export interface Seller {
