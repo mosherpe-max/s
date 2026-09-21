@@ -4,7 +4,8 @@
 import { useEffect, useRef, useState, use } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { useFirestore } from '@/firebase';
+import { useFirestore, useMemoFirebase, useDoc } from '@/firebase';
+import type { SolutionConfig } from '@/lib/types';
 import { MapPin } from 'lucide-react';
 
 const ROUTE_BY_ROLE: Record<string, string> = {
@@ -39,8 +40,21 @@ export default function TrackDeliveryPage({ params }: { params: Promise<{ seller
   const role = searchParams.get('role') || '';
   const sessionId = searchParams.get('sessionId') || '';
 
+  const configRef = useMemoFirebase(() => (firestore ? doc(firestore, 'solution', 'config') : null), [firestore]);
+  const { data: solutionConfig } = useDoc<SolutionConfig>(configRef);
+
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const startedRef = useRef(false);
+
+  // Read via a ref so the long-lived watchPosition callback below (started
+  // once, never recreated) always throttles against the current admin
+  // setting rather than whatever it was on the first render.
+  const pollIntervalMsRef = useRef(15000);
+  useEffect(() => {
+    pollIntervalMsRef.current = (solutionConfig?.driverGpsPollIntervalSeconds || 15) * 1000;
+  }, [solutionConfig?.driverGpsPollIntervalSeconds]);
+
+  const lastWriteRef = useRef(0);
 
   useEffect(() => {
     if (startedRef.current) return;
@@ -50,6 +64,15 @@ export default function TrackDeliveryPage({ params }: { params: Promise<{ seller
       navigator.geolocation.watchPosition(
         (position) => {
           if (!firestore || !staffId) return;
+          // watchPosition can fire far more often than the admin's
+          // configured broadcast interval (multiple times a second in some
+          // conditions), so it stays running for freshness but only writes
+          // to Firestore once per interval - keeping the driver GPS Poll
+          // Interval admin setting meaningful again after the redesign
+          // that replaced the old setInterval+getCurrentPosition polling.
+          const now = Date.now();
+          if (now - lastWriteRef.current < pollIntervalMsRef.current) return;
+          lastWriteRef.current = now;
           setDoc(doc(firestore, 'sellers', sellerId, 'staff', staffId), {
             latitude: position.coords.latitude,
             longitude: position.coords.longitude,
