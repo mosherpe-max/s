@@ -10,7 +10,7 @@ import type { Order, Seller, StaffMember, SolutionConfig, OrderFulfillmentThresh
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { Package, LogOut, Building, LayoutList, Focus, ChevronLeft, ShieldAlert, History, AlertTriangle, User, Ban, MapPin } from 'lucide-react';
+import { Package, LogOut, Building, LayoutList, Focus, ChevronLeft, ShieldAlert, History, AlertTriangle, User, Ban } from 'lucide-react';
 import { StockToggleDialog } from '@/components/stock-toggle-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
@@ -190,13 +190,9 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
   // installed standalone app - confirmed on-device that calling any
   // geolocation API here (even a single gesture-gated getCurrentPosition,
   // with no permission dialog ever shown) ejects the app into Safari chrome
-  // every time, granted or not. Instead, the "Share Location" button below
-  // opens track-delivery in an actual Safari tab, which is a different
-  // enough context that the same API is safe to use there.
-  const handleShareLocation = () => {
-    if (!currentStaffId) return;
-    window.open(`/sellers/${sellerId}/track-delivery?staffId=${currentStaffId}`, '_blank');
-  };
+  // every time, granted or not. staff-login already opens track-delivery in
+  // an actual Safari tab (a different enough context to be safe) the moment
+  // a shift starts, so there's nothing to trigger from in here.
 
   const handleToggleAvailability = (checked: boolean) => {
     if (!firestore || !sellerId || !currentStaffId) return;
@@ -411,13 +407,6 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
           </div>
         </div>
         <div className="flex items-center space-x-5">
-          <button
-            onClick={handleShareLocation}
-            className="flex flex-col items-center gap-1 text-white/70 hover:text-white transition-colors"
-          >
-            <MapPin className="h-4 w-4" />
-            <span className="text-[7px] font-black uppercase tracking-widest leading-none">Share Location</span>
-          </button>
           <div className="flex flex-col items-center gap-1">
             <span className={cn("text-[7px] font-black uppercase tracking-widest leading-none", isMyselfAvailable ? "text-green-400" : "text-white/40")}>
               {isMyselfAvailable ? 'Available' : 'Away'}
