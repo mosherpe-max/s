@@ -22,7 +22,7 @@ function isPatronPath(path: string): boolean {
     path.startsWith('/admin') ||
     path.startsWith('/login') ||
     path.startsWith('/sales') ||
-    path.startsWith('/sellers') && (path.includes('/bevcart') || path.includes('/clubhouse') || path.includes('/laneside') || path.includes('/staff-login'));
+    path.startsWith('/sellers') && (path.includes('/bevcart') || path.includes('/clubhouse') || path.includes('/laneside') || path.includes('/staff-login') || path.includes('/track-delivery'));
 
   return !isInternal && path !== '/';
 }

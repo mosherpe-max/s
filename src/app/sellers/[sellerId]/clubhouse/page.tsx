@@ -10,16 +10,14 @@ import type { Order, Seller, StaffMember, SolutionConfig, OrderFulfillmentThresh
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { Package, LogOut, Building, LayoutList, Focus, ChevronLeft, ShieldAlert, History, AlertTriangle, User, Ban } from 'lucide-react';
+import { Package, LogOut, Building, LayoutList, Focus, ChevronLeft, ShieldAlert, History, AlertTriangle, User, Ban, MapPin } from 'lucide-react';
 import { StockToggleDialog } from '@/components/stock-toggle-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { useRouter } from 'next/navigation';
 import { MapView } from '@/components/map-view';
-import { LocationGate } from '@/components/location-gate';
-import { useHasInteracted } from '@/hooks/use-has-interacted';
 import { isToday, differenceInSeconds, differenceInMinutes, format } from 'date-fns';
-import { cn, getSignalColor, getDriverColor, SUPER_ADMIN_ID, isStaffSessionStale, isStaffSessionIdle, getNumericOrderId, playNotificationSound } from '@/lib/utils';
+import { cn, getSignalColor, getDriverColor, SUPER_ADMIN_ID, isStaffSessionStale, isStaffSessionIdle, getNumericOrderId } from '@/lib/utils';
 import Link from 'next/link';
 import {
   Dialog,
@@ -60,8 +58,6 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
   const [isExiting, setIsExiting] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isStockOpen, setIsStockOpen] = useState(false);
-  const [locationEnabled, setLocationEnabled] = useState(false);
-  const hasInteracted = useHasInteracted();
 
   const lastOrderIdsRef = useRef<Set<string>>(new Set());
   const initialLoadRef = useRef(true);
@@ -190,58 +186,17 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
   const isMyselfAvailable = myStaffData?.isAvailable !== false;
   const isSuperAdmin = user?.uid === SUPER_ADMIN_ID || user?.email === 'mosherpe@gmail.com';
 
-  const broadcastLocation = (lat: number, lng: number) => {
-    if (!firestore || !sellerId || !user || isExiting || !currentStaffId) return;
-    const staffRef = doc(firestore, 'sellers', sellerId, 'staff', currentStaffId);
-    setDoc(staffRef, { latitude: lat, longitude: lng, lastActive: serverTimestamp(), activeMode: 'Clubhouse' }, { merge: true }).catch(() => {});
+  // Live GPS broadcasting deliberately does not happen from inside this
+  // installed standalone app - confirmed on-device that calling any
+  // geolocation API here (even a single gesture-gated getCurrentPosition,
+  // with no permission dialog ever shown) ejects the app into Safari chrome
+  // every time, granted or not. Instead, the "Share Location" button below
+  // opens track-delivery in an actual Safari tab, which is a different
+  // enough context that the same API is safe to use there.
+  const handleShareLocation = () => {
+    if (!currentStaffId) return;
+    window.open(`/sellers/${sellerId}/track-delivery?staffId=${currentStaffId}`, '_blank');
   };
-
-  const handleLocationReady = (position: LatLng | null) => {
-    if (position) {
-      setSellerLocation(position);
-      broadcastLocation(position.latitude, position.longitude);
-    }
-    setLocationEnabled(true);
-  };
-
-  // Deliberately NOT auto-checking navigator.permissions.query('geolocation')
-  // on mount, even just to silently skip the gate for staff who granted
-  // location on a prior shift. Confirmed on-device that this standalone PWA
-  // drops into Safari browser chrome and never recovers - and laneside,
-  // which has no geolocation code at all, never has this problem, while
-  // bevcart/clubhouse (which had this auto-check) always did, even before
-  // any tap. permissions.query() shouldn't show OS UI on its own, but on
-  // this iOS version it appears to trigger the same ejection as an actual
-  // prompt. Every geolocation call now stays behind LocationGate's explicit
-  // button tap - no exceptions, even at the cost of one extra tap per shift.
-
-  // Continuous watchPosition tracking is what was breaking the standalone PWA
-  // out into Safari chrome (see LocationGate above) - iOS appears to treat it
-  // as a class of usage that requires visible browser chrome, independent of
-  // whether the original permission prompt was gesture-tied. Polling with
-  // discrete getCurrentPosition calls, on an admin-configurable interval,
-  // avoids that continuous-tracking classification.
-  useEffect(() => {
-    if (!locationEnabled || !navigator.geolocation || !firestore || !sellerId || !user || isExiting) return;
-
-    const pollIntervalMs = (solutionConfig?.driverGpsPollIntervalSeconds || 15) * 1000;
-    const poll = () => {
-      navigator.geolocation.getCurrentPosition(
-        (p) => {
-          if (isExiting) return;
-          const lat = p.coords.latitude;
-          const lng = p.coords.longitude;
-          setSellerLocation({ latitude: lat, longitude: lng });
-          broadcastLocation(lat, lng);
-        },
-        null,
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 }
-      );
-    };
-
-    const intervalId = setInterval(poll, pollIntervalMs);
-    return () => clearInterval(intervalId);
-  }, [locationEnabled, firestore, sellerId, user, currentStaffId, solutionConfig?.driverGpsPollIntervalSeconds, isExiting]);
 
   const handleToggleAvailability = (checked: boolean) => {
     if (!firestore || !sellerId || !currentStaffId) return;
@@ -350,20 +305,15 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
     const currentOrderIds = new Set(clubhouseOrders.map(o => o.id));
     const newOrders = clubhouseOrders.filter(o => !lastOrderIdsRef.current.has(o.id));
     if (newOrders.length > 0 && !initialLoadRef.current) {
-      // Audible + in-app alert only - the standalone PWA on this iOS
-      // version ejects into Safari chrome the moment any code touches the
-      // Notification API (even a permission status read), regardless of
-      // gesture timing, so system notifications are never used here.
-      // The tone itself (Web Audio's AudioContext) is the same class of
-      // restricted API - only play it once the staff member has made a
-      // real tap on this page, same protection LocationGate already gives
-      // geolocation.
-      if (hasInteracted) playNotificationSound();
+      // In-app toast only - the standalone PWA on this iOS version ejects
+      // into Safari chrome the moment any code touches the Notification API
+      // (even a permission status read) or creates a Web Audio AudioContext,
+      // regardless of gesture timing, so neither is used here.
       toast({ title: "NEW CLUBHOUSE ORDER!" });
     }
     lastOrderIdsRef.current = currentOrderIds;
     initialLoadRef.current = false;
-  }, [clubhouseOrders, now, toast, hasInteracted]);
+  }, [clubhouseOrders, now, toast]);
 
   useEffect(() => {
     const interval = setInterval(() => setNow(Date.now()), 15000);
@@ -433,10 +383,6 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
 
   const isLoading = areActiveOrdersLoading || isPrimaryLoading;
 
-  if (!locationEnabled) {
-    return <LocationGate venueName={primarySeller?.courseName} onEnabled={handleLocationReady} />;
-  }
-
 
   return (
     <div className="flex flex-col h-screen overflow-x-auto bg-muted/20 text-left">
@@ -465,6 +411,13 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
           </div>
         </div>
         <div className="flex items-center space-x-5">
+          <button
+            onClick={handleShareLocation}
+            className="flex flex-col items-center gap-1 text-white/70 hover:text-white transition-colors"
+          >
+            <MapPin className="h-4 w-4" />
+            <span className="text-[7px] font-black uppercase tracking-widest leading-none">Share Location</span>
+          </button>
           <div className="flex flex-col items-center gap-1">
             <span className={cn("text-[7px] font-black uppercase tracking-widest leading-none", isMyselfAvailable ? "text-green-400" : "text-white/40")}>
               {isMyselfAvailable ? 'Available' : 'Away'}
