@@ -171,12 +171,26 @@ export default function StaffLoginPage({ params }: { params: Promise<{ sellerId:
     // this staff member at whichever device's push subscription (if any)
     // should receive alerts, set up separately in Safari before this
     // device was ever added to the Home Screen.
-    await updateDoc(doc(firestore, 'sellers', sellerId, 'staff', authenticatedStaff.id), {
-      activeMode: menuType,
-      activeSessionId: sessionId,
-      currentDeviceId: getOrCreateDeviceId(),
-      lastActive: serverTimestamp()
-    }).catch(() => {});
+    try {
+      await updateDoc(doc(firestore, 'sellers', sellerId, 'staff', authenticatedStaff.id), {
+        activeMode: menuType,
+        activeSessionId: sessionId,
+        currentDeviceId: getOrCreateDeviceId(),
+        lastActive: serverTimestamp()
+      });
+    } catch {
+      // A denied write here (e.g. stale/undeployed Firestore rules) must not
+      // fall through to the success path below - that would show "Shift
+      // Started" and send the device to a dashboard whose activeMode never
+      // actually changed, which immediately reads back as "Session
+      // Terminated" once it loads.
+      toast({
+        variant: "destructive",
+        title: "Could Not Start Shift",
+        description: "Your session couldn't be saved. Please try again or contact your venue admin.",
+      });
+      return;
+    }
 
     // Persist Official Staff Session
     localStorage.setItem('koop_is_admin_session', 'false');
