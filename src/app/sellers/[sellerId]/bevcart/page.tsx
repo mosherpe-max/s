@@ -52,7 +52,6 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
   const { toast } = useToast();
   const router = useRouter();
   
-  const [sellerLocation, setSellerLocation] = useState<LatLng | null>(null);
   const [fitTrigger, setFitTrigger] = useState<number>(0);
   const [now, setNow] = useState<number>(Date.now());
   const [currentStaffId, setCurrentStaffId] = useState<string | undefined>();
@@ -172,11 +171,16 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
   }, [firestore, sellerId]);
   const { data: allStaff } = useCollection<StaffMember>(staffQuery);
 
-  useEffect(() => {
-    if (primarySeller?.latitude && primarySeller?.longitude && !sellerLocation) {
-      setSellerLocation({ latitude: primarySeller.latitude, longitude: primarySeller.longitude });
-    }
-  }, [primarySeller, sellerLocation]);
+  // No longer sourced from the driver's own live position (LocationGate is
+  // gone - see track-delivery for why) - just the venue's fixed base
+  // coordinates, if the venue has real ones set. MapView already treats a
+  // zero/missing sellerLocation as "no venue marker, center on whatever
+  // driver/buyer data is available" so this is safe to leave undefined.
+  const sellerLocation = useMemo<LatLng | undefined>(() => (
+    primarySeller?.latitude && primarySeller?.longitude
+      ? { latitude: primarySeller.latitude, longitude: primarySeller.longitude }
+      : undefined
+  ), [primarySeller?.latitude, primarySeller?.longitude]);
 
   // Personal "I'm stepping away" status - this is the individual staff member
   // taking themselves off signal without ending their shift, NOT the venue-
@@ -469,19 +473,21 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
             </Badge>
           </div>
 
-          {sellerLocation ? (
-            <MapView 
-              sellerLocation={sellerLocation} 
+          {isPrimaryLoading ? (
+            <Skeleton className="w-full h-full" />
+          ) : (
+            <MapView
+              sellerLocation={sellerLocation}
               primaryType="Beverage Cart"
               primaryDriverId={currentStaffId}
-              buyers={mappedBuyers} 
+              buyers={mappedBuyers}
               drivers={mappedDrivers}
-              radius={1609.34} 
+              radius={1609.34}
               fitTrigger={fitTrigger}
-              showPrimaryMarker={isMyselfAvailable} 
+              showPrimaryMarker={false}
               interactive={true}
             />
-          ) : <Skeleton className="w-full h-full" />}
+          )}
         </div>
         <div className="w-full md:w-1/3 flex flex-col bg-background border-2 rounded-xl overflow-hidden min-h-0 text-left">
           <div className="shrink-0 border-b bg-muted/10 px-4 py-3 flex items-center justify-between">
