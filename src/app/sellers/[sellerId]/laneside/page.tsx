@@ -15,8 +15,7 @@ import { StockToggleDialog } from '@/components/stock-toggle-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { isToday, differenceInSeconds, differenceInMinutes, format } from 'date-fns';
-import { cn, SUPER_ADMIN_ID, isStaffSessionStale, isStaffSessionIdle, getNumericOrderId, playNotificationSound } from '@/lib/utils';
-import { useHasInteracted } from '@/hooks/use-has-interacted';
+import { cn, SUPER_ADMIN_ID, isStaffSessionStale, isStaffSessionIdle, getNumericOrderId } from '@/lib/utils';
 import Link from 'next/link';
 import {
   Dialog,
@@ -50,8 +49,7 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isStockOpen, setIsStockOpen] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
-  const hasInteracted = useHasInteracted();
-  
+
   const lastOrderIdsRef = useRef<Set<string>>(new Set());
   const initialLoadRef = useRef(true);
   const mySessionIdRef = useRef<string | undefined>(undefined);
@@ -276,20 +274,15 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
     const currentOrderIds = new Set(lanesideOrders.map(o => o.id));
     const newOrders = lanesideOrders.filter(o => !lastOrderIdsRef.current.has(o.id));
     if (newOrders.length > 0 && !initialLoadRef.current) {
-      // Audible + in-app alert only - the standalone PWA on this iOS
-      // version ejects into Safari chrome the moment any code touches the
-      // Notification API (even a permission status read), regardless of
-      // gesture timing, so system notifications are never used here.
-      // The tone itself (Web Audio's AudioContext) is the same class of
-      // restricted API - only play it once the staff member has made a
-      // real tap on this page. Laneside has no LocationGate-style tap
-      // screen at all, so this hook is what supplies that gesture check.
-      if (hasInteracted) playNotificationSound();
+      // In-app toast only - the standalone PWA on this iOS version ejects
+      // into Safari chrome the moment any code touches the Notification API
+      // (even a permission status read) or creates a Web Audio AudioContext,
+      // regardless of gesture timing, so neither is used here.
       toast({ title: "NEW LANE ORDER!" });
     }
     lastOrderIdsRef.current = currentOrderIds;
     initialLoadRef.current = false;
-  }, [lanesideOrders, now, toast, hasInteracted]);
+  }, [lanesideOrders, now, toast]);
 
   useEffect(() => {
     const interval = setInterval(() => setNow(Date.now()), 15000);
