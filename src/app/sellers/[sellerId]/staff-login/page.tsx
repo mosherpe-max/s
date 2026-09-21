@@ -167,6 +167,24 @@ export default function StaffLoginPage({ params }: { params: Promise<{ sellerId:
     // sign itself out, instead of two devices silently fighting over one shift.
     const sessionId = crypto.randomUUID();
 
+    // Beverage Cart and Clubhouse patrons can see a live driver position on
+    // the map, but that live GPS can only ever come from an actual Safari
+    // tab - never from inside this installed app (see track-delivery for
+    // why). Opened synchronously, before any await, so Safari doesn't treat
+    // it as a blocked popup; it carries this same session id so it doesn't
+    // supersede this tab's own session once it reaches the dashboard. This
+    // is the one and only tap staff need for the whole shift - track-delivery
+    // starts sharing and hands off to the real dashboard on its own.
+    if (menuType === 'Beverage Cart' || menuType === 'Clubhouse') {
+      const trackParams = new URLSearchParams({
+        staffId: authenticatedStaff.id,
+        staffName: authenticatedStaff.name,
+        role: menuType,
+        sessionId,
+      });
+      window.open(`/sellers/${sellerId}/track-delivery?${trackParams.toString()}`, '_blank');
+    }
+
     // Update Personnel document with active role - currentDeviceId points
     // this staff member at whichever device's push subscription (if any)
     // should receive alerts, set up separately in Safari before this
