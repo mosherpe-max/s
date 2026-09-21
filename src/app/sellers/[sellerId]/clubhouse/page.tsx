@@ -50,7 +50,6 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
   const router = useRouter();
   
   const [now, setNow] = useState<number>(Date.now());
-  const [sellerLocation, setSellerLocation] = useState<LatLng | null>(null);
   const [fitTrigger, setFitTrigger] = useState<number>(0);
   const [currentStaffId, setCurrentStaffId] = useState<string | undefined>();
   const [currentStaffName, setCurrentStaffName] = useState<string>('');
@@ -169,14 +168,16 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
   }, [firestore, sellerId]);
   const { data: allStaff } = useCollection<StaffMember>(staffQuery);
 
-  // Fall back to the venue's static GPS anchor until the driver's own device
-  // reports a live position - blank for demo venues so the map isn't pinned
-  // to a real-world location and just follows wherever the demo runs.
-  useEffect(() => {
-    if (primarySeller?.latitude && primarySeller?.longitude && !sellerLocation) {
-      setSellerLocation({ latitude: primarySeller.latitude, longitude: primarySeller.longitude });
-    }
-  }, [primarySeller, sellerLocation]);
+  // No longer sourced from the driver's own live position (LocationGate is
+  // gone - see track-delivery for why) - just the venue's fixed base
+  // coordinates, if the venue has real ones set. MapView already treats a
+  // zero/missing sellerLocation as "no venue marker, center on whatever
+  // driver/buyer data is available" so this is safe to leave undefined.
+  const sellerLocation = useMemo<LatLng | undefined>(() => (
+    primarySeller?.latitude && primarySeller?.longitude
+      ? { latitude: primarySeller.latitude, longitude: primarySeller.longitude }
+      : undefined
+  ), [primarySeller?.latitude, primarySeller?.longitude]);
 
   const isGolf = primarySeller?.type?.toLowerCase().includes('golf');
   // Personal "I'm stepping away" status - this is the individual staff member
@@ -462,19 +463,21 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
             </Badge>
           </div>
 
-          {sellerLocation ? (
-            <MapView 
-              sellerLocation={sellerLocation} 
+          {isPrimaryLoading ? (
+            <Skeleton className="w-full h-full" />
+          ) : (
+            <MapView
+              sellerLocation={sellerLocation}
               primaryType="Clubhouse"
               primaryDriverId={currentStaffId}
-              buyers={mappedBuyers} 
+              buyers={mappedBuyers}
               drivers={mappedDrivers}
-              radius={1609.34} 
+              radius={1609.34}
               fitTrigger={fitTrigger}
-              showPrimaryMarker={isMyselfAvailable} 
+              showPrimaryMarker={false}
               interactive={true}
             />
-          ) : <Skeleton className="w-full h-full" />}
+          )}
         </div>
 
         <div className={cn("flex flex-col bg-background border-2 rounded-xl overflow-hidden min-h-0 text-left", isGolf ? "w-full md:w-1/3" : "w-full max-w-4xl mx-auto")}>
