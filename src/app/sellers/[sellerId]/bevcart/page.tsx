@@ -171,16 +171,17 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
   }, [firestore, sellerId]);
   const { data: allStaff } = useCollection<StaffMember>(staffQuery);
 
-  // No longer sourced from the driver's own live position (LocationGate is
-  // gone - see track-delivery for why) - just the venue's fixed base
-  // coordinates, if the venue has real ones set. MapView already treats a
-  // zero/missing sellerLocation as "no venue marker, center on whatever
-  // driver/buyer data is available" so this is safe to leave undefined.
+  // My own live position for the map's "YOU" marker - no longer sourced
+  // from LocationGate (gone, see track-delivery for why), but from the same
+  // staff doc fields track-delivery continuously broadcasts to in its own
+  // Safari tab. MapView already treats a missing sellerLocation as "no YOU
+  // marker, center on whatever driver/buyer data is available" so this is
+  // safe to leave undefined until the first broadcast lands.
   const sellerLocation = useMemo<LatLng | undefined>(() => (
-    primarySeller?.latitude && primarySeller?.longitude
-      ? { latitude: primarySeller.latitude, longitude: primarySeller.longitude }
+    myStaffData?.latitude && myStaffData?.longitude
+      ? { latitude: myStaffData.latitude, longitude: myStaffData.longitude }
       : undefined
-  ), [primarySeller?.latitude, primarySeller?.longitude]);
+  ), [myStaffData?.latitude, myStaffData?.longitude]);
 
   // Personal "I'm stepping away" status - this is the individual staff member
   // taking themselves off signal without ending their shift, NOT the venue-
@@ -484,7 +485,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
               drivers={mappedDrivers}
               radius={1609.34}
               fitTrigger={fitTrigger}
-              showPrimaryMarker={false}
+              showPrimaryMarker={isMyselfAvailable}
               interactive={true}
             />
           )}
