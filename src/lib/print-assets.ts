@@ -195,6 +195,94 @@ export function buildYardSignSvg({ courseName, qrDataUrl, logoDataUrl }: PrintAs
   return { svg, widthPx: widthIn * DPI, heightPx: heightIn * DPI, widthIn, heightIn };
 }
 
+export type PrintVenueType = 'golf' | 'bowling';
+
+const POSTER_COPY: Record<PrintVenueType, { subEyebrow: string; deliverSub: string }> = {
+  golf: { subEyebrow: 'FROM RIGHT HERE', deliverSub: 'TO YOU' },
+  bowling: { subEyebrow: 'WITHOUT LEAVING YOUR LANE', deliverSub: 'TO YOUR LANE' },
+};
+
+/** 11" x 17" poster, shared copy skeleton for golf courses and bowling centers. */
+export function buildPosterSvg({ courseName, qrDataUrl, logoDataUrl }: PrintAssetInput, venueType: PrintVenueType): PrintAssetTemplate {
+  const widthIn = 11;
+  const heightIn = 17;
+  const name = courseName.toUpperCase();
+  const nameSize = fitFontSize(name, 440, 56, 26);
+  const copy = POSTER_COPY[venueType];
+  const subEyebrowSize = fitFontSize(copy.subEyebrow, 560, 26, 15);
+
+  const rows: IconRow[] = [
+    { cx: 120, cy: 400, icon: iconScan, headline: 'SCAN', sub: 'WITH YOUR PHONE', textX: 165, headlineSize: 20, subSize: 12 },
+    { cx: 120, cy: 480, icon: iconCart, headline: 'ORDER', sub: 'FOOD & DRINKS', textX: 165, headlineSize: 20, subSize: 12 },
+    { cx: 120, cy: 560, icon: iconCloche, headline: 'WE DELIVER', sub: copy.deliverSub, textX: 165, headlineSize: 20, subSize: 12 },
+  ];
+
+  const logo = koopLogoGroup(330, 945, 28, WHITE, logoDataUrl);
+
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 660 1020">
+      <rect x="0" y="0" width="660" height="1020" fill="${WHITE}" />
+      <rect x="10" y="10" width="640" height="1000" rx="28" fill="none" stroke="${RED}" stroke-width="6" />
+      <rect x="24" y="24" width="612" height="972" rx="24" fill="${NAVY}" />
+
+      <text x="330" y="100" text-anchor="middle" font-family="${FONT}" font-weight="900" font-size="34" fill="${RED}">ORDER FOOD &amp; DRINKS</text>
+      <text x="330" y="140" text-anchor="middle" font-family="${FONT}" font-weight="900" font-size="${subEyebrowSize}" fill="${WHITE}">${esc(copy.subEyebrow)}</text>
+
+      <rect x="80" y="170" width="500" height="120" rx="18" fill="${WHITE}" stroke="${RED}" stroke-width="4" />
+      <text x="330" y="${170 + 60 + nameSize * 0.32}" text-anchor="middle" font-family="${FONT}" font-weight="900" font-size="${nameSize}" fill="${NAVY}">${esc(name)}</text>
+
+      <line x1="380" y1="360" x2="380" y2="600" stroke="${WHITE}" stroke-opacity="0.15" stroke-width="2" />
+      ${rows.map(iconRowMarkup).join('\n')}
+
+      <rect x="400" y="350" width="190" height="190" rx="16" fill="${WHITE}" />
+      <image href="${esc(qrDataUrl)}" x="412" y="362" width="166" height="166" />
+      <rect x="400" y="558" width="190" height="42" rx="21" fill="${RED}" />
+      <text x="495" y="585" text-anchor="middle" font-family="${FONT}" font-weight="900" font-size="15" fill="${WHITE}" letter-spacing="0.5">SCAN TO ORDER</text>
+
+      <text x="310" y="945" text-anchor="end" font-family="${FONT}" font-weight="700" font-size="18" fill="${WHITE}" letter-spacing="1.2">POWERED BY</text>
+      ${logo.markup}
+    </svg>
+  `.trim();
+
+  return { svg, widthPx: widthIn * DPI, heightPx: heightIn * DPI, widthIn, heightIn };
+}
+
+function tableTentPanel(name: string, qrDataUrl: string, nameSize: number) {
+  return `
+    <text x="250" y="45" text-anchor="middle" font-family="${FONT}" font-weight="900" font-size="16" fill="${RED}" letter-spacing="1">SCAN TO ORDER</text>
+    <rect x="60" y="58" width="380" height="62" rx="14" fill="${WHITE}" stroke="${RED}" stroke-width="3" />
+    <text x="250" y="${58 + 31 + nameSize * 0.32}" text-anchor="middle" font-family="${FONT}" font-weight="900" font-size="${nameSize}" fill="${NAVY}">${esc(name)}</text>
+    <rect x="175" y="132" width="150" height="150" rx="14" fill="${WHITE}" />
+    <image href="${esc(qrDataUrl)}" x="185" y="142" width="130" height="130" />
+    <text x="250" y="312" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="15" fill="${WHITE}" letter-spacing="0.4">FOOD &amp; DRINKS DELIVERED TO YOUR LANE</text>
+  `;
+}
+
+/** 5" x 7" bowling table tent. Duplicates the same panel on the top and bottom halves, rotated 180 degrees, so it reads right-side-up on both faces once folded flat along the center crease. */
+export function buildTableTentSvg({ courseName, qrDataUrl }: PrintAssetInput): PrintAssetTemplate {
+  const widthIn = 5;
+  const heightIn = 7;
+  const name = courseName.toUpperCase();
+  const nameSize = fitFontSize(name, 340, 26, 14);
+  const panel = tableTentPanel(name, qrDataUrl, nameSize);
+
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 700">
+      <rect x="0" y="0" width="500" height="700" fill="${WHITE}" />
+      <rect x="8" y="8" width="484" height="684" rx="24" fill="none" stroke="${RED}" stroke-width="5" />
+      <rect x="18" y="18" width="464" height="664" rx="20" fill="${NAVY}" />
+      ${panel}
+      <line x1="30" y1="350" x2="470" y2="350" stroke="${WHITE}" stroke-opacity="0.3" stroke-width="2" stroke-dasharray="6 6" />
+      <text x="250" y="344" text-anchor="middle" font-family="${FONT}" font-weight="700" font-size="9" fill="${WHITE}" fill-opacity="0.5" letter-spacing="1">FOLD HERE</text>
+      <g transform="translate(500,700) scale(-1,-1)">
+        ${panel}
+      </g>
+    </svg>
+  `.trim();
+
+  return { svg, widthPx: widthIn * DPI, heightPx: heightIn * DPI, widthIn, heightIn };
+}
+
 /** Fetches a (same-origin-friendly) image URL and returns it as a base64 data URL, avoiding canvas taint. */
 export async function fetchAsDataUrl(url: string): Promise<string> {
   const response = await fetch(url);

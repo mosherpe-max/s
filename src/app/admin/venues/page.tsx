@@ -28,7 +28,8 @@ import {
   XCircle,
   Download,
   Library,
-  Tags
+  Tags,
+  Printer
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -82,6 +83,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormDescription } fr
 import { cn, AUTHORIZED_SERVICE_MODES } from '@/lib/utils';
 import { StarterItemPicker } from '@/components/starter-item-picker';
 import { StarterModifierPicker } from '@/components/starter-modifier-picker';
+import { PrintMarketingKit } from '@/components/print-marketing-kit';
 
 const MODE_KEY_BY_LABEL: Record<string, 'beverageCart' | 'clubhouse' | 'laneService'> = {
   'Beverage Cart': 'beverageCart',
@@ -723,6 +725,23 @@ export default function AdminVenueRegistryPage() {
                     </CardContent>
                   </Card>
                </div>
+
+               {/* PRINT MARKETING SECTION */}
+               {currentSeller && (
+                 <div className="space-y-6">
+                    <Label className="text-[11px] font-black uppercase tracking-[0.3em] text-primary flex items-center gap-2">
+                      <Printer className="h-4 w-4" /> Print Marketing Kit
+                    </Label>
+                    <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">
+                      Generate print-ready PDFs to send to a printer before launch.
+                    </p>
+                    <PrintMarketingKit
+                      courseName={currentSeller.courseName || ''}
+                      patronMenuUrl={qrUrl}
+                      venueType={currentSeller.type}
+                    />
+                 </div>
+               )}
 
                <Form {...registryForm}>
                  <form onSubmit={registryForm.handleSubmit(onSaveVenueRegistry)} className="space-y-8 pt-10 border-t-4 border-slate-100">
