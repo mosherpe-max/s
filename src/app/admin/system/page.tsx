@@ -270,7 +270,7 @@ export default function AdminSystemConfigPage() {
                         onBlur={(e) => handleUpdateConfig('driverGpsPollIntervalSeconds', parseInt(e.target.value))}
                       />
                       <p className="text-[9px] text-muted-foreground uppercase font-medium max-w-xs leading-relaxed">
-                        How often staff driver devices (Beverage Cart, Clubhouse) fetch and broadcast their own position. Uses a periodic fetch instead of continuous tracking to keep the staff portal fullscreen on iOS Home Screen installs.
+                        How often staff driver devices (Beverage Cart, Clubhouse) broadcast their position to Firestore. Position is tracked continuously in a separate browser tab (never inside the installed staff app itself), but only written this often.
                       </p>
                    </div>
                 </div>
