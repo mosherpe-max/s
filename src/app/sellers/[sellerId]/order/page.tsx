@@ -141,7 +141,9 @@ function BuyerOrderContent({ sellerId }: { sellerId: string }) {
     return [...pastOrders]
       .filter((order) => order.items.every(isStillOrderable))
       .sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0))
-      .slice(0, 2);
+      // TEMPORARY: capped at 1 (was 2) to shrink this section for marketing
+      // screenshots. Revert to .slice(0, 2) once photos are captured.
+      .slice(0, 1);
   }, [pastOrders, menuItems, selectedMenuType]);
 
   const handleReorder = (pastOrder: Order) => {
