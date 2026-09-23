@@ -161,6 +161,7 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
               amount: baseTotalForBackend,
               convenienceFee: solutionFee,
               sellerId,
+              menuType: menuTypeFromUrl,
               patronName: patronName || 'Guest',
               patronPhone: patronPhone.replace(/\D/g, '') || '',
               patronEmail: patronEmail || '',
@@ -178,6 +179,20 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
           }
         } catch (e: any) {
           console.error("Payment Intent Error:", e);
+          // A closed-service rejection (mode not open, or no staff currently
+          // active for it) means no one can fulfill this order right now -
+          // falling back to Pay at Delivery would let the patron complete an
+          // order anyway through that unguarded path, which is exactly what
+          // this check exists to prevent. Send them back to the menu instead
+          // of offering any way to still check out. Matched on message, not
+          // code, since other failed-precondition cases here (gateway/venue
+          // not configured) should keep falling back as before.
+          const closedServiceMessages = ['This service is currently closed.', 'No staff are currently available to take orders for this service.'];
+          if (closedServiceMessages.includes(e?.message)) {
+            toast({ variant: 'destructive', title: 'Service Closed', description: e.message });
+            router.replace(menuUrl);
+            return;
+          }
           toast({ variant: 'destructive', title: 'Gateway Error', description: "Digital checkout unavailable." });
           setPaymentMethod('Pay at Delivery');
         } finally {
@@ -186,7 +201,7 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
       };
       fetchIntent();
     }
-  }, [paymentMethod, baseTotalForBackend, sellerId, firebaseApp, user, auth, isSellerLoading, isVenueLoading, solutionFee]);
+  }, [paymentMethod, baseTotalForBackend, sellerId, menuTypeFromUrl, firebaseApp, user, auth, isSellerLoading, isVenueLoading, solutionFee, router, menuUrl]);
 
   const handleManualOrder = async () => {
     if (!firestore || activeOrderItems.length === 0) return;
