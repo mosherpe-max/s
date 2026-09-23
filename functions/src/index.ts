@@ -130,11 +130,12 @@ export const createPaymentIntent = onCall({
   minInstances: 1,
 }, async (request) => {
   try {
-    const { amount, convenienceFee, sellerId, patronName, patronPhone, patronEmail, stripeCustomerId: clientProvidedCustomerId } = request.data || {};
+    const { amount, convenienceFee, sellerId, menuType, patronName, patronPhone, patronEmail, stripeCustomerId: clientProvidedCustomerId } = request.data || {};
     const buyerUid = request.auth?.uid;
 
     if (!amount || amount <= 0) throw new HttpsError('invalid-argument', 'Invalid amount.');
     if (!sellerId) throw new HttpsError('invalid-argument', 'Missing sellerId.');
+    if (!menuType) throw new HttpsError('invalid-argument', 'Missing menuType.');
 
     const apiKey = process.env.STRIPE_SECRET_KEY;
     if (!apiKey) throw new HttpsError('failed-precondition', 'Gateway not configured.');
@@ -142,9 +143,43 @@ export const createPaymentIntent = onCall({
     const stripe = new Stripe(apiKey, { apiVersion: '2025-01-27.acacia' as any });
 
     const sellerDoc = await db.collection('sellers').doc(sellerId).get();
-    const venueStripeAccountId = sellerDoc.data()?.stripeAccountId;
+    const sellerData = sellerDoc.data();
+    const venueStripeAccountId = sellerData?.stripeAccountId;
     if (!venueStripeAccountId) {
       throw new HttpsError('failed-precondition', 'Venue is not configured for digital payments.');
+    }
+
+    // Never charge a patron for a service mode nobody can currently fulfill.
+    // The client's isModeAvailable() (order/page.tsx) checks this too, but
+    // only to decide which menu tab renders as clickable - it's never
+    // re-checked at the point money actually moves, so a stale tab or a
+    // direct call could otherwise charge a card for an order no one is
+    // staffed to make. Demo venues keep the same unconditional bypass used
+    // everywhere else in the ordering flow.
+    if (!sellerId.startsWith('demo-')) {
+      const activeFlagByMode: Record<string, string> = {
+        'Beverage Cart': 'bevcartActive',
+        'Clubhouse': 'clubhouseActive',
+        'Lane Delivery': 'lanedeliveryActive',
+      };
+      const activeFlag = activeFlagByMode[menuType];
+      const isVenueAuthorized = activeFlag && (sellerData?.menuTypes || []).includes(menuType) && !!sellerData?.[activeFlag];
+      if (!isVenueAuthorized) {
+        throw new HttpsError('failed-precondition', 'This service is currently closed.');
+      }
+
+      const configDoc = await db.collection('solution').doc('config').get();
+      const enabledModes: string[] | undefined = configDoc.data()?.enabledModes;
+      if (enabledModes && !enabledModes.includes(menuType)) {
+        throw new HttpsError('failed-precondition', 'This service is currently closed.');
+      }
+
+      const staffSnap = await db.collection('sellers').doc(sellerId).collection('staff')
+        .where('activeMode', '==', menuType).get();
+      const hasActiveStaff = staffSnap.docs.some(d => d.data()?.isActive !== false);
+      if (!hasActiveStaff) {
+        throw new HttpsError('failed-precondition', 'No staff are currently available to take orders for this service.');
+      }
     }
 
     const venueDoc = await db.collection('venues').doc(sellerId).get();
@@ -216,6 +251,10 @@ export const createPaymentIntent = onCall({
     };
   } catch (err: any) {
     logger.error("Stripe PI Error", err);
+    // Preserve deliberate HttpsErrors (e.g. failed-precondition for a closed
+    // service) so the client can branch on `.code` instead of string-matching
+    // a message - only an unexpected exception gets downgraded to 'internal'.
+    if (err instanceof HttpsError) throw err;
     throw new HttpsError('internal', err.message || 'Internal payment gateway error.');
   }
 });
