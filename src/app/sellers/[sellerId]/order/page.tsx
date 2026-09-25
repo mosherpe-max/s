@@ -180,9 +180,25 @@ function BuyerOrderContent({ sellerId }: { sellerId: string }) {
     }
     if (!isChannelOpen) return false;
 
+    if (isModeBusy(type)) return false;
+
     // Production constraint: Staff must be active to take orders
     const activeStaff = staffList?.filter(s => s.activeMode === type && s.isActive !== false);
     return (activeStaff && activeStaff.length > 0) || false;
+  };
+
+  // A staff-initiated pause or an auto-throttle trip (queue too full) - kept
+  // distinct from the *Active/no-staff checks above so the "unavailable"
+  // screen can tell a patron this is temporary instead of implying the
+  // venue is closed or unstaffed.
+  const isModeBusy = (type: string) => {
+    if (!seller || sellerId.startsWith('demo-')) return false;
+    switch (type) {
+      case 'Beverage Cart': return !!seller.bevcartPausedByStaff || !!seller.bevcartAutoThrottled;
+      case 'Clubhouse': return !!seller.clubhousePausedByStaff || !!seller.clubhouseAutoThrottled;
+      case 'Lane Delivery': return !!seller.lanedeliveryPausedByStaff || !!seller.lanedeliveryAutoThrottled;
+      default: return false;
+    }
   };
 
   useEffect(() => {
@@ -437,10 +453,21 @@ function BuyerOrderContent({ sellerId }: { sellerId: string }) {
         <div className="flex-1 flex flex-col items-center justify-center p-12 text-center space-y-6">
           <div className="bg-white p-10 rounded-[3rem] shadow-xl border-2 border-slate-100 max-w-sm">
             <AlertTriangle className="h-16 w-16 text-amber-500 mx-auto mb-6" />
-            <h2 className="font-headline font-black text-2xl uppercase tracking-tight text-[#213147] mb-3">Service Offline</h2>
-            <p className="text-muted-foreground text-sm font-medium leading-relaxed">
-              We don't have any staff active for {selectedMenuType || 'this channel'} at the moment. Please select another mode or check back soon.
-            </p>
+            {isModeBusy(selectedMenuType) ? (
+              <>
+                <h2 className="font-headline font-black text-2xl uppercase tracking-tight text-[#213147] mb-3">Very Busy Right Now</h2>
+                <p className="text-muted-foreground text-sm font-medium leading-relaxed">
+                  {selectedMenuType || 'This channel'} has paused new orders while it catches up. Please check back shortly.
+                </p>
+              </>
+            ) : (
+              <>
+                <h2 className="font-headline font-black text-2xl uppercase tracking-tight text-[#213147] mb-3">Service Offline</h2>
+                <p className="text-muted-foreground text-sm font-medium leading-relaxed">
+                  We don't have any staff active for {selectedMenuType || 'this channel'} at the moment. Please select another mode or check back soon.
+                </p>
+              </>
+            )}
           </div>
           <Button variant="outline" className="font-black uppercase text-[10px] tracking-widest border-2 h-12 px-8 rounded-full" onClick={() => router.push('/')}>
             Return to Home

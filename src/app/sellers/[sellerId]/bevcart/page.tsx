@@ -30,6 +30,16 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Table,
   TableBody,
   TableCell,
@@ -60,6 +70,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
   const [isExiting, setIsExiting] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isStockOpen, setIsStockOpen] = useState(false);
+  const [pauseConfirmOpen, setPauseConfirmOpen] = useState(false);
 
   const lastOrderIdsRef = useRef<Set<string>>(new Set());
   const initialLoadRef = useRef(true);
@@ -258,6 +269,60 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
       .filter(o => o.menuType === 'Beverage Cart')
       .sort((a, b) => (a.createdAt?.toMillis?.() || 0) - (b.createdAt?.toMillis?.() || 0));
   }, [activeOrders]);
+
+  // Order queue pause/throttle - "Taking Orders" reflects bevcartPausedByStaff
+  // (any active staff on this mode can flip it, distinct from the venue-wide
+  // bevcartActive flag which only the venue admin controls); auto-throttle
+  // trips/clears based on the live queue vs the configured threshold, scaled
+  // by active staff on this mode when queueScalesWithStaff is set. See
+  // OrderFulfillmentThresholds in src/lib/types.ts.
+  const activeStaffCountForMode = useMemo(() => (
+    (allStaff || []).filter(s => s.activeMode === 'Beverage Cart' && s.isActive !== false).length
+  ), [allStaff]);
+
+  const queueThresholds = primarySeller?.orderThresholds?.['Beverage Cart'] || solutionConfig?.orderThresholds?.['Beverage Cart'];
+  const queueScale = queueThresholds?.queueScalesWithStaff ? Math.max(1, activeStaffCountForMode) : 1;
+  const effectiveMaxQueue = queueThresholds?.maxQueueSize ? queueThresholds.maxQueueSize * queueScale : undefined;
+  const effectiveResumeQueue = queueThresholds?.resumeQueueSize ? queueThresholds.resumeQueueSize * queueScale : undefined;
+  const queueCount = driverOrders.length;
+  const isPausedByStaff = !!primarySeller?.bevcartPausedByStaff;
+  const isAutoThrottled = !!primarySeller?.bevcartAutoThrottled;
+
+  useEffect(() => {
+    if (!firestore || !primarySellerRef || effectiveMaxQueue === undefined) return;
+    if (!isAutoThrottled && queueCount >= effectiveMaxQueue) {
+      updateDoc(primarySellerRef, { bevcartAutoThrottled: true }).catch(() => {});
+    } else if (isAutoThrottled && effectiveResumeQueue !== undefined && queueCount <= effectiveResumeQueue) {
+      updateDoc(primarySellerRef, { bevcartAutoThrottled: false }).catch(() => {});
+    }
+  }, [firestore, primarySellerRef, isAutoThrottled, queueCount, effectiveMaxQueue, effectiveResumeQueue]);
+
+  const handleToggleAcceptingOrders = (checked: boolean) => {
+    if (!checked) {
+      setPauseConfirmOpen(true);
+      return;
+    }
+    if (!firestore || !primarySellerRef) return;
+    updateDoc(primarySellerRef, { bevcartPausedByStaff: false }).catch(() => {
+      toast({ variant: 'destructive', title: 'Update Failed', description: 'Could not resume new orders.' });
+    });
+  };
+
+  const confirmPauseOrders = () => {
+    if (firestore && primarySellerRef) {
+      updateDoc(primarySellerRef, { bevcartPausedByStaff: true }).catch(() => {
+        toast({ variant: 'destructive', title: 'Update Failed', description: 'Could not pause new orders.' });
+      });
+    }
+    setPauseConfirmOpen(false);
+  };
+
+  const handleClearAutoThrottle = () => {
+    if (!firestore || !primarySellerRef) return;
+    updateDoc(primarySellerRef, { bevcartAutoThrottled: false }).catch(() => {
+      toast({ variant: 'destructive', title: 'Update Failed', description: 'Could not resume new orders.' });
+    });
+  };
 
   const personalHistory = useMemo(() => {
     if (!allOrders || !currentStaffId) return [];
@@ -458,6 +523,28 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
         </div>
       </div>
 
+      <div className="flex-shrink-0 px-4 py-3 bg-background border-b flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-3">
+          <Package className="h-4 w-4 text-muted-foreground shrink-0" />
+          <div className="flex flex-col leading-none">
+            <span className="text-[8px] font-black uppercase text-muted-foreground">Order Queue</span>
+            <span className="text-sm font-black">{queueCount}{effectiveMaxQueue !== undefined ? ` / ${effectiveMaxQueue}` : ''}</span>
+          </div>
+          {isAutoThrottled && (
+            <Badge className="bg-amber-500 text-white border-0 text-[8px] font-black uppercase gap-1.5 h-6 px-2">
+              <AlertTriangle className="h-3 w-3" /> Auto-Paused
+              <button onClick={handleClearAutoThrottle} className="ml-1 underline underline-offset-2">Resume Now</button>
+            </Badge>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <span className={cn("text-[9px] font-black uppercase tracking-widest", isPausedByStaff ? "text-destructive" : "text-green-600")}>
+            {isPausedByStaff ? 'Paused' : 'Taking Orders'}
+          </span>
+          <Switch checked={!isPausedByStaff} onCheckedChange={handleToggleAcceptingOrders} className="data-[state=checked]:bg-green-600" />
+        </div>
+      </div>
+
       <div className="flex-1 flex flex-col md:flex-row overflow-auto p-4 gap-4">
         <div className="relative w-full md:w-2/3 h-[40vh] md:h-full bg-muted rounded-xl overflow-hidden border-2 shadow-sm">
          <Button variant="outline" size="icon" className="absolute top-2 right-2 z-10 bg-background/80 h-8 w-8" onClick={() => setFitTrigger(p => p + 1)}><Focus className="h-4 w-4" /></Button>
@@ -603,6 +690,26 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
           </div>
         </div>
       </div>
+
+      <AlertDialog open={pauseConfirmOpen} onOpenChange={setPauseConfirmOpen}>
+        <AlertDialogContent className="rounded-[2rem] border-2 shadow-2xl p-8">
+          <AlertDialogHeader className="text-left space-y-4">
+            <div className="bg-destructive/10 p-3 rounded-2xl w-fit"><Ban className="h-8 w-8 text-destructive" /></div>
+            <div className="space-y-1">
+              <AlertDialogTitle className="font-headline font-black uppercase text-xl">Pause New Orders?</AlertDialogTitle>
+              <AlertDialogDescription className="text-sm font-medium leading-relaxed">
+                This stops new orders for Beverage Cart venue-wide until someone turns it back on. Orders already placed are not affected.
+              </AlertDialogDescription>
+            </div>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-8 gap-3">
+            <AlertDialogCancel className="rounded-xl font-black uppercase text-[10px] tracking-widest border-2 h-12">Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmPauseOrders} className="bg-destructive hover:bg-destructive/90 rounded-xl font-black uppercase text-[10px] tracking-widest h-12 px-8">
+              Pause Orders
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

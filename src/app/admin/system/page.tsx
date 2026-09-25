@@ -23,7 +23,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useFirestore, useDoc, useMemoFirebase, useFirebaseApp } from '@/firebase';
-import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, updateDoc, serverTimestamp, deleteField } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import type { SolutionConfig } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
@@ -222,13 +222,62 @@ export default function AdminSystemConfigPage() {
                          </div>
                          <div className="space-y-1.5">
                             <Label className="text-[8px] font-black uppercase text-red-600">Max (m)</Label>
-                            <Input 
-                              type="number" 
-                              defaultValue={config?.orderThresholds?.[mode]?.maxOrderProcessingMinutes || 25} 
+                            <Input
+                              type="number"
+                              defaultValue={config?.orderThresholds?.[mode]?.maxOrderProcessingMinutes || 25}
                               onBlur={(e) => handleUpdateConfig(`orderThresholds.${mode}.maxOrderProcessingMinutes`, parseInt(e.target.value))}
-                              className="h-10 border-2 font-bold text-center" 
+                              className="h-10 border-2 font-bold text-center"
                             />
                          </div>
+                       </div>
+                       <div className="pt-3 border-t border-slate-200 space-y-3">
+                          <div className="flex items-center justify-between p-2.5 rounded-lg bg-white border-2 border-slate-100">
+                             <Label className="text-[8px] font-black uppercase leading-tight pr-2">Scale Queue Cap With Staff</Label>
+                             <Switch
+                               checked={!!config?.orderThresholds?.[mode]?.queueScalesWithStaff}
+                               onCheckedChange={(val) => handleUpdateConfig(`orderThresholds.${mode}.queueScalesWithStaff`, val)}
+                               className="data-[state=checked]:bg-primary shrink-0"
+                             />
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                             <div className="space-y-1.5">
+                                <Label className="text-[8px] font-black uppercase">{config?.orderThresholds?.[mode]?.queueScalesWithStaff ? 'Max / Staff' : 'Max Queue'}</Label>
+                                <Input
+                                  type="number"
+                                  defaultValue={config?.orderThresholds?.[mode]?.maxQueueSize ?? ''}
+                                  placeholder="Off"
+                                  onBlur={(e) => {
+                                    const val = e.target.value;
+                                    handleUpdateConfig(`orderThresholds.${mode}.maxQueueSize`, val === '' ? deleteField() : parseInt(val));
+                                  }}
+                                  className="h-10 border-2 font-bold text-center"
+                                />
+                             </div>
+                             <div className="space-y-1.5">
+                                <Label className="text-[8px] font-black uppercase">Resume At</Label>
+                                <Input
+                                  type="number"
+                                  defaultValue={config?.orderThresholds?.[mode]?.resumeQueueSize ?? ''}
+                                  placeholder="Off"
+                                  onBlur={(e) => {
+                                    const val = e.target.value;
+                                    if (val === '') {
+                                      handleUpdateConfig(`orderThresholds.${mode}.resumeQueueSize`, deleteField());
+                                      return;
+                                    }
+                                    const parsed = parseInt(val);
+                                    const currentMax = config?.orderThresholds?.[mode]?.maxQueueSize;
+                                    if (currentMax && parsed >= currentMax) {
+                                      toast({ variant: 'destructive', title: 'Invalid Resume Threshold', description: 'Resume At must be lower than the max queue size.' });
+                                      e.target.value = String(config?.orderThresholds?.[mode]?.resumeQueueSize ?? '');
+                                      return;
+                                    }
+                                    handleUpdateConfig(`orderThresholds.${mode}.resumeQueueSize`, parsed);
+                                  }}
+                                  className="h-10 border-2 font-bold text-center"
+                                />
+                             </div>
+                          </div>
                        </div>
                     </div>
                   </div>

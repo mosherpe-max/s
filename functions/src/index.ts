@@ -180,6 +180,23 @@ export const createPaymentIntent = onCall({
       if (!hasActiveStaff) {
         throw new HttpsError('failed-precondition', 'No staff are currently available to take orders for this service.');
       }
+
+      // A staff-initiated pause or an auto-throttle trip (queue too full)
+      // both stop new orders without touching *Active - see the
+      // PausedByStaff/AutoThrottled fields on Seller in src/lib/types.ts.
+      const pausedFlagByMode: Record<string, string> = {
+        'Beverage Cart': 'bevcartPausedByStaff',
+        'Clubhouse': 'clubhousePausedByStaff',
+        'Lane Delivery': 'lanedeliveryPausedByStaff',
+      };
+      const throttledFlagByMode: Record<string, string> = {
+        'Beverage Cart': 'bevcartAutoThrottled',
+        'Clubhouse': 'clubhouseAutoThrottled',
+        'Lane Delivery': 'lanedeliveryAutoThrottled',
+      };
+      if (sellerData?.[pausedFlagByMode[menuType]] || sellerData?.[throttledFlagByMode[menuType]]) {
+        throw new HttpsError('failed-precondition', 'Very busy right now - please try again shortly.');
+      }
     }
 
     const venueDoc = await db.collection('venues').doc(sellerId).get();
