@@ -101,7 +101,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Label } from '@/components/ui/label';
-import { cn, SUPER_ADMIN_ID, getNumericOrderId, AUTHORIZED_SERVICE_MODES } from '@/lib/utils';
+import { cn, SUPER_ADMIN_ID, getNumericOrderId, AUTHORIZED_SERVICE_MODES, getDisplayNameFromEmail } from '@/lib/utils';
 import { 
   isToday, 
   format, 
@@ -921,12 +921,12 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-[#F8FAFC] text-left">
-      <header className="h-16 bg-white border-b-2 flex items-center justify-between px-8 shrink-0 z-30 shadow-sm relative text-left">
+      <header className="h-16 bg-[#213147] border-b-2 border-[#E50000] flex items-center justify-between px-8 shrink-0 z-30 shadow-sm relative text-left">
         <div className="flex items-center gap-4">
           <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" className="md:hidden">
-                <Menu className="h-6 w-6 text-[#213147]" />
+                <Menu className="h-6 w-6 text-white" />
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="w-72 bg-[#213147] border-0 p-0 text-white">
@@ -937,16 +937,27 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
               <div className="p-4 text-left"><NavContent /></div>
             </SheetContent>
           </Sheet>
-          <StylizedKoopLogo size="sm" colorClass="text-[#213147]" />
+          <StylizedKoopLogo size="sm" />
           <div className="flex flex-col text-left">
-            <h1 className="text-sm font-black text-[#213147] uppercase tracking-tight leading-none mb-1 truncate max-w-[200px]">{seller?.courseName}</h1>
-            <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest leading-none">Venue Admin</p>
+            <h1 className="text-sm font-black text-white uppercase tracking-tight leading-none mb-1 truncate max-w-[200px]">{seller?.courseName}</h1>
+            <p className="text-[9px] font-bold text-white/50 uppercase tracking-widest leading-none">Venue Admin</p>
           </div>
         </div>
-        <button onClick={handleLogout} className="p-2 text-muted-foreground hover:text-destructive transition-colors flex items-center gap-2">
-          <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">Release Device</span>
-          <LogOut className="h-5 w-5" />
-        </button>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5 bg-white/10 rounded-full pl-1 pr-3 py-1">
+             <div className="h-8 w-8 rounded-full bg-[#E50000] flex items-center justify-center shrink-0">
+                <span className="text-white text-xs font-black uppercase">{getDisplayNameFromEmail(user?.email).charAt(0)}</span>
+             </div>
+             <div className="hidden sm:flex flex-col items-start leading-none">
+                <span className="text-[9px] font-black uppercase text-white truncate max-w-[140px]">{getDisplayNameFromEmail(user?.email)}</span>
+                <span className="text-[8px] font-bold text-white/40 uppercase tracking-widest">Venue Admin</span>
+             </div>
+          </div>
+          <button onClick={handleLogout} className="p-2 text-white/50 hover:text-red-400 transition-colors flex items-center gap-2">
+            <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">Release Device</span>
+            <LogOut className="h-5 w-5" />
+          </button>
+        </div>
       </header>
 
       <div className="flex-1 flex overflow-hidden">
