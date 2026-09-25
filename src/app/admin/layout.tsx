@@ -14,7 +14,7 @@ import {
   Library
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { cn, SUPER_ADMIN_ID } from '@/lib/utils';
+import { cn, SUPER_ADMIN_ID, getDisplayNameFromEmail } from '@/lib/utils';
 import { StylizedKoopLogo } from '@/components/header';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth, useUser } from '@/firebase';
@@ -122,12 +122,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </aside>
 
       <div className="flex-1 flex flex-col min-w-0">
-        {/* GLOBAL ADMIN HEADER */}
-        <header className="h-16 bg-white border-b-2 flex items-center justify-between px-6 shrink-0 z-30 shadow-sm">
+        {/* GLOBAL ADMIN HEADER - navy + red accent, matching the sidebar and
+            the patron-facing AppHeader, instead of a plain white bar that
+            broke the brand chrome up into two mismatched halves. */}
+        <header className="h-16 bg-[#213147] border-b-2 border-[#E50000] flex items-center justify-between px-6 shrink-0 z-30 shadow-sm">
           <div className="flex items-center gap-4">
             <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="md:hidden"><Menu className="h-6 w-6 text-[#213147]" /></Button>
+                <Button variant="ghost" size="icon" className="md:hidden"><Menu className="h-6 w-6 text-white" /></Button>
               </SheetTrigger>
               <SheetContent side="left" className="w-72 bg-[#213147] border-0 p-0 text-white">
                 <SheetHeader className="p-6 border-b border-white/5 text-left">
@@ -145,20 +147,29 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 </div>
               </SheetContent>
             </Sheet>
-            <div className="hidden md:flex flex-col">
-              <h1 className="text-sm font-black text-[#213147] uppercase tracking-tight leading-none mb-1">KOOP Solution Control</h1>
-              <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest leading-none">Global Administrator Instance</p>
+            <div className="hidden md:flex items-center gap-3">
+              <StylizedKoopLogo size="sm" />
+              <div className="flex flex-col">
+                <h1 className="text-sm font-black text-white uppercase tracking-tight leading-none mb-1">Solution Control</h1>
+                <p className="text-[9px] font-bold text-white/50 uppercase tracking-widest leading-none">Global Administrator Instance</p>
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-3">
-             <div className="flex flex-col items-end text-right mr-2 hidden sm:flex">
-                <span className="text-[10px] font-black uppercase text-[#213147] leading-none mb-1">Status: God Mode</span>
-                <span className="text-[8px] font-bold text-green-600 uppercase tracking-widest flex items-center gap-1">
-                  <div className="h-1 w-1 rounded-full bg-green-500 animate-pulse" /> Security Feed Active
+             <div className="flex flex-col items-end text-right mr-1 hidden sm:flex">
+                <span className="text-[10px] font-black uppercase text-white leading-none mb-1">Status: God Mode</span>
+                <span className="text-[8px] font-bold text-green-400 uppercase tracking-widest flex items-center gap-1">
+                  <div className="h-1 w-1 rounded-full bg-green-400 animate-pulse" /> Security Feed Active
                 </span>
              </div>
-             <div className="h-10 w-10 rounded-full bg-slate-100 border-2 border-white shadow-sm flex items-center justify-center overflow-hidden">
-                <ShieldCheck className="h-6 w-6 text-[#213147]" />
+             <div className="flex items-center gap-2.5 bg-white/10 rounded-full pl-1 pr-3 py-1">
+                <div className="h-8 w-8 rounded-full bg-[#E50000] flex items-center justify-center shrink-0">
+                   <span className="text-white text-xs font-black uppercase">{getDisplayNameFromEmail(user?.email).charAt(0)}</span>
+                </div>
+                <div className="hidden sm:flex flex-col items-start leading-none">
+                   <span className="text-[9px] font-black uppercase text-white truncate max-w-[140px]">{getDisplayNameFromEmail(user?.email)}</span>
+                   <span className="text-[8px] font-bold text-white/40 uppercase tracking-widest">Koop Admin</span>
+                </div>
              </div>
           </div>
         </header>

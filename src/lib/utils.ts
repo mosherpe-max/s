@@ -19,6 +19,25 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
+ * No account in this app ever has a Firebase Auth displayName set (no
+ * updateProfile call exists anywhere), so header UI that wants to show
+ * "who's signed in" falls back to a friendly label derived from the email's
+ * local part - e.g. "jane.doe@koop.com" -> "Jane Doe". Not a real name, just
+ * the best available approximation without adding new profile-writing code.
+ */
+export function getDisplayNameFromEmail(email?: string | null): string {
+  if (!email) return 'Admin';
+  const localPart = email.split('@')[0] || '';
+  return localPart
+    .replace(/[._-]+/g, ' ')
+    .trim()
+    .split(' ')
+    .filter(Boolean)
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ') || 'Admin';
+}
+
+/**
  * Programmatic Notification Sound
  * Uses Web Audio API to generate a clean notification chime.
  * Higher reliability than base64 assets and works without external files.
