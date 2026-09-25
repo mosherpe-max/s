@@ -179,17 +179,23 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
           }
         } catch (e: any) {
           console.error("Payment Intent Error:", e);
-          // A closed-service rejection (mode not open, or no staff currently
-          // active for it) means no one can fulfill this order right now -
-          // falling back to Pay at Delivery would let the patron complete an
-          // order anyway through that unguarded path, which is exactly what
-          // this check exists to prevent. Send them back to the menu instead
-          // of offering any way to still check out. Matched on message, not
-          // code, since other failed-precondition cases here (gateway/venue
-          // not configured) should keep falling back as before.
-          const closedServiceMessages = ['This service is currently closed.', 'No staff are currently available to take orders for this service.'];
-          if (closedServiceMessages.includes(e?.message)) {
-            toast({ variant: 'destructive', title: 'Service Closed', description: e.message });
+          // A closed-service rejection (mode not open, no staff currently
+          // active for it, or the mode is paused/auto-throttled) means no
+          // one can fulfill this order right now - falling back to Pay at
+          // Delivery would let the patron complete an order anyway through
+          // that unguarded path, which is exactly what this check exists to
+          // prevent. Send them back to the menu instead of offering any way
+          // to still check out. Matched on message, not code, since other
+          // failed-precondition cases here (gateway/venue not configured)
+          // should keep falling back as before.
+          const closedServiceTitleByMessage: Record<string, string> = {
+            'This service is currently closed.': 'Service Closed',
+            'No staff are currently available to take orders for this service.': 'Service Closed',
+            'Very busy right now - please try again shortly.': 'Very Busy',
+          };
+          const closedServiceTitle = e?.message ? closedServiceTitleByMessage[e.message] : undefined;
+          if (closedServiceTitle) {
+            toast({ variant: 'destructive', title: closedServiceTitle, description: e.message });
             router.replace(menuUrl);
             return;
           }

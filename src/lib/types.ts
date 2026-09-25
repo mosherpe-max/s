@@ -19,6 +19,19 @@ export interface OrderFulfillmentThresholds {
   maxOrderAcknowledgeSeconds: number;
   warningOrderProcessingMinutes: number;
   maxOrderProcessingMinutes: number;
+  // Auto-throttle: once a mode's live in-flight order count (Placed +
+  // Preparing + Out for Delivery) reaches maxQueueSize, new orders stop
+  // being accepted until the count drops back to resumeQueueSize (a lower
+  // bar than maxQueueSize, so it doesn't flap open/closed at the boundary).
+  // Undefined/0 maxQueueSize means auto-throttle is off for this mode.
+  // When queueScalesWithStaff is true, both numbers are a PER-STAFF
+  // multiplier (effective threshold = value x active staff on this mode)
+  // instead of a flat count - e.g. Beverage Cart capacity scales with how
+  // many carts/staff are out, while Clubhouse/Lane Delivery are usually
+  // capped by a fixed kitchen throughput regardless of staff headcount.
+  maxQueueSize?: number;
+  resumeQueueSize?: number;
+  queueScalesWithStaff?: boolean;
 }
 
 export interface VenueHealthSettings {
@@ -135,6 +148,24 @@ export interface Seller {
   bevcartActive?: boolean;
   clubhouseActive?: boolean;
   lanedeliveryActive?: boolean;
+  // Staff-initiated "stop taking new orders" pause, separate from the
+  // *Active flags above (which only the venue owner controls and mean
+  // "this mode is part of today's operation at all"). Any active staff
+  // member on a mode can flip its paused flag from their terminal when a
+  // spike is more than they can handle; existing in-flight orders are
+  // never affected, only new ones. A mode is orderable only when *Active
+  // is true AND neither PausedByStaff nor AutoThrottled is true.
+  bevcartPausedByStaff?: boolean;
+  clubhousePausedByStaff?: boolean;
+  lanedeliveryPausedByStaff?: boolean;
+  // System-computed twin of the flags above - set/cleared by a staff
+  // terminal page comparing its mode's live queue size against
+  // orderThresholds[mode].maxQueueSize/resumeQueueSize (see
+  // OrderFulfillmentThresholds). Kept separate from PausedByStaff so the UI
+  // can show *why* a mode stopped taking orders.
+  bevcartAutoThrottled?: boolean;
+  clubhouseAutoThrottled?: boolean;
+  lanedeliveryAutoThrottled?: boolean;
   lastActive?: Timestamp;
   healthSettings?: VenueHealthSettings;
   orderThresholds?: Record<string, OrderFulfillmentThresholds>; // Venue overrides by Mode

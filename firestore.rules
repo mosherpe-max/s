@@ -77,9 +77,18 @@ service cloud.firestore {
       // Service mode open/closed (bevcartActive/clubhouseActive/lanedeliveryActive)
       // is intentionally NOT in this list - only the venue owner (or super admin,
       // via the "allow write" rule above) may open or close a service mode.
+      // The *PausedByStaff and *AutoThrottled flags ARE intentionally here,
+      // unlike the *Active flags above - any signed-in staff device needs to
+      // be able to pause/resume new orders for a mode it's actively working,
+      // and to let the terminal that's watching the live queue flip the
+      // auto-throttle flag when it crosses a threshold.
       allow update: if (isSignedIn() || sellerId.startsWith('demo-')) &&
                     request.resource.data.diff(resource.data).affectedKeys()
-                    .hasOnly(['latitude', 'longitude', 'lastActive', 'updatedAt', 'qrActive', 'qrSecret']);
+                    .hasOnly([
+                      'latitude', 'longitude', 'lastActive', 'updatedAt', 'qrActive', 'qrSecret',
+                      'bevcartPausedByStaff', 'clubhousePausedByStaff', 'lanedeliveryPausedByStaff',
+                      'bevcartAutoThrottled', 'clubhouseAutoThrottled', 'lanedeliveryAutoThrottled'
+                    ]);
 
       match /staff/{staffId} {
         // Read stays open: the PIN login screen looks up a staff doc by PIN

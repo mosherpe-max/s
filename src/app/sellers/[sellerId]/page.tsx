@@ -1002,8 +1002,12 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                            const stats = analyticsData.realTimeOperations[mode];
                            const field = mode === 'Beverage Cart' ? 'bevcartActive' : mode === 'Clubhouse' ? 'clubhouseActive' : 'lanedeliveryActive';
                            const isActive = !!seller?.[field as keyof Seller];
+                           const pausedField = mode === 'Beverage Cart' ? 'bevcartPausedByStaff' : mode === 'Clubhouse' ? 'clubhousePausedByStaff' : 'lanedeliveryPausedByStaff';
+                           const throttledField = mode === 'Beverage Cart' ? 'bevcartAutoThrottled' : mode === 'Clubhouse' ? 'clubhouseAutoThrottled' : 'lanedeliveryAutoThrottled';
+                           const isPausedByStaff = !!seller?.[pausedField as keyof Seller];
+                           const isAutoThrottled = !!seller?.[throttledField as keyof Seller];
                            const ModeIcon = getModeIcon(mode);
-                           
+
                            return (
                               <Card key={mode} className={cn("border-2 shadow-sm overflow-hidden", isActive ? "border-slate-100" : "opacity-60 border-dashed")}>
                                  <CardHeader className={cn("py-4 flex flex-row items-center justify-between", isActive ? "bg-slate-50" : "bg-muted/30")}>
@@ -1015,6 +1019,17 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                                     <Switch checked={isActive} onCheckedChange={(val) => handleUpdateField(field, val)} className="data-[state=checked]:bg-green-500 scale-75" />
                                  </CardHeader>
                                  <CardContent className="p-6 space-y-6">
+                                    {(isPausedByStaff || isAutoThrottled) && (
+                                       <div className="flex items-center justify-between gap-2 p-3 rounded-xl bg-amber-50 border-2 border-amber-100">
+                                          <div className="flex items-center gap-1.5">
+                                             <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                                             <p className="text-[8px] font-black uppercase text-amber-700 leading-tight">{isPausedByStaff ? 'Paused by Staff' : 'Auto-Paused - Queue Full'}</p>
+                                          </div>
+                                          <Button size="sm" variant="outline" className="h-7 text-[8px] font-black uppercase tracking-widest border-amber-200 bg-white hover:bg-amber-100 shrink-0" onClick={() => { handleUpdateField(pausedField, false); handleUpdateField(throttledField, false); }}>
+                                             Resume Now
+                                          </Button>
+                                       </div>
+                                    )}
                                     <div className="grid grid-cols-2 gap-4 border-b pb-6">
                                        <div className="space-y-1"><p className="text-[8px] font-black uppercase text-muted-foreground">Order Count</p><p className="text-xl font-black text-[#213147]">{stats?.orderCount || 0}</p></div>
                                        <div className="space-y-1 text-right"><p className="text-[8px] font-black uppercase text-muted-foreground">Net Today</p><p className="text-xl font-black text-primary font-mono">${(stats?.totalNetRevenue || 0).toFixed(2)}</p></div>
@@ -1219,17 +1234,26 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                           <CardTitle className="text-[10px] font-black uppercase tracking-widest">Active Channels</CardTitle>
                         </CardHeader>
                         <CardContent className="pt-6 space-y-4">
-                          {['Beverage Cart', 'Clubhouse', 'Lane Delivery'].filter(m => seller?.menuTypes?.includes(m)).map(mode => { 
-                            const field = mode === 'Beverage Cart' ? 'bevcartActive' : mode === 'Clubhouse' ? 'clubhouseActive' : 'lanedeliveryActive'; 
+                          {['Beverage Cart', 'Clubhouse', 'Lane Delivery'].filter(m => seller?.menuTypes?.includes(m)).map(mode => {
+                            const field = mode === 'Beverage Cart' ? 'bevcartActive' : mode === 'Clubhouse' ? 'clubhouseActive' : 'lanedeliveryActive';
+                            const pausedField = mode === 'Beverage Cart' ? 'bevcartPausedByStaff' : mode === 'Clubhouse' ? 'clubhousePausedByStaff' : 'lanedeliveryPausedByStaff';
+                            const throttledField = mode === 'Beverage Cart' ? 'bevcartAutoThrottled' : mode === 'Clubhouse' ? 'clubhouseAutoThrottled' : 'lanedeliveryAutoThrottled';
+                            const isPausedByStaff = !!seller?.[pausedField as keyof Seller];
+                            const isAutoThrottled = !!seller?.[throttledField as keyof Seller];
                             return (
                               <div key={mode} className="flex items-center justify-between p-3 rounded-xl border-2 bg-slate-50 border-slate-100">
                                 <div className="text-left">
                                   <p className="text-[10px] font-black uppercase text-[#213147]">{mode}</p>
                                   <p className="text-[8px] font-bold text-muted-foreground uppercase">{seller?.[field as keyof Seller] ? 'OPEN' : 'CLOSED'}</p>
+                                  {(isPausedByStaff || isAutoThrottled) && (
+                                    <button onClick={() => { handleUpdateField(pausedField, false); handleUpdateField(throttledField, false); }} className="text-[8px] font-black uppercase text-amber-600 underline underline-offset-2 mt-0.5">
+                                      {isPausedByStaff ? 'Paused by Staff' : 'Auto-Paused'} - Resume
+                                    </button>
+                                  )}
                                 </div>
                                 <Switch checked={!!seller?.[field as keyof Seller]} onCheckedChange={(val) => handleUpdateField(field, val)} className="data-[state=checked]:bg-green-500" />
                               </div>
-                            ); 
+                            );
                           })}
                         </CardContent>
                       </Card>
@@ -1588,6 +1612,64 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                                     }}
                                     className="h-10 border-2 font-bold bg-white"
                                   />
+                                </div>
+                              </div>
+                              <div className="pt-3 border-t border-slate-200 space-y-3">
+                                <div className="flex items-center justify-between">
+                                  <div className="text-left">
+                                    <p className="text-[9px] font-black uppercase text-[#213147]">Auto-Pause Order Queue</p>
+                                    <p className="text-[8px] font-bold text-muted-foreground uppercase">Stop new orders once the queue backs up, resume once it clears</p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center justify-between p-3 rounded-lg bg-white border-2 border-slate-100">
+                                  <div className="text-left">
+                                    <p className="text-[9px] font-black uppercase text-[#213147]">Scale With Active Staff</p>
+                                    <p className="text-[8px] font-bold text-muted-foreground uppercase">On: numbers below are per active staff. Off: a flat count (e.g. kitchen capacity).</p>
+                                  </div>
+                                  <Switch
+                                    checked={!!venueOverride?.queueScalesWithStaff}
+                                    onCheckedChange={(val) => handleUpdateField(`orderThresholds.${mode}.queueScalesWithStaff`, val)}
+                                    className="data-[state=checked]:bg-primary shrink-0"
+                                  />
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                  <div className="space-y-1">
+                                    <Label className="text-[8px] font-black uppercase text-muted-foreground">{venueOverride?.queueScalesWithStaff ? 'Max Orders / Staff' : 'Max Orders in Queue'}</Label>
+                                    <Input
+                                      type="number"
+                                      defaultValue={venueOverride?.maxQueueSize ?? ''}
+                                      placeholder="Off"
+                                      onBlur={(e) => {
+                                        const val = e.target.value;
+                                        handleUpdateField(`orderThresholds.${mode}.maxQueueSize`, val === '' ? deleteField() : parseInt(val));
+                                      }}
+                                      className="h-10 border-2 font-bold bg-white"
+                                    />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <Label className="text-[8px] font-black uppercase text-muted-foreground">Resume At</Label>
+                                    <Input
+                                      type="number"
+                                      defaultValue={venueOverride?.resumeQueueSize ?? ''}
+                                      placeholder="Off"
+                                      onBlur={(e) => {
+                                        const val = e.target.value;
+                                        if (val === '') {
+                                          handleUpdateField(`orderThresholds.${mode}.resumeQueueSize`, deleteField());
+                                          return;
+                                        }
+                                        const parsed = parseInt(val);
+                                        const currentMax = venueOverride?.maxQueueSize;
+                                        if (currentMax && parsed >= currentMax) {
+                                          toast({ variant: 'destructive', title: 'Invalid Resume Threshold', description: 'Resume At must be lower than the max queue size.' });
+                                          e.target.value = String(venueOverride?.resumeQueueSize ?? '');
+                                          return;
+                                        }
+                                        handleUpdateField(`orderThresholds.${mode}.resumeQueueSize`, parsed);
+                                      }}
+                                      className="h-10 border-2 font-bold bg-white"
+                                    />
+                                  </div>
                                 </div>
                               </div>
                             </div>
