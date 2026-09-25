@@ -117,6 +117,18 @@ service cloud.firestore {
                       request.resource.data.diff(resource.data).affectedKeys()
                       .hasOnly(['outOfStockModes']);
       }
+
+      // Daily Sales Report bookkeeping locks - one doc per (day, service
+      // mode) once that day has ended. The venue owner may create a lock
+      // (the report page does this the first time it computes a past day
+      // that hasn't been locked yet) but never alter one afterward, so a
+      // later fee-setting change or order edit can't silently rewrite a
+      // day the venue already logged in their own books.
+      match /dailySalesLocks/{lockId} {
+        allow read: if isSuperAdmin() || isVenueOwner(sellerId);
+        allow create: if isSuperAdmin() || isVenueOwner(sellerId);
+        allow update, delete: if isSuperAdmin();
+      }
     }
 
     match /orders/{orderId} {

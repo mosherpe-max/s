@@ -284,6 +284,23 @@ export interface Order {
   lateAlertSentAt?: Timestamp;
 }
 
+// A frozen, one-time-written daily bookkeeping total for a single venue +
+// service mode + calendar day, used by the Sales Report tab. Once a day is
+// over, its numbers are locked in permanently (Firestore rules deny update
+// to anyone but a super admin) so a later change to the venue's fee
+// settings, or an order status edited after the fact, can never silently
+// rewrite a day the venue owner already logged in their own bookkeeping.
+export interface DailySalesLock {
+  sellerId: string;
+  date: string; // 'yyyy-MM-dd', local calendar day
+  menuType: string;
+  netPayout: number; // dollars - the venue's own revenue, Koop's cut already excluded
+  tax: number;
+  tip: number;
+  orderCount: number;
+  lockedAt: Timestamp;
+}
+
 export interface Prospect {
   id: string;
   venueName: string;
