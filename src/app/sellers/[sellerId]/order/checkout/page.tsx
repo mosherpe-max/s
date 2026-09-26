@@ -351,7 +351,7 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
       </header>
 
       <ScrollArea className="flex-1 w-full overflow-x-hidden">
-        <div className="max-w-xl mx-auto px-4 py-4 space-y-4 pb-28">
+        <div className="max-w-xl mx-auto px-4 py-4 space-y-4 pb-48">
           {menuTypeFromUrl === 'Lane Delivery' && seller?.laneCount && (
             <div className="space-y-2">
               <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">STATION / LANE</h3>
@@ -536,25 +536,28 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
 
             {(paymentMethod === 'Pay at Delivery' || paymentMethod === 'Member Account') && (
               <div className="space-y-3">
-                <div
-                  className="flex items-center space-x-3 p-3 bg-primary/5 rounded-2xl border-2 border-primary/10 cursor-pointer transition-all hover:bg-primary/10 animate-in fade-in duration-500"
-                  onClick={() => setSaveInfo(!saveInfo)}
-                >
-                  <Checkbox id="save-info-non-digital" checked={saveInfo} onCheckedChange={(val) => setSaveInfo(!!val)} className="h-5 w-5 data-[state=checked]:bg-primary" />
-                  <div className="text-left">
-                    <label htmlFor="save-info-non-digital" className="text-[10px] font-black uppercase text-[#213147] cursor-pointer block leading-none">Save for faster checkout</label>
-                    <p className="text-[8px] font-bold text-muted-foreground uppercase mt-1">Securely saves your contact info on this device.</p>
-                  </div>
-                </div>
-                {isFormValid && (
-                  <div className="fixed bottom-7 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t z-50 animate-in slide-in-from-bottom-4 duration-500">
-                    <div className="max-w-xl mx-auto px-2">
+                {/* Pinned above the Place Order button (rather than left in
+                    normal scroll flow) so a patron can't miss this option by
+                    simply not scrolling far enough to see it. */}
+                <div className="fixed bottom-7 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t z-50 animate-in slide-in-from-bottom-4 duration-500">
+                  <div className="max-w-xl mx-auto px-2 space-y-3">
+                    <div
+                      className="flex items-center space-x-3 p-3 bg-primary/5 rounded-2xl border-2 border-primary/10 cursor-pointer transition-all hover:bg-primary/10"
+                      onClick={() => setSaveInfo(!saveInfo)}
+                    >
+                      <Checkbox id="save-info-non-digital" checked={saveInfo} onCheckedChange={(val) => setSaveInfo(!!val)} className="h-5 w-5 data-[state=checked]:bg-primary" />
+                      <div className="text-left">
+                        <label htmlFor="save-info-non-digital" className="text-[10px] font-black uppercase text-[#213147] cursor-pointer block leading-none">Save for faster checkout</label>
+                        <p className="text-[8px] font-bold text-muted-foreground uppercase mt-1">Securely saves your contact info on this device.</p>
+                      </div>
+                    </div>
+                    {isFormValid && (
                       <Button size="lg" className="w-full h-14 font-black uppercase tracking-widest gap-2 shadow-xl" onClick={handleManualOrder} disabled={isProcessing}>
                         {isProcessing ? <Loader2 className="animate-spin" /> : <ShoppingBag className="h-5 w-5" />} PLACE ORDER
                       </Button>
-                    </div>
+                    )}
                   </div>
-                )}
+                </div>
                 <CheckoutBrandingBar />
               </div>
             )}
