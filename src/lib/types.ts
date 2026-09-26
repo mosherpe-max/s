@@ -320,8 +320,19 @@ export interface Order {
   updatedAt?: Timestamp;
   acknowledgedAt?: Timestamp;
   deliveredAt?: Timestamp;
+  // Whoever currently holds this order - the driver working it end-to-end
+  // (Beverage Cart), or, for Clubhouse/Lane Delivery, whichever stage
+  // (prep vs. delivery) is presently in progress. Cleared back to
+  // undefined by an explicit Unclaim, or by the Preparing -> Out for
+  // Delivery transition on Clubhouse/Lane Delivery, so a runner has to
+  // claim it themselves rather than inheriting the kitchen's claim.
   assignedStaffId?: string;
   assignedStaffName?: string;
+  // Snapshot of who claimed/prepped the order during the Preparing stage,
+  // kept for display after the claim resets for the delivery stage
+  // (Clubhouse/Lane Delivery only - Beverage Cart has no separate stages).
+  preparedByStaffId?: string;
+  preparedByStaffName?: string;
   paymentMethod?: PaymentMethodType;
   // Set once the "running late" staff push fires, so the scheduled check
   // never re-sends it on every pass for the same order.

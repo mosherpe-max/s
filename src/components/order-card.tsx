@@ -5,7 +5,7 @@ import type { Order, OrderFulfillmentThresholds } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from './ui/card';
 import { Separator } from './ui/separator';
 import { Button } from './ui/button';
-import { Clock, AlertTriangle, ChevronRight, CheckCircle2, Truck, Timer, Satellite, User, UserPlus, MapPin, MessageSquare } from 'lucide-react';
+import { Clock, AlertTriangle, ChevronRight, CheckCircle2, Truck, Timer, Satellite, User, UserPlus, UserMinus, Repeat, MapPin, MessageSquare } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { cn, getNumericOrderId } from '@/lib/utils';
 
@@ -13,7 +13,8 @@ interface OrderCardProps {
   order: Order;
   orderNumber: number;
   onUpdateStatus: (id: string, currentStatus: string) => void;
-  onAttach?: (id: string) => void;
+  onClaim?: (id: string) => void;
+  onUnclaim?: (id: string) => void;
   onRefreshLocation?: (id: string) => void;
   currentStaffId?: string;
   thresholds?: OrderFulfillmentThresholds;
@@ -39,16 +40,17 @@ const DEFAULT_THRESHOLDS: OrderFulfillmentThresholds = {
   maxOrderProcessingMinutes: 25 
 };
 
-export function OrderCard({ 
-  order, 
-  orderNumber, 
-  onUpdateStatus, 
-  onAttach, 
+export function OrderCard({
+  order,
+  orderNumber,
+  onUpdateStatus,
+  onClaim,
+  onUnclaim,
   onRefreshLocation,
-  currentStaffId, 
-  thresholds, 
+  currentStaffId,
+  thresholds,
   now,
-  smsEnabled 
+  smsEnabled
 }: OrderCardProps) {
   const statusInfo = getStatusConfig(order.status);
   
@@ -89,9 +91,9 @@ export function OrderCard({
   return (
     <Card className={cn(
       'overflow-hidden flex flex-col border-2 transition-all duration-300 shadow-sm',
-      isOverdue 
-        ? 'border-destructive bg-red-50 ring-2 ring-destructive/20' 
-        : (isWarning ? 'border-amber-400 bg-amber-50' : 'border-slate-100 hover:border-slate-200')
+      isOverdue
+        ? 'border-destructive bg-red-50 ring-2 ring-destructive/20'
+        : (isWarning ? 'border-amber-400 bg-amber-50' : (isAssignedToMe ? 'border-primary/40 ring-1 ring-primary/10' : 'border-slate-100 hover:border-slate-200'))
     )}>
       {/* COMPACT HEADER */}
       <CardHeader className="p-2.5 bg-white border-b flex flex-row items-center justify-between space-y-0">
@@ -122,6 +124,11 @@ export function OrderCard({
            <Badge variant={statusInfo.variant} className="h-4 px-1 text-[7px] font-black uppercase border-0">
              {statusInfo.label}
            </Badge>
+           {isAssignedToMe && (
+             <Badge className="h-4 px-1.5 text-[7px] font-black uppercase border-0 bg-primary text-primary-foreground">
+               Mine
+             </Badge>
+           )}
         </div>
       </CardHeader>
 
@@ -190,49 +197,73 @@ export function OrderCard({
                 {isAssignedToMe ? 'YOU' : (order.assignedStaffName || 'Unassigned')}
               </span>
             </div>
-            {onAttach && (!order.assignedStaffId || isAssignedToOther) && order.status !== 'Delivered' && (
-              <button 
-                onClick={() => onAttach(order.id)}
-                className="text-[7px] font-black uppercase text-primary hover:underline flex items-center gap-0.5"
-              >
-                <UserPlus className="h-2 w-2" /> {order.assignedStaffId ? 'Reattach' : 'Attach'}
-              </button>
+            {order.preparedByStaffName && (
+              <span className="text-[7px] font-bold uppercase text-muted-foreground truncate max-w-[90px]">
+                Prepped by {order.preparedByStaffName}
+              </span>
             )}
           </div>
         </div>
       </CardContent>
 
-      {/* COMPACT FOOTER */}
-      <CardFooter className="p-1 bg-slate-50 border-t flex gap-1">
+      {/* TALLER FOOTER - Claim/Unclaim alongside a narrower primary action */}
+      <CardFooter className="p-1.5 bg-slate-50 border-t flex flex-col gap-1.5">
         {canSendRefreshRequest && (
           <Button
             variant="outline"
             size="sm"
             onClick={() => onRefreshLocation!(order.id)}
             className={cn(
-              "h-7 px-2 text-[8px] font-black uppercase tracking-widest border-2 gap-1 rounded-sm transition-all",
-              gpsStatus.isStale 
-                ? "bg-red-600 border-red-600 text-white animate-pulse hover:bg-red-700" 
+              "h-8 w-full px-2 text-[8px] font-black uppercase tracking-widest border-2 gap-1 rounded-sm transition-all",
+              gpsStatus.isStale
+                ? "bg-red-600 border-red-600 text-white animate-pulse hover:bg-red-700"
                 : "border-primary/20 text-primary hover:bg-primary/5"
             )}
             title="Ping patron for fresh location"
           >
             <MapPin className="h-2.5 w-2.5" />
-            Pin
+            Refresh Patron Location
           </Button>
         )}
-        <Button 
-          variant={isOverdue ? "destructive" : "default"}
-          className="flex-1 h-7 text-[8px] font-black uppercase tracking-widest gap-1 rounded-sm" 
-          onClick={() => onUpdateStatus(order.id, order.status)}
-          disabled={order.status === 'Delivered' || order.status === 'Cancelled'}
-        >
-          {order.status === 'Placed' && "Receive Order"}
-          {order.status === 'Preparing' && "Deliver Order"}
-          {order.status === 'Out for Delivery' && "Order Complete"}
-          {order.status === 'Delivered' && "Complete"}
-          <ChevronRight className="h-2.5 w-2.5" />
-        </Button>
+        <div className="flex gap-1.5 w-full">
+          {(onClaim || onUnclaim) && order.status !== 'Delivered' && order.status !== 'Cancelled' && (
+            isAssignedToMe ? (
+              <Button
+                variant="outline"
+                onClick={() => onUnclaim && onUnclaim(order.id)}
+                className="flex-[0.85] h-10 text-[8px] font-black uppercase tracking-widest gap-1 rounded-sm border-2"
+              >
+                <UserMinus className="h-3 w-3" /> Unclaim
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                onClick={() => onClaim && onClaim(order.id)}
+                className={cn(
+                  "flex-[0.85] h-10 text-[8px] font-black uppercase tracking-widest gap-1 rounded-sm border-2",
+                  isAssignedToOther
+                    ? "border-amber-400 text-amber-600 hover:bg-amber-50"
+                    : "border-primary/30 text-primary hover:bg-primary/5"
+                )}
+              >
+                {isAssignedToOther ? <Repeat className="h-3 w-3" /> : <UserPlus className="h-3 w-3" />}
+                {isAssignedToOther ? 'Take Over' : 'Claim'}
+              </Button>
+            )
+          )}
+          <Button
+            variant={isOverdue ? "destructive" : "default"}
+            className="flex-1 h-10 text-[8px] font-black uppercase tracking-widest gap-1 rounded-sm"
+            onClick={() => onUpdateStatus(order.id, order.status)}
+            disabled={order.status === 'Delivered' || order.status === 'Cancelled'}
+          >
+            {order.status === 'Placed' && "Receive"}
+            {order.status === 'Preparing' && "Deliver"}
+            {order.status === 'Out for Delivery' && "Complete"}
+            {order.status === 'Delivered' && "Complete"}
+            <ChevronRight className="h-2.5 w-2.5" />
+          </Button>
+        </div>
       </CardFooter>
     </Card>
   );

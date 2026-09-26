@@ -1,7 +1,7 @@
 
 'use client';
 
-import { collection, query, where, doc, updateDoc, serverTimestamp, setDoc, deleteDoc } from 'firebase/firestore';
+import { collection, query, where, doc, updateDoc, serverTimestamp, setDoc, deleteDoc, deleteField } from 'firebase/firestore';
 import { useCollection, useFirestore, useMemoFirebase, useDoc, useUser } from '@/firebase';
 import { useEffect, useState, useMemo, useRef, use } from 'react';
 import { Switch } from '@/components/ui/switch';
@@ -389,9 +389,9 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
     const nextIdx = stages.indexOf(currentStatus as any) + 1;
     if (nextIdx < stages.length) {
       const nextStatus = stages[nextIdx];
-      const updateData: any = { 
-        status: nextStatus, 
-        deliveredAt: nextStatus === 'Delivered' ? serverTimestamp() : null 
+      const updateData: any = {
+        status: nextStatus,
+        deliveredAt: nextStatus === 'Delivered' ? serverTimestamp() : null
       };
 
       if (nextStatus === 'Preparing') {
@@ -404,16 +404,39 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
         }
       }
 
+      // Kitchen and delivery are frequently different people here - carry
+      // over who prepped it for display, but clear the claim so whoever
+      // picks it up for delivery has to claim it themselves.
+      if (nextStatus === 'Out for Delivery') {
+        const current = allOrders?.find(o => o.id === orderId);
+        if (current?.assignedStaffId) {
+          updateData.preparedByStaffId = current.assignedStaffId;
+          updateData.preparedByStaffName = current.assignedStaffName;
+        }
+        updateData.assignedStaffId = deleteField();
+        updateData.assignedStaffName = deleteField();
+      }
+
       updateDoc(doc(firestore, 'orders', orderId), updateData);
     }
   };
 
-  const handleAttachOrder = (orderId: string) => {
+  const handleClaimOrder = (orderId: string) => {
     if (!firestore) return;
     const staffId = localStorage.getItem('koop_staff_id');
     const staffName = localStorage.getItem('koop_staff_name');
     if (!staffId || !staffName) return;
-    updateDoc(doc(firestore, 'orders', orderId), { assignedStaffId: staffId, assignedStaffName: staffName, updatedAt: serverTimestamp() });
+    const previousStaffName = allOrders?.find(o => o.id === orderId)?.assignedStaffName;
+    updateDoc(doc(firestore, 'orders', orderId), { assignedStaffId: staffId, assignedStaffName: staffName, updatedAt: serverTimestamp() }).then(() => {
+      if (previousStaffName && previousStaffName !== staffName) {
+        toast({ title: "Order Claimed", description: `Taken over from ${previousStaffName}.` });
+      }
+    });
+  };
+
+  const handleUnclaimOrder = (orderId: string) => {
+    if (!firestore) return;
+    updateDoc(doc(firestore, 'orders', orderId), { assignedStaffId: deleteField(), assignedStaffName: deleteField(), updatedAt: serverTimestamp() });
   };
 
   const handleRefreshLocation = (orderId: string) => {
@@ -665,9 +688,11 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
                     order={order} 
                     orderNumber={index + 1} 
                     now={now} 
-                    onUpdateStatus={handleUpdateOrderStatus} 
-                    onAttach={handleAttachOrder} 
+                    onUpdateStatus={handleUpdateOrderStatus}
+                    onClaim={handleClaimOrder}
+                    onUnclaim={handleUnclaimOrder}
                     onRefreshLocation={handleRefreshLocation}
+                    currentStaffId={currentStaffId}
                     thresholds={primarySeller?.orderThresholds?.[order.menuType] || solutionConfig?.orderThresholds?.[order.menuType]}
                     smsEnabled={solutionConfig?.smsNotificationsEnabled !== false}
                   />
