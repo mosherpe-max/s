@@ -69,11 +69,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, doc, updateDoc, setDoc, deleteDoc, serverTimestamp, writeBatch, getDoc } from 'firebase/firestore';
+import { useFirestore, useCollection, useMemoFirebase, useStorage, useDoc } from '@/firebase';
+import { collection, doc, updateDoc, setDoc, deleteDoc, serverTimestamp, writeBatch, getDoc, deleteField } from 'firebase/firestore';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
-import type { Seller, Venue } from '@/lib/types';
+import type { Seller, Venue, SolutionConfig } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useForm } from 'react-hook-form';
@@ -84,6 +85,15 @@ import { cn, AUTHORIZED_SERVICE_MODES } from '@/lib/utils';
 import { StarterItemPicker } from '@/components/starter-item-picker';
 import { StarterModifierPicker } from '@/components/starter-modifier-picker';
 import { PrintMarketingKit } from '@/components/print-marketing-kit';
+import { fetchAsDataUrl } from '@/lib/print-assets';
+import {
+  buildCartStickerHtml,
+  buildYardSignHtml,
+  buildDefaultKoopLogoDataUri,
+  renderTemplateToPdfBlob,
+  CART_STICKER_DIMENSIONS,
+  YARD_SIGN_DIMENSIONS,
+} from '@/lib/print-templates';
 
 const MODE_KEY_BY_LABEL: Record<string, 'beverageCart' | 'clubhouse' | 'laneService'> = {
   'Beverage Cart': 'beverageCart',
@@ -142,14 +152,17 @@ type NewVenueData = z.infer<typeof newVenueSchema>;
 
 export default function AdminVenueRegistryPage() {
   const firestore = useFirestore();
+  const storage = useStorage();
   const { toast } = useToast();
-  
+
   const [isManagementOpen, setIsManagementOpen] = useState(false);
   const [isNewVenueOpen, setIsNewVenueOpen] = useState(false);
   const [venueToDelete, setVenueToDelete] = useState<string | null>(null);
   const [selectedVenue, setSelectedVenue] = useState<Venue | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [baseUrl, setBaseUrl] = useState('');
+  const [recreateConfirmAsset, setRecreateConfirmAsset] = useState<'cartSticker' | 'yardSign' | null>(null);
+  const [isGeneratingAsset, setIsGeneratingAsset] = useState<'cartSticker' | 'yardSign' | null>(null);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -159,9 +172,11 @@ export default function AdminVenueRegistryPage() {
 
   const sellersQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'sellers') : null), [firestore]);
   const venuesQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'venues') : null), [firestore]);
+  const solutionConfigRef = useMemoFirebase(() => (firestore ? doc(firestore, 'solution', 'config') : null), [firestore]);
 
   const { data: sellers, isLoading: isSellersLoading } = useCollection<Seller>(sellersQuery);
   const { data: venuesRegistry } = useCollection<Venue>(venuesQuery);
+  const { data: solutionConfig } = useDoc<SolutionConfig>(solutionConfigRef);
 
   // Launch-readiness checks only for the venue currently open in the Manage dialog
   const staffQuery = useMemoFirebase(() => (
@@ -366,6 +381,60 @@ export default function AdminVenueRegistryPage() {
         requestResourceData: updateData,
       } satisfies SecurityRuleContext));
     });
+  };
+
+  const handleUpdateMarketingVenueName = (value: string) => {
+    if (!firestore || !selectedVenue) return;
+    const sellerRef = doc(firestore, 'sellers', selectedVenue.venueId);
+    const updateData = { marketingVenueName: value || deleteField(), updatedAt: serverTimestamp() };
+    updateDoc(sellerRef, updateData).catch(async (error) => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: sellerRef.path,
+        operation: 'update',
+        requestResourceData: { marketingVenueName: value },
+      } satisfies SecurityRuleContext));
+    });
+  };
+
+  const handleRecreateAsset = async (kind: 'cartSticker' | 'yardSign') => {
+    if (!firestore || !storage || !selectedVenue || !currentSeller) return;
+    if (!qrUrl) {
+      toast({ variant: 'destructive', title: 'QR Access Inactive', description: 'Activate the QR access key above before generating marketing materials.' });
+      return;
+    }
+    setIsGeneratingAsset(kind);
+    try {
+      const venueName = currentSeller.marketingVenueName || currentSeller.courseName || '';
+      const fullQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=1000x1000&data=${encodeURIComponent(qrUrl)}&ecc=H`;
+      const [qrDataUrl, logoDataUrl] = await Promise.all([
+        fetchAsDataUrl(fullQrUrl),
+        solutionConfig?.logoUrl ? fetchAsDataUrl(solutionConfig.logoUrl).catch(() => buildDefaultKoopLogoDataUri('#FFFFFF')) : Promise.resolve(buildDefaultKoopLogoDataUri('#FFFFFF')),
+      ]);
+      const isSign = kind === 'yardSign';
+      const html = isSign
+        ? buildYardSignHtml({ venueName, qrDataUrl, logoDataUrl })
+        : buildCartStickerHtml({ venueName, qrDataUrl, logoDataUrl });
+      const dims = isSign ? YARD_SIGN_DIMENSIONS : CART_STICKER_DIMENSIONS;
+      const blob = await renderTemplateToPdfBlob(html, dims, isSign);
+
+      const fileName = isSign ? 'yard-sign.pdf' : 'cart-sticker.pdf';
+      const fileRef = storageRef(storage, `marketingAssets/${selectedVenue.venueId}/${fileName}`);
+      await uploadBytes(fileRef, blob, { contentType: 'application/pdf' });
+      const url = await getDownloadURL(fileRef);
+
+      const sellerRef = doc(firestore, 'sellers', selectedVenue.venueId);
+      await updateDoc(sellerRef, {
+        [`printAssets.${kind}`]: { url, generatedAt: serverTimestamp() },
+        updatedAt: serverTimestamp(),
+      });
+
+      toast({ title: isSign ? 'Yard Sign Generated' : 'Cart Sticker Generated', description: 'The print-ready PDF has been saved.' });
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: 'Generation Failed', description: e.message || 'Unable to generate marketing material.' });
+    } finally {
+      setIsGeneratingAsset(null);
+      setRecreateConfirmAsset(null);
+    }
   };
 
   const handleConfirmDelete = async () => {
@@ -735,8 +804,63 @@ export default function AdminVenueRegistryPage() {
                     <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">
                       Generate print-ready PDFs to send to a printer before launch.
                     </p>
+
+                    <div className="space-y-2 bg-white p-4 rounded-2xl border-2 border-slate-100">
+                      <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Marketing Venue Name</Label>
+                      <Input
+                        key={currentSeller.id}
+                        defaultValue={currentSeller.marketingVenueName || ''}
+                        placeholder={currentSeller.courseName || 'Venue name shown on print materials'}
+                        onBlur={(e) => handleUpdateMarketingVenueName(e.target.value)}
+                        className="h-10 font-bold text-sm"
+                      />
+                      <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">
+                        Used on the cart sticker &amp; yard sign below. Falls back to the course name if left blank.
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {(['cartSticker', 'yardSign'] as const).map((kind) => {
+                        const asset = currentSeller.printAssets?.[kind];
+                        const label = kind === 'cartSticker' ? 'Cart Sticker' : 'Yard Sign';
+                        const isGenerating = isGeneratingAsset === kind;
+                        return (
+                          <div key={kind} className="space-y-3 bg-white p-4 rounded-2xl border-2 border-slate-100">
+                            <div className="flex items-center justify-between">
+                              <p className="text-[10px] font-black uppercase tracking-widest text-[#213147]">{label}</p>
+                              {asset ? (
+                                <Badge variant="outline" className="text-[7px] font-black uppercase tracking-widest border-2">Generated</Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-[7px] font-black uppercase tracking-widest border-2 text-amber-600 border-amber-200">Not Generated</Badge>
+                              )}
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={!asset}
+                                onClick={() => asset && window.open(asset.url, '_blank')}
+                                className="h-10 text-[9px] font-black uppercase tracking-widest border-2 gap-1.5"
+                              >
+                                <Download className="h-3 w-3" /> Download
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={isGeneratingAsset !== null}
+                                onClick={() => setRecreateConfirmAsset(kind)}
+                                className="h-10 text-[9px] font-black uppercase tracking-widest border-2 gap-1.5 hover:bg-primary/5 hover:text-primary"
+                              >
+                                {isGenerating ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCcw className="h-3 w-3" />} Recreate
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
                     <PrintMarketingKit
-                      courseName={currentSeller.courseName || ''}
+                      courseName={currentSeller.marketingVenueName || currentSeller.courseName || ''}
                       patronMenuUrl={qrUrl}
                       venueType={currentSeller.type}
                     />
@@ -919,6 +1043,32 @@ export default function AdminVenueRegistryPage() {
             <AlertDialogCancel className="rounded-xl font-black uppercase text-[10px] tracking-widest border-2 h-12">Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive hover:bg-destructive/90 rounded-xl font-black uppercase text-[10px] tracking-widest h-12 px-8" disabled={isProcessing}>
               {isProcessing ? <Loader2 className="animate-spin mr-2" /> : <Trash2 className="h-3.5 w-3.5 mr-2" />} Terminate Venue
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!recreateConfirmAsset} onOpenChange={(open) => !open && setRecreateConfirmAsset(null)}>
+        <AlertDialogContent className="rounded-[2.5rem] border-2 shadow-2xl p-8">
+          <AlertDialogHeader className="text-left space-y-4">
+            <div className="bg-amber-500/10 p-3 rounded-2xl w-fit"><AlertTriangle className="h-8 w-8 text-amber-600" /></div>
+            <div className="space-y-1">
+              <AlertDialogTitle className="font-headline font-black uppercase text-xl">
+                Recreate {recreateConfirmAsset === 'yardSign' ? 'Yard Sign' : 'Cart Sticker'}?
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-sm font-medium leading-relaxed">
+                This replaces the print-ready file venue staff may already have sent to a printer. Anyone downloading it afterward gets the new version.
+              </AlertDialogDescription>
+            </div>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-8 gap-3">
+            <AlertDialogCancel className="rounded-xl font-black uppercase text-[10px] tracking-widest border-2 h-12">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => recreateConfirmAsset && handleRecreateAsset(recreateConfirmAsset)}
+              className="bg-primary hover:bg-primary/90 rounded-xl font-black uppercase text-[10px] tracking-widest h-12 px-8"
+              disabled={isGeneratingAsset !== null}
+            >
+              {isGeneratingAsset !== null ? <Loader2 className="animate-spin mr-2 h-3.5 w-3.5" /> : <RefreshCcw className="h-3.5 w-3.5 mr-2" />} Recreate File
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

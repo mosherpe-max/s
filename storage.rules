@@ -45,5 +45,13 @@ service firebase.storage {
       allow read: if true;
       allow write: if isSuperAdmin() && isValidImageUpload();
     }
+
+    // Print-ready marketing PDFs (cart sticker, yard sign) Koop generates
+    // per venue - readable by anyone with the link (a printer may need it),
+    // but only the Koop admin's "Recreate" action may write/replace one.
+    match /marketingAssets/{sellerId}/{fileName} {
+      allow read: if true;
+      allow write: if isSuperAdmin();
+    }
   }
 }

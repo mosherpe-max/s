@@ -175,6 +175,19 @@ export interface Seller {
   enabledPaymentMethods?: PaymentMethodType[];
   qrActive?: boolean;
   qrSecret?: string;
+  // Koop-admin-set name for print marketing materials (cart sticker, yard
+  // sign) - kept distinct from courseName since the operational name shown
+  // in-app isn't always what a venue wants printed on physical signage.
+  // Falls back to courseName when unset.
+  marketingVenueName?: string;
+  // Print-ready files Koop has generated and uploaded to Storage for this
+  // venue. Only set/replaced by the Koop admin's "Recreate" action - never
+  // regenerated silently, so a file already sent to a physical printer
+  // can't drift out from under them without a deliberate action.
+  printAssets?: {
+    cartSticker?: { url: string; generatedAt: Timestamp };
+    yardSign?: { url: string; generatedAt: Timestamp };
+  };
 }
 
 export type Category = 'Featured' | 'Beer' | 'Spirits' | 'Soft Drinks' | 'Snacks' | 'Other' | 'Handhelds' | 'Appetizers' | 'Entrees' | 'Pizza' | 'Salad' | 'Dessert' | 'Kids';

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { doc } from 'firebase/firestore';
 import { useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -9,8 +9,6 @@ import { Download, Loader2, Sticker } from 'lucide-react';
 import type { SolutionConfig } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import {
-  buildCartStickerSvg,
-  buildYardSignSvg,
   buildPosterSvg,
   buildTableTentSvg,
   fetchAsDataUrl,
@@ -18,6 +16,15 @@ import {
   type PrintAssetTemplate,
   type PrintVenueType,
 } from '@/lib/print-assets';
+import {
+  buildCartStickerHtml,
+  buildYardSignHtml,
+  buildDefaultKoopLogoDataUri,
+  renderTemplatePreview,
+  renderTemplateToPdfBlob,
+  CART_STICKER_DIMENSIONS,
+  YARD_SIGN_DIMENSIONS,
+} from '@/lib/print-templates';
 
 interface PrintMarketingKitProps {
   courseName: string;
@@ -36,10 +43,22 @@ interface DownloadableAsset {
   previewMaxWidthClass?: string;
 }
 
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 export function PrintMarketingKit({ courseName, patronMenuUrl, venueType = 'Golf Course' }: PrintMarketingKitProps) {
   const firestore = useFirestore();
   const { toast } = useToast();
   const [downloadingKey, setDownloadingKey] = useState<DownloadKind | null>(null);
+  const [htmlPreviews, setHtmlPreviews] = useState<{ sticker: string | null; sign: string | null }>({ sticker: null, sign: null });
 
   const configRef = useMemoFirebase(() => (firestore ? doc(firestore, 'solution', 'config') : null), [firestore]);
   const { data: config } = useDoc<SolutionConfig>(configRef);
@@ -51,19 +70,33 @@ export function PrintMarketingKit({ courseName, patronMenuUrl, venueType = 'Golf
     : '';
   const previewInput = { courseName: displayName, qrDataUrl: previewQrUrl, logoDataUrl: config?.logoUrl };
 
-  const stickerPreview = useMemo(() => buildCartStickerSvg(previewInput), [displayName, previewQrUrl, config?.logoUrl]);
-  const signPreview = useMemo(() => buildYardSignSvg(previewInput), [displayName, previewQrUrl, config?.logoUrl]);
   const posterPreview = useMemo(() => buildPosterSvg(previewInput, posterVenueType), [displayName, previewQrUrl, config?.logoUrl, posterVenueType]);
   const tableTentPreview = useMemo(() => buildTableTentSvg(previewInput), [displayName, previewQrUrl]);
 
-  const assets: DownloadableAsset[] = venueType === 'Bowling Center'
+  // The new sticker/sign templates are real HTML/CSS (web fonts, flexbox),
+  // not SVG, so they can't be dropped straight into the DOM like the poster
+  // and table tent previews below - they're rendered off-screen to a PNG
+  // first (see print-templates.ts) and shown as an <img>.
+  useEffect(() => {
+    if (venueType !== 'Golf Course' || !previewQrUrl) return;
+    let cancelled = false;
+    const logoDataUrl = config?.logoUrl || buildDefaultKoopLogoDataUri('#FFFFFF');
+    (async () => {
+      const [stickerUrl, signUrl] = await Promise.all([
+        renderTemplatePreview(buildCartStickerHtml({ venueName: displayName, qrDataUrl: previewQrUrl, logoDataUrl }), CART_STICKER_DIMENSIONS, false).catch(() => null),
+        renderTemplatePreview(buildYardSignHtml({ venueName: displayName, qrDataUrl: previewQrUrl, logoDataUrl }), YARD_SIGN_DIMENSIONS, true).catch(() => null),
+      ]);
+      if (!cancelled) setHtmlPreviews({ sticker: stickerUrl, sign: signUrl });
+    })();
+    return () => { cancelled = true; };
+  }, [venueType, displayName, previewQrUrl, config?.logoUrl]);
+
+  const otherAssets: DownloadableAsset[] = venueType === 'Bowling Center'
     ? [
         { kind: 'tableTent', label: 'Table Tent (5"×7" PDF)', filenameSuffix: 'Table_Tent', preview: tableTentPreview, previewMaxWidthClass: 'max-w-[220px] mx-auto' },
         { kind: 'poster', label: 'Poster (11"×17" PDF)', filenameSuffix: 'Poster', preview: posterPreview, previewMaxWidthClass: 'max-w-[240px] mx-auto' },
       ]
     : [
-        { kind: 'sticker', label: 'Golf Cart Sticker (8"×4" PDF)', filenameSuffix: 'Cart_Sticker', preview: stickerPreview },
-        { kind: 'sign', label: 'Yard Sign (18"×24" PDF)', filenameSuffix: 'Yard_Sign', preview: signPreview, previewMaxWidthClass: 'max-w-[240px] mx-auto' },
         { kind: 'poster', label: 'Poster (11"×17" PDF)', filenameSuffix: 'Poster', preview: posterPreview, previewMaxWidthClass: 'max-w-[240px] mx-auto' },
       ];
 
@@ -74,20 +107,29 @@ export function PrintMarketingKit({ courseName, patronMenuUrl, venueType = 'Golf
     }
     setDownloadingKey(kind);
     try {
-      const fullQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=1000x1000&data=${encodeURIComponent(patronMenuUrl)}&ecc=H`;
-      const [qrDataUrl, logoDataUrl] = await Promise.all([
-        fetchAsDataUrl(fullQrUrl),
-        config?.logoUrl ? fetchAsDataUrl(config.logoUrl).catch(() => undefined) : Promise.resolve(undefined),
-      ]);
-      const input = { courseName: displayName, qrDataUrl, logoDataUrl };
-      let template: PrintAssetTemplate;
-      if (kind === 'sticker') template = buildCartStickerSvg(input);
-      else if (kind === 'sign') template = buildYardSignSvg(input);
-      else if (kind === 'tableTent') template = buildTableTentSvg(input);
-      else template = buildPosterSvg(input, posterVenueType);
-
       const safeName = displayName.replace(/\s+/g, '_');
-      await downloadTemplateAsPdf(template, `${safeName}_${filenameSuffix}.pdf`);
+      if (kind === 'sticker' || kind === 'sign') {
+        const fullQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=1000x1000&data=${encodeURIComponent(patronMenuUrl)}&ecc=H`;
+        const [qrDataUrl, logoDataUrl] = await Promise.all([
+          fetchAsDataUrl(fullQrUrl),
+          config?.logoUrl ? fetchAsDataUrl(config.logoUrl).catch(() => buildDefaultKoopLogoDataUri('#FFFFFF')) : Promise.resolve(buildDefaultKoopLogoDataUri('#FFFFFF')),
+        ]);
+        const html = kind === 'sticker'
+          ? buildCartStickerHtml({ venueName: displayName, qrDataUrl, logoDataUrl })
+          : buildYardSignHtml({ venueName: displayName, qrDataUrl, logoDataUrl });
+        const dims = kind === 'sticker' ? CART_STICKER_DIMENSIONS : YARD_SIGN_DIMENSIONS;
+        const blob = await renderTemplateToPdfBlob(html, dims, kind === 'sign');
+        downloadBlob(blob, `${safeName}_${filenameSuffix}.pdf`);
+      } else {
+        const fullQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=1000x1000&data=${encodeURIComponent(patronMenuUrl)}&ecc=H`;
+        const [qrDataUrl, logoDataUrl] = await Promise.all([
+          fetchAsDataUrl(fullQrUrl),
+          config?.logoUrl ? fetchAsDataUrl(config.logoUrl).catch(() => undefined) : Promise.resolve(undefined),
+        ]);
+        const input = { courseName: displayName, qrDataUrl, logoDataUrl };
+        const template: PrintAssetTemplate = kind === 'tableTent' ? buildTableTentSvg(input) : buildPosterSvg(input, posterVenueType);
+        await downloadTemplateAsPdf(template, `${safeName}_${filenameSuffix}.pdf`);
+      }
       toast({ title: `${filenameSuffix.replace(/_/g, ' ')} Downloaded` });
     } catch (e: any) {
       toast({ variant: 'destructive', title: 'Download Failed', description: e.message || 'Unable to generate print asset.' });
@@ -112,8 +154,38 @@ export function PrintMarketingKit({ courseName, patronMenuUrl, venueType = 'Golf
         </div>
       </CardHeader>
       <CardContent className="p-8 space-y-6">
-        <div className={`grid grid-cols-1 gap-8 ${assets.length === 2 ? 'md:grid-cols-2' : 'md:grid-cols-3'}`}>
-          {assets.map((asset) => (
+        <div className={`grid grid-cols-1 gap-8 ${venueType === 'Golf Course' ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
+          {venueType === 'Golf Course' && (
+            <>
+              <div className="space-y-4">
+                <div className="rounded-2xl overflow-hidden border-2 border-slate-100 shadow-sm bg-white aspect-[7/5] flex items-center justify-center">
+                  {htmlPreviews.sticker ? <img src={htmlPreviews.sticker} alt="Cart sticker preview" className="w-full h-auto block" /> : <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />}
+                </div>
+                <Button
+                  onClick={() => handleDownload('sticker', 'Cart_Sticker')}
+                  disabled={downloadingKey !== null || !patronMenuUrl}
+                  className="w-full h-11 font-black uppercase text-[10px] tracking-widest gap-2"
+                >
+                  {downloadingKey === 'sticker' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                  Golf Cart Sticker (7&quot;&times;5&quot; PDF)
+                </Button>
+              </div>
+              <div className="space-y-4">
+                <div className="rounded-2xl overflow-hidden border-2 border-slate-100 shadow-sm bg-white max-w-[240px] mx-auto aspect-[24/18] flex items-center justify-center">
+                  {htmlPreviews.sign ? <img src={htmlPreviews.sign} alt="Yard sign preview" className="w-full h-auto block" /> : <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />}
+                </div>
+                <Button
+                  onClick={() => handleDownload('sign', 'Yard_Sign')}
+                  disabled={downloadingKey !== null || !patronMenuUrl}
+                  className="w-full h-11 font-black uppercase text-[10px] tracking-widest gap-2"
+                >
+                  {downloadingKey === 'sign' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                  Yard Sign (24&quot;&times;18&quot; PDF)
+                </Button>
+              </div>
+            </>
+          )}
+          {otherAssets.map((asset) => (
             <div key={asset.kind} className="space-y-4">
               <div
                 className={`rounded-2xl overflow-hidden border-2 border-slate-100 shadow-sm bg-white [&_svg]:w-full [&_svg]:h-auto [&_svg]:block ${asset.previewMaxWidthClass || ''}`}
