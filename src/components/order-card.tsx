@@ -231,29 +231,29 @@ export function OrderCard({
               <Button
                 variant="outline"
                 onClick={() => onUnclaim && onUnclaim(order.id)}
-                className="flex-[0.3] h-10 text-[8px] font-black uppercase tracking-widest gap-1 rounded-sm border-2"
+                className="flex-[0.3] h-10 text-[11px] font-black uppercase tracking-widest gap-1 rounded-sm border-2"
               >
-                <UserMinus className="h-3 w-3" /> Unclaim
+                <UserMinus className="h-4 w-4" /> Unclaim
               </Button>
             ) : (
               <Button
                 variant="outline"
                 onClick={() => onClaim && onClaim(order.id)}
                 className={cn(
-                  "flex-[0.3] h-10 text-[8px] font-black uppercase tracking-widest gap-1 rounded-sm border-2",
+                  "flex-[0.3] h-10 text-[11px] font-black uppercase tracking-widest gap-1 rounded-sm border-2",
                   isAssignedToOther
                     ? "border-amber-400 text-amber-600 hover:bg-amber-50"
                     : "border-primary/30 text-primary hover:bg-primary/5"
                 )}
               >
-                {isAssignedToOther ? <Repeat className="h-3 w-3" /> : <UserPlus className="h-3 w-3" />}
+                {isAssignedToOther ? <Repeat className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
                 {isAssignedToOther ? 'Take Over' : 'Claim'}
               </Button>
             )
           )}
           <Button
             variant={isOverdue ? "destructive" : "default"}
-            className="flex-[0.7] h-10 text-[8px] font-black uppercase tracking-widest gap-1 rounded-sm"
+            className="flex-[0.7] h-10 text-[13px] font-black uppercase tracking-widest gap-1 rounded-sm"
             onClick={() => onUpdateStatus(order.id, order.status)}
             disabled={order.status === 'Delivered' || order.status === 'Cancelled'}
           >
@@ -261,7 +261,7 @@ export function OrderCard({
             {order.status === 'Preparing' && "Deliver"}
             {order.status === 'Out for Delivery' && "Complete"}
             {order.status === 'Delivered' && "Complete"}
-            <ChevronRight className="h-2.5 w-2.5" />
+            <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
       </CardFooter>
