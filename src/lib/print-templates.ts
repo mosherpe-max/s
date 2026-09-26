@@ -228,9 +228,25 @@ export function renderTemplatePreview(html: string, dims: PrintHtmlDimensions, i
   return renderToPngDataUrl(html, dims, isSign, 1);
 }
 
+// html-to-image's DOM-to-SVG-to-canvas pipeline runs synchronously on the
+// main thread, so its cost scales with total output pixel count, not just
+// pixelRatio. A flat pixelRatio of 3 is fine for the small cart sticker
+// (672x480 -> ~2016x1440, ~2.9MP) but explodes for the much larger yard
+// sign (2304x1728 -> ~6912x5184, ~35.8MP) - long enough to freeze the tab,
+// and on a memory-constrained device, enough to crash/reload it. Capping
+// the longest output edge instead of using a flat multiplier keeps every
+// template's render cost bounded regardless of its physical size.
+const MAX_PRINT_OUTPUT_EDGE_PX = 3600;
+const IDEAL_PRINT_PIXEL_RATIO = 3;
+
+function printPixelRatioFor(dims: PrintHtmlDimensions): number {
+  const longestEdge = Math.max(dims.widthPx, dims.heightPx);
+  return Math.min(IDEAL_PRINT_PIXEL_RATIO, MAX_PRINT_OUTPUT_EDGE_PX / longestEdge);
+}
+
 /** Full print-resolution PDF, sized to the template's real physical dimensions. */
 export async function renderTemplateToPdfBlob(html: string, dims: PrintHtmlDimensions, isSign: boolean): Promise<Blob> {
-  const pngDataUrl = await renderToPngDataUrl(html, dims, isSign, 3);
+  const pngDataUrl = await renderToPngDataUrl(html, dims, isSign, printPixelRatioFor(dims));
   const { jsPDF } = await import('jspdf');
   const orientation = dims.widthIn >= dims.heightIn ? 'landscape' : 'portrait';
   const pdf = new jsPDF({ orientation, unit: 'in', format: [dims.widthIn, dims.heightIn] });
