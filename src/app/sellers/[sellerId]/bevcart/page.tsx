@@ -1,7 +1,7 @@
 
 'use client';
 
-import { collection, query, where, doc, updateDoc, serverTimestamp, setDoc, deleteDoc } from 'firebase/firestore';
+import { collection, query, where, doc, updateDoc, serverTimestamp, setDoc, deleteDoc, deleteField } from 'firebase/firestore';
 import { useCollection, useFirestore, useMemoFirebase, useDoc, useUser } from '@/firebase';
 import { MapView } from '@/components/map-view';
 import { useEffect, useState, useMemo, useRef, use } from 'react';
@@ -415,15 +415,32 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
     }
   };
 
-  const handleAttachOrder = (orderId: string) => {
+  // Any driver may claim or take over an order at any point - there can be
+  // multiple Bev Cart drivers on course, and one may need to hand off or
+  // pick up an order someone else already started.
+  const handleClaimOrder = (orderId: string) => {
     if (!firestore) return;
     const staffId = localStorage.getItem('koop_staff_id');
     const staffName = localStorage.getItem('koop_staff_name');
     if (!staffId || !staffName) return;
+    const previousStaffName = allOrders?.find(o => o.id === orderId)?.assignedStaffName;
     const orderRef = doc(firestore, 'orders', orderId);
     const updateData = { assignedStaffId: staffId, assignedStaffName: staffName, updatedAt: serverTimestamp() };
-    updateDoc(orderRef, updateData).catch(async (error) => {
+    updateDoc(orderRef, updateData).then(() => {
+      if (previousStaffName && previousStaffName !== staffName) {
+        toast({ title: "Order Claimed", description: `Taken over from ${previousStaffName}.` });
+      }
+    }).catch(async (error) => {
       errorEmitter.emit('permission-error', new FirestorePermissionError({ path: orderRef.path, operation: 'update', requestResourceData: updateData } satisfies SecurityRuleContext));
+    });
+  };
+
+  const handleUnclaimOrder = (orderId: string) => {
+    if (!firestore) return;
+    const orderRef = doc(firestore, 'orders', orderId);
+    const updateData = { assignedStaffId: deleteField(), assignedStaffName: deleteField(), updatedAt: serverTimestamp() };
+    updateDoc(orderRef, updateData).catch(async (error) => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({ path: orderRef.path, operation: 'update', requestResourceData: { assignedStaffId: null } } satisfies SecurityRuleContext));
     });
   };
 
@@ -678,7 +695,8 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
                     orderNumber={index + 1} 
                     now={now} 
                     onUpdateStatus={handleUpdateOrderStatus}
-                    onAttach={handleAttachOrder}
+                    onClaim={handleClaimOrder}
+                    onUnclaim={handleUnclaimOrder}
                     onRefreshLocation={handleRefreshLocation}
                     currentStaffId={currentStaffId}
                     thresholds={primarySeller?.orderThresholds?.[order.menuType] || solutionConfig?.orderThresholds?.[order.menuType]}
