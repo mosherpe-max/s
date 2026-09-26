@@ -71,6 +71,16 @@ import {
 } from 'lucide-react';
 import Image from 'next/image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -281,6 +291,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   const [activeNav, setActiveNav] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [pauseConfirmMode, setPauseConfirmMode] = useState<string | null>(null);
   const [orderSearchTerm, setOrderSearchTerm] = useState('');
   const [activeModeTab, setActiveModeTab] = useState('');
   const [isStaffFormOpen, setIsStaffFormOpen] = useState(false);
@@ -728,6 +739,21 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     });
   };
 
+  const getPausedFieldForMode = (mode: string) => (
+    mode === 'Beverage Cart' ? 'bevcartPausedByStaff' : mode === 'Clubhouse' ? 'clubhousePausedByStaff' : 'lanedeliveryPausedByStaff'
+  );
+
+  // Mirrors the staff terminals' own pause control (same confirm-to-pause,
+  // no-confirm-to-resume pattern) so the venue admin can proactively stop
+  // new orders for a mode from their own dashboard, not just clear a pause
+  // staff or auto-throttle already started.
+  const confirmPauseMode = () => {
+    if (pauseConfirmMode) {
+      handleUpdateField(getPausedFieldForMode(pauseConfirmMode), true);
+    }
+    setPauseConfirmMode(null);
+  };
+
   const handleConnectStripe = async () => {
     if (!firebaseApp || !sellerId) return;
     setIsConnectingStripe(true);
@@ -1030,7 +1056,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                                     <Switch checked={isActive} onCheckedChange={(val) => handleUpdateField(field, val)} className="data-[state=checked]:bg-green-500 scale-75" />
                                  </CardHeader>
                                  <CardContent className="p-6 space-y-6">
-                                    {(isPausedByStaff || isAutoThrottled) && (
+                                    {isPausedByStaff || isAutoThrottled ? (
                                        <div className="flex items-center justify-between gap-2 p-3 rounded-xl bg-amber-50 border-2 border-amber-100">
                                           <div className="flex items-center gap-1.5">
                                              <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
@@ -1038,6 +1064,13 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                                           </div>
                                           <Button size="sm" variant="outline" className="h-7 text-[8px] font-black uppercase tracking-widest border-amber-200 bg-white hover:bg-amber-100 shrink-0" onClick={() => { handleUpdateField(pausedField, false); handleUpdateField(throttledField, false); }}>
                                              Resume Now
+                                          </Button>
+                                       </div>
+                                    ) : (
+                                       <div className="flex items-center justify-between gap-2 p-3 rounded-xl bg-slate-50 border-2 border-slate-100">
+                                          <p className="text-[8px] font-black uppercase text-muted-foreground leading-tight">New Orders Accepted</p>
+                                          <Button size="sm" variant="outline" className="h-7 text-[8px] font-black uppercase tracking-widest border-slate-200 bg-white hover:bg-destructive/5 hover:text-destructive hover:border-destructive/20 shrink-0 gap-1.5" onClick={() => setPauseConfirmMode(mode)}>
+                                             <Ban className="h-3 w-3" /> Pause New Orders
                                           </Button>
                                        </div>
                                     )}
@@ -1256,9 +1289,13 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                                 <div className="text-left">
                                   <p className="text-[10px] font-black uppercase text-[#213147]">{mode}</p>
                                   <p className="text-[8px] font-bold text-muted-foreground uppercase">{seller?.[field as keyof Seller] ? 'OPEN' : 'CLOSED'}</p>
-                                  {(isPausedByStaff || isAutoThrottled) && (
+                                  {isPausedByStaff || isAutoThrottled ? (
                                     <button onClick={() => { handleUpdateField(pausedField, false); handleUpdateField(throttledField, false); }} className="text-[8px] font-black uppercase text-amber-600 underline underline-offset-2 mt-0.5">
                                       {isPausedByStaff ? 'Paused by Staff' : 'Auto-Paused'} - Resume
+                                    </button>
+                                  ) : (
+                                    <button onClick={() => setPauseConfirmMode(mode)} className="text-[8px] font-black uppercase text-muted-foreground underline underline-offset-2 mt-0.5 hover:text-destructive">
+                                      Pause New Orders
                                     </button>
                                   )}
                                 </div>
@@ -1908,6 +1945,26 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
           </div>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!pauseConfirmMode} onOpenChange={(open) => !open && setPauseConfirmMode(null)}>
+        <AlertDialogContent className="rounded-[2rem] border-2 shadow-2xl p-8">
+          <AlertDialogHeader className="text-left space-y-4">
+            <div className="bg-destructive/10 p-3 rounded-2xl w-fit"><Ban className="h-8 w-8 text-destructive" /></div>
+            <div className="space-y-1">
+              <AlertDialogTitle className="font-headline font-black uppercase text-xl">Pause New Orders?</AlertDialogTitle>
+              <AlertDialogDescription className="text-sm font-medium leading-relaxed">
+                This stops new orders for {pauseConfirmMode} venue-wide until someone turns it back on. Orders already placed are not affected.
+              </AlertDialogDescription>
+            </div>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-8 gap-3">
+            <AlertDialogCancel className="rounded-xl font-black uppercase text-[10px] tracking-widest border-2 h-12">Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmPauseMode} className="bg-destructive hover:bg-destructive/90 rounded-xl font-black uppercase text-[10px] tracking-widest h-12 px-8">
+              Pause Orders
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
