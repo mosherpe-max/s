@@ -47,6 +47,35 @@ export default function StaffLoginPage({ params }: { params: Promise<{ sellerId:
   const [isEnablingPush, setIsEnablingPush] = useState(false);
   const [pushOutcome, setPushOutcome] = useState<'success' | 'denied' | 'unsupported' | 'unconfigured' | null>(null);
 
+  // TEMPORARY DIAGNOSTIC - remove once the window.open GPS-tab question is
+  // settled. Calls geolocation directly, gesture-gated, from inside this
+  // installed standalone screen with no second tab involved at all, so we
+  // can visually confirm on-device whether the app actually ejects into
+  // Safari chrome from geolocation itself, or whether that was previously
+  // conflated with the window.open side effect in track-delivery.
+  const [gpsTestResult, setGpsTestResult] = useState<string | null>(null);
+  const [isTestingGps, setIsTestingGps] = useState(false);
+  const handleTestDirectGps = () => {
+    setIsTestingGps(true);
+    setGpsTestResult(null);
+    if (!navigator.geolocation) {
+      setGpsTestResult('navigator.geolocation is unavailable in this context.');
+      setIsTestingGps(false);
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setGpsTestResult(`OK - lat ${position.coords.latitude.toFixed(5)}, lng ${position.coords.longitude.toFixed(5)}. If you're reading this text still inside the app (no Safari address bar), direct geolocation did NOT eject standalone.`);
+        setIsTestingGps(false);
+      },
+      (err) => {
+        setGpsTestResult(`Error (${err.code}): ${err.message}. Note: even an error/denial still tells us something - if you're still standalone right now, the ejection isn't from the permission prompt itself.`);
+        setIsTestingGps(false);
+      },
+      { enableHighAccuracy: true }
+    );
+  };
+
   useEffect(() => {
     const isStandalone = (window.navigator as any).standalone === true;
     const alreadyDone = localStorage.getItem(PUSH_SETUP_DONE_KEY) === 'true';
@@ -424,13 +453,30 @@ export default function StaffLoginPage({ params }: { params: Promise<{ sellerId:
         </CardContent>
       </Card>
       
-      <Button 
-        variant="link" 
+      <Button
+        variant="link"
         asChild
         className="mt-8 text-muted-foreground uppercase text-[10px] font-black tracking-widest"
       >
         <Link href="/">Return to Home</Link>
       </Button>
+
+      {/* TEMPORARY DIAGNOSTIC - see handleTestDirectGps above, remove after testing */}
+      <div className="mt-6 w-full max-w-md border-2 border-dashed border-amber-300 bg-amber-50 rounded-2xl p-4 text-center space-y-3">
+        <p className="text-[9px] font-black uppercase tracking-widest text-amber-700">Debug: Test Direct GPS (no second tab)</p>
+        <Button
+          size="sm"
+          onClick={handleTestDirectGps}
+          disabled={isTestingGps}
+          className="h-10 text-[10px] font-black uppercase tracking-widest"
+        >
+          {isTestingGps ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <MapPin className="h-4 w-4 mr-2" />}
+          Tap to Test Geolocation Here
+        </Button>
+        {gpsTestResult && (
+          <p className="text-[10px] font-bold text-amber-900 leading-relaxed break-words">{gpsTestResult}</p>
+        )}
+      </div>
     </div>
   );
 }
