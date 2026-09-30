@@ -8,7 +8,7 @@ import { useFirestore, useDoc, useMemoFirebase, useAuth } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, Lock, Smartphone, User, ShieldCheck, ChevronRight, X, Eraser, CheckCircle2, Truck, Building, Users, MapPin, AlertTriangle, BellRing, Share } from 'lucide-react';
+import { Loader2, Lock, Smartphone, User, ShieldCheck, ChevronRight, X, Eraser, CheckCircle2, Truck, Building, Users, AlertTriangle, BellRing, Share } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn, AUTHORIZED_SERVICE_MODES } from '@/lib/utils';
 import type { Seller, StaffMember } from '@/lib/types';
@@ -47,34 +47,6 @@ export default function StaffLoginPage({ params }: { params: Promise<{ sellerId:
   const [isEnablingPush, setIsEnablingPush] = useState(false);
   const [pushOutcome, setPushOutcome] = useState<'success' | 'denied' | 'unsupported' | 'unconfigured' | null>(null);
 
-  // TEMPORARY DIAGNOSTIC - remove once the window.open GPS-tab question is
-  // settled. Calls geolocation directly, gesture-gated, from inside this
-  // installed standalone screen with no second tab involved at all, so we
-  // can visually confirm on-device whether the app actually ejects into
-  // Safari chrome from geolocation itself, or whether that was previously
-  // conflated with the window.open side effect in track-delivery.
-  const [gpsTestResult, setGpsTestResult] = useState<string | null>(null);
-  const [isTestingGps, setIsTestingGps] = useState(false);
-  const handleTestDirectGps = () => {
-    setIsTestingGps(true);
-    setGpsTestResult(null);
-    if (!navigator.geolocation) {
-      setGpsTestResult('navigator.geolocation is unavailable in this context.');
-      setIsTestingGps(false);
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setGpsTestResult(`OK - lat ${position.coords.latitude.toFixed(5)}, lng ${position.coords.longitude.toFixed(5)}. If you're reading this text still inside the app (no Safari address bar), direct geolocation did NOT eject standalone.`);
-        setIsTestingGps(false);
-      },
-      (err) => {
-        setGpsTestResult(`Error (${err.code}): ${err.message}. Note: even an error/denial still tells us something - if you're still standalone right now, the ejection isn't from the permission prompt itself.`);
-        setIsTestingGps(false);
-      },
-      { enableHighAccuracy: true }
-    );
-  };
 
   useEffect(() => {
     const isStandalone = (window.navigator as any).standalone === true;
@@ -196,23 +168,13 @@ export default function StaffLoginPage({ params }: { params: Promise<{ sellerId:
     // sign itself out, instead of two devices silently fighting over one shift.
     const sessionId = crypto.randomUUID();
 
-    // Beverage Cart and Clubhouse patrons can see a live driver position on
-    // the map, but that live GPS can only ever come from an actual Safari
-    // tab - never from inside this installed app (see track-delivery for
-    // why). Opened synchronously, before any await, so Safari doesn't treat
-    // it as a blocked popup; it carries this same session id so it doesn't
-    // supersede this tab's own session once it reaches the dashboard. This
-    // is the one and only tap staff need for the whole shift - track-delivery
-    // starts sharing and hands off to the real dashboard on its own.
-    if (menuType === 'Beverage Cart' || menuType === 'Clubhouse') {
-      const trackParams = new URLSearchParams({
-        staffId: authenticatedStaff.id,
-        staffName: authenticatedStaff.name,
-        role: menuType,
-        sessionId,
-      });
-      window.open(`/sellers/${sellerId}/track-delivery?${trackParams.toString()}`, '_blank');
-    }
+    // Beverage Cart and Clubhouse broadcast live GPS directly from inside
+    // this installed standalone app (bevcart/clubhouse page) once landed -
+    // on-device testing showed geolocation itself doesn't eject the
+    // standalone shell; a previous version of this flow opened a second
+    // Safari tab (track-delivery) for GPS, which iOS foregrounded the
+    // instant it was created and looked exactly like the app ejecting.
+    // That workaround has been removed.
 
     // Update Personnel document with active role - currentDeviceId points
     // this staff member at whichever device's push subscription (if any)
@@ -460,23 +422,6 @@ export default function StaffLoginPage({ params }: { params: Promise<{ sellerId:
       >
         <Link href="/">Return to Home</Link>
       </Button>
-
-      {/* TEMPORARY DIAGNOSTIC - see handleTestDirectGps above, remove after testing */}
-      <div className="mt-6 w-full max-w-md border-2 border-dashed border-amber-300 bg-amber-50 rounded-2xl p-4 text-center space-y-3">
-        <p className="text-[9px] font-black uppercase tracking-widest text-amber-700">Debug: Test Direct GPS (no second tab)</p>
-        <Button
-          size="sm"
-          onClick={handleTestDirectGps}
-          disabled={isTestingGps}
-          className="h-10 text-[10px] font-black uppercase tracking-widest"
-        >
-          {isTestingGps ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <MapPin className="h-4 w-4 mr-2" />}
-          Tap to Test Geolocation Here
-        </Button>
-        {gpsTestResult && (
-          <p className="text-[10px] font-bold text-amber-900 leading-relaxed break-words">{gpsTestResult}</p>
-        )}
-      </div>
     </div>
   );
 }
