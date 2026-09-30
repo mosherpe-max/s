@@ -216,12 +216,23 @@ export default function StaffLoginPage({ params }: { params: Promise<{ sellerId:
       description: `Assuming ${menuType} role. Launching dashboard...` 
     });
 
+    // A real navigation (window.location), not router.push. On-device
+    // testing showed the installed standalone app incorrectly shows full
+    // Safari browser chrome the instant the URL path changes via
+    // history.pushState (what router.push does) - navigator.standalone
+    // stayed true the whole time (confirmed via a debug probe), proving the
+    // app never actually left the standalone process, so this is a WebKit
+    // display-mode rendering bug tied specifically to pushState-driven path
+    // changes, not a real scope/origin violation. A real page load is what
+    // the manifest's declared scope/display are meant to govern, and that
+    // triggers standalone correctly, so we deliberately give up the SPA
+    // transition here in exchange for it working right on iOS.
     setTimeout(() => {
       switch (menuType) {
-        case 'Beverage Cart': router.push(`/sellers/${sellerId}/bevcart`); break;
-        case 'Clubhouse': router.push(`/sellers/${sellerId}/clubhouse`); break;
-        case 'Lane Delivery': router.push(`/sellers/${sellerId}/laneside`); break;
-        default: router.push(`/sellers/${sellerId}/clubhouse`); break;
+        case 'Beverage Cart': window.location.href = `/sellers/${sellerId}/bevcart`; break;
+        case 'Clubhouse': window.location.href = `/sellers/${sellerId}/clubhouse`; break;
+        case 'Lane Delivery': window.location.href = `/sellers/${sellerId}/laneside`; break;
+        default: window.location.href = `/sellers/${sellerId}/clubhouse`; break;
       }
     }, 800);
   };
