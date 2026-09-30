@@ -182,12 +182,11 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
   }, [firestore, sellerId]);
   const { data: allStaff } = useCollection<StaffMember>(staffQuery);
 
-  // My own live position for the map's "YOU" marker - no longer sourced
-  // from LocationGate (gone, see track-delivery for why), but from the same
-  // staff doc fields track-delivery continuously broadcasts to in its own
-  // Safari tab. MapView already treats a missing sellerLocation as "no YOU
-  // marker, center on whatever driver/buyer data is available" so this is
-  // safe to leave undefined until the first broadcast lands.
+  // My own live position for the map's "YOU" marker - sourced from the same
+  // staff doc fields the geolocation watch below broadcasts to. MapView
+  // already treats a missing sellerLocation as "no YOU marker, center on
+  // whatever driver/buyer data is available" so this is safe to leave
+  // undefined until the first broadcast lands.
   const sellerLocation = useMemo<LatLng | undefined>(() => (
     myStaffData?.latitude && myStaffData?.longitude
       ? { latitude: myStaffData.latitude, longitude: myStaffData.longitude }
@@ -378,13 +377,39 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
     return () => clearInterval(interval);
   }, []);
 
-  // Live GPS broadcasting deliberately does not happen from inside this
-  // installed standalone app - confirmed on-device that calling any
-  // geolocation API here (even a single gesture-gated getCurrentPosition,
-  // with no permission dialog ever shown) ejects the app into Safari chrome
-  // every time, granted or not. staff-login already opens track-delivery in
-  // an actual Safari tab (a different enough context to be safe) the moment
-  // a shift starts, so there's nothing to trigger from in here.
+  // Live GPS broadcasting, called directly from inside this installed
+  // standalone app. An earlier version of this comment claimed geolocation
+  // itself ejects the standalone shell into Safari chrome - on-device
+  // re-testing showed that's wrong: a bare gesture-gated
+  // getCurrentPosition() call here does NOT eject the app. The real cause
+  // was staff-login's window.open() to a separate Safari tab
+  // (track-delivery) for this same purpose, which iOS foregrounds the
+  // instant it's created. That tab-opening workaround has been removed.
+  const gpsStartedRef = useRef(false);
+  const gpsLastWriteRef = useRef(0);
+  const gpsPollIntervalMsRef = useRef(15000);
+  useEffect(() => {
+    gpsPollIntervalMsRef.current = (solutionConfig?.driverGpsPollIntervalSeconds || 15) * 1000;
+  }, [solutionConfig?.driverGpsPollIntervalSeconds]);
+
+  useEffect(() => {
+    if (gpsStartedRef.current || !currentStaffId || !firestore || typeof navigator === 'undefined' || !navigator.geolocation) return;
+    gpsStartedRef.current = true;
+    navigator.geolocation.watchPosition(
+      (position) => {
+        const now = Date.now();
+        if (now - gpsLastWriteRef.current < gpsPollIntervalMsRef.current) return;
+        gpsLastWriteRef.current = now;
+        setDoc(doc(firestore, 'sellers', sellerId, 'staff', currentStaffId), {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          lastActive: serverTimestamp(),
+        }, { merge: true }).catch(() => {});
+      },
+      () => {},
+      { enableHighAccuracy: true }
+    );
+  }, [currentStaffId, firestore, sellerId]);
 
   const handleUpdateOrderStatus = (orderId: string, currentStatus: string) => {
     if (!firestore) return;
