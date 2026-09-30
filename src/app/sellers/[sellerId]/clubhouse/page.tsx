@@ -269,10 +269,13 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
     localStorage.removeItem('koop_staff_session_id');
     localStorage.removeItem('koop_staff_last_hidden');
 
+    // A real navigation, not router.push - see the matching comment in
+    // staff-login's handleRoleSelect for why (iOS standalone pushState
+    // chrome bug).
     if (target === 'admin') {
-      router.push(`/sellers/${sellerId}`);
+      window.location.href = `/sellers/${sellerId}`;
     } else {
-      router.push(`/sellers/${sellerId}/staff-login`);
+      window.location.href = `/sellers/${sellerId}/staff-login`;
     }
   };
 
