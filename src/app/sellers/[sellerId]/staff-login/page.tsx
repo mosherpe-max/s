@@ -211,30 +211,28 @@ export default function StaffLoginPage({ params }: { params: Promise<{ sellerId:
     localStorage.setItem('koop_staff_session_id', sessionId);
     localStorage.removeItem('koop_staff_last_hidden');
 
-    toast({ 
-      title: "Shift Started", 
-      description: `Assuming ${menuType} role. Launching dashboard...` 
-    });
-
-    // A real navigation (window.location), not router.push. On-device
-    // testing showed the installed standalone app incorrectly shows full
-    // Safari browser chrome the instant the URL path changes via
-    // history.pushState (what router.push does) - navigator.standalone
-    // stayed true the whole time (confirmed via a debug probe), proving the
-    // app never actually left the standalone process, so this is a WebKit
-    // display-mode rendering bug tied specifically to pushState-driven path
-    // changes, not a real scope/origin violation. A real page load is what
-    // the manifest's declared scope/display are meant to govern, and that
-    // triggers standalone correctly, so we deliberately give up the SPA
-    // transition here in exchange for it working right on iOS.
-    setTimeout(() => {
-      switch (menuType) {
-        case 'Beverage Cart': window.location.href = `/sellers/${sellerId}/bevcart`; break;
-        case 'Clubhouse': window.location.href = `/sellers/${sellerId}/clubhouse`; break;
-        case 'Lane Delivery': window.location.href = `/sellers/${sellerId}/laneside`; break;
-        default: window.location.href = `/sellers/${sellerId}/clubhouse`; break;
-      }
-    }, 800);
+    // A real navigation (window.location), fired immediately in the same
+    // tick as the tap - no setTimeout, no toast-then-navigate delay. Two
+    // rounds of on-device testing (confirmed via a debug probe showing
+    // navigator.standalone staying true the whole time) ruled out both
+    // router.push's history.pushState AND a delayed window.location
+    // navigation - both still showed full Safari browser chrome. The one
+    // variable neither test changed was time: the previous version waited
+    // 800ms (purely so a "Shift Started" toast could be seen) between the
+    // tap and the navigation. iOS only treats a navigation as fully
+    // user-initiated within a short window after the actual touch event;
+    // by 800ms that window is almost certainly gone, and a navigation iOS
+    // no longer attributes to a direct tap is exactly the kind of thing it
+    // would present more cautiously (the minimal in-app browser sheet we
+    // saw) instead of keeping it in the bare standalone container. Firing
+    // the navigation in the same tick as the tap keeps it inside that
+    // window.
+    switch (menuType) {
+      case 'Beverage Cart': window.location.href = `/sellers/${sellerId}/bevcart`; break;
+      case 'Clubhouse': window.location.href = `/sellers/${sellerId}/clubhouse`; break;
+      case 'Lane Delivery': window.location.href = `/sellers/${sellerId}/laneside`; break;
+      default: window.location.href = `/sellers/${sellerId}/clubhouse`; break;
+    }
   };
 
   const authorizedServiceModes = React.useMemo(() => {
