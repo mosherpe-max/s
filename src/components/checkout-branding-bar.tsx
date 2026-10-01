@@ -1,8 +1,12 @@
 'use client';
 
 import { StylizedKoopLogo } from '@/components/header';
+import { useKeyboardOpen } from '@/hooks/use-keyboard-open';
 
 export function CheckoutBrandingBar() {
+  const isKeyboardOpen = useKeyboardOpen();
+  if (isKeyboardOpen) return null;
+
   return (
     <div className="fixed bottom-0 left-0 right-0 h-7 bg-[#213147] text-white flex items-center justify-center z-[60] w-full border-t border-white/5">
       <div className="max-w-xl mx-auto w-full px-4 flex items-center justify-between">
