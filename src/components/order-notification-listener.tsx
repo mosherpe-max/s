@@ -27,7 +27,8 @@ export function OrderNotificationListener() {
   // Silent mode for certain paths to avoid redundant notifications
   const isSilentPath = 
     pathname === '/login' || 
-    pathname?.startsWith('/admin') || 
+    pathname?.startsWith('/admin') ||
+    pathname?.includes('/staff-login') ||
     pathname?.includes('/bevcart') || 
     pathname?.includes('/clubhouse') ||
     pathname?.includes('/laneside');
