@@ -11,7 +11,7 @@ import type { Order } from '@/lib/types';
 
 /**
  * Order Status Gateway
- * Provides a clean URL for SMS notifications: https://koop.app/orders/[orderId]
+ * Provides a clean URL for SMS notifications: https://kooporder.app/orders/[orderId]
  * Automatically resolves the required seller context and redirects to the tracking screen.
  */
 export default function OrderStatusGateway({ params }: { params: Promise<{ orderId: string }> }) {
