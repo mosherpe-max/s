@@ -542,41 +542,22 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
         </div>
       </header>
 
-      <div className="flex-shrink-0 px-4 py-2 bg-background border-b flex items-center justify-center gap-6">
-        <div className="flex flex-col items-center">
-          <span className="text-[8px] font-black uppercase text-muted-foreground">Ack Time</span>
-          <span className="text-xs font-bold">{metrics?.avgAck || '0'}s</span>
-        </div>
-        <div className="h-6 w-px bg-muted" />
-        <div className="flex flex-col items-center">
-          <span className="text-[8px] font-black uppercase text-muted-foreground">Duration</span>
-          <span className="text-xs font-bold">{metrics?.avgTotal || '0'}m</span>
-        </div>
-        <div className="h-6 w-px bg-muted" />
-        <div className="flex flex-col items-center">
-          <span className="text-[8px] font-black uppercase text-muted-foreground">Deliveries</span>
-          <span className="text-xs font-bold">{metrics?.count || '0'}</span>
-        </div>
-        <div className="h-6 w-px bg-muted" />
-        <div className="flex flex-col items-center">
-          <span className="text-[8px] font-black uppercase text-muted-foreground">Daily Tips</span>
-          <span className="text-xs font-bold">${metrics?.dailyTips.toFixed(2) || '0.00'}</span>
-        </div>
-      </div>
-
-      <div className="flex-shrink-0 px-4 py-3 bg-background border-b flex items-center justify-between gap-4 flex-wrap">
+      <div className="flex-shrink-0 px-4 py-2 bg-background border-b flex items-center justify-between gap-2">
         <div className="flex items-center gap-3">
-          <Package className="h-4 w-4 text-muted-foreground shrink-0" />
-          <div className="flex flex-col leading-none">
-            <span className="text-[8px] font-black uppercase text-muted-foreground">Order Queue</span>
-            <span className="text-sm font-black">{queueCount}{effectiveMaxQueue !== undefined ? ` / ${effectiveMaxQueue}` : ''}</span>
+          <div className="flex flex-col items-center">
+            <span className="text-[8px] font-black uppercase text-muted-foreground">Ack Time</span>
+            <span className="text-xs font-bold">{metrics?.avgAck || '0'}s</span>
           </div>
-          {isAutoThrottled && (
-            <Badge className="bg-amber-500 text-white border-0 text-[8px] font-black uppercase gap-1.5 h-6 px-2">
-              <AlertTriangle className="h-3 w-3" /> Auto-Paused
-              <button onClick={handleClearAutoThrottle} className="ml-1 underline underline-offset-2">Resume Now</button>
-            </Badge>
-          )}
+          <div className="h-6 w-px bg-muted" />
+          <div className="flex flex-col items-center">
+            <span className="text-[8px] font-black uppercase text-muted-foreground">Duration</span>
+            <span className="text-xs font-bold">{metrics?.avgTotal || '0'}m</span>
+          </div>
+          <div className="h-6 w-px bg-muted" />
+          <div className="flex flex-col items-center">
+            <span className="text-[8px] font-black uppercase text-muted-foreground">Daily Tips</span>
+            <span className="text-xs font-bold">${metrics?.dailyTips.toFixed(2) || '0.00'}</span>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <span className={cn("text-[9px] font-black uppercase tracking-widest", isPausedByStaff ? "text-destructive" : "text-green-600")}>
@@ -623,7 +604,7 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
           <div className="shrink-0 border-b bg-muted/10 px-4 py-3 flex items-center justify-between">
             <h2 className="font-headline text-xs font-black flex items-center gap-2 uppercase tracking-widest">
               <div className="flex items-center gap-2"><Building className="h-4 w-4 text-primary" /><span>Orders Queue</span></div>
-              <Badge className="bg-[#213147] text-white font-black border-0">{clubhouseOrders.length}</Badge>
+              <Badge className="bg-[#213147] text-white font-black border-0 whitespace-nowrap">{queueCount}{effectiveMaxQueue !== undefined ? ` / ${effectiveMaxQueue}` : ''}</Badge>
             </h2>
 
             <div className="flex items-center gap-1">
@@ -704,6 +685,12 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
             </div>
             <StockToggleDialog sellerId={sellerId} mode="Clubhouse" open={isStockOpen} onOpenChange={setIsStockOpen} />
           </div>
+          {isAutoThrottled && (
+            <div className="shrink-0 bg-amber-500 text-white px-4 py-1.5 flex items-center justify-between gap-2 text-[9px] font-black uppercase tracking-widest">
+              <span className="flex items-center gap-1.5"><AlertTriangle className="h-3 w-3" /> Queue full - auto-paused</span>
+              <button onClick={handleClearAutoThrottle} className="underline underline-offset-2">Resume Now</button>
+            </div>
+          )}
 
           <div className={cn("flex-1 overflow-auto px-2 text-left", isGolf ? "" : "p-4")}>
             <div className={cn("py-2.5 gap-3 text-left", isGolf ? "space-y-3" : "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3")}>
