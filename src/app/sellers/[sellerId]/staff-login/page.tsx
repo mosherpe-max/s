@@ -15,6 +15,9 @@ import type { Seller, StaffMember } from '@/lib/types';
 import { StylizedKoopLogo } from '@/components/header';
 import { subscribeDeviceToPush, getOrCreateDeviceId } from '@/lib/push-notifications';
 import Link from 'next/link';
+import BevCartDashboard from '../bevcart/page';
+import ClubhouseDashboard from '../clubhouse/page';
+import LaneSideDashboard from '../laneside/page';
 
 const PUSH_SETUP_DONE_KEY = 'koop_push_setup_done';
 
@@ -35,6 +38,7 @@ export default function StaffLoginPage({ params }: { params: Promise<{ sellerId:
   const [isVerifying, setIsVerifying] = useState(false);
   const [authenticatedStaff, setAuthenticatedStaff] = useState<StaffMember | null>(null);
   const [venueName, setVenueName] = useState('This Venue');
+  const [activeTerminal, setActiveTerminal] = useState<string | null>(null);
 
   // Device notification setup - only ever shown in Safari, before this
   // device has been added to the Home Screen. Calling
@@ -211,34 +215,22 @@ export default function StaffLoginPage({ params }: { params: Promise<{ sellerId:
     localStorage.setItem('koop_staff_session_id', sessionId);
     localStorage.removeItem('koop_staff_last_hidden');
 
-    // A real navigation (window.location), fired immediately in the same
-    // tick as the tap - no setTimeout, no toast-then-navigate delay. Two
-    // rounds of on-device testing (confirmed via a debug probe showing
-    // navigator.standalone staying true the whole time) ruled out both
-    // router.push's history.pushState AND a delayed window.location
-    // navigation - both still showed full Safari browser chrome. The one
-    // variable neither test changed was time: the previous version waited
-    // 800ms (purely so a "Shift Started" toast could be seen) between the
-    // tap and the navigation. iOS only treats a navigation as fully
-    // user-initiated within a short window after the actual touch event;
-    // by 800ms that window is almost certainly gone, and a navigation iOS
-    // no longer attributes to a direct tap is exactly the kind of thing it
-    // would present more cautiously (the minimal in-app browser sheet we
-    // saw) instead of keeping it in the bare standalone container. Firing
-    // the navigation in the same tick as the tap keeps it inside that
-    // window.
-    switch (menuType) {
-      case 'Beverage Cart': window.location.href = `/sellers/${sellerId}/bevcart`; break;
-      case 'Clubhouse': window.location.href = `/sellers/${sellerId}/clubhouse`; break;
-      case 'Lane Delivery': window.location.href = `/sellers/${sellerId}/laneside`; break;
-      default: window.location.href = `/sellers/${sellerId}/clubhouse`; break;
-    }
+    // Render the dashboard in place instead of navigating to /bevcart etc.
+    // iOS 26 treats any URL change away from the installed app's start_url
+    // (pushState or a real navigation alike) as leaving the app, and opens
+    // it in an in-app browser sheet with an X/close button - confirmed
+    // on-device: tapping that X returns to this page inside the app.
+    setActiveTerminal(menuType);
   };
 
   const authorizedServiceModes = React.useMemo(() => {
     if (!seller) return [];
     return (seller.menuTypes || []).filter(mode => AUTHORIZED_SERVICE_MODES.includes(mode));
   }, [seller]);
+
+  if (activeTerminal === 'Beverage Cart') return <BevCartDashboard params={params} />;
+  if (activeTerminal === 'Lane Delivery') return <LaneSideDashboard params={params} />;
+  if (activeTerminal) return <ClubhouseDashboard params={params} />;
 
   if (deviceSetupChecked && showDeviceSetup) {
     return (
