@@ -4,6 +4,8 @@ import { useStripe, useElements } from '@stripe/react-stripe-js';
 import { doc, setDoc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
+import { useKeyboardOpen } from '@/hooks/use-keyboard-open';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2, CreditCard } from 'lucide-react';
@@ -58,6 +60,7 @@ export function StripeActionArea({
   const elements = useElements();
   const { toast } = useToast();
   const firestore = useFirestore();
+  const isKeyboardOpen = useKeyboardOpen();
 
   const usingSavedCard = !!savedPaymentMethod && !useNewCard;
 
@@ -144,7 +147,7 @@ export function StripeActionArea({
       {/* Pinned above the Pay button (rather than left in normal scroll
           flow) so a patron can't miss this option by simply not scrolling
           far enough down to see it. */}
-      <div className="fixed bottom-7 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t z-50 animate-in slide-in-from-bottom-4 duration-500">
+      <div className={cn("fixed bottom-7 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t z-50 animate-in slide-in-from-bottom-4 duration-500", isKeyboardOpen && "hidden")}>
         <div className="max-w-xl mx-auto px-2 space-y-3">
           <div
             className="flex items-center space-x-3 p-3 bg-primary/5 rounded-2xl border-2 border-primary/10 cursor-pointer transition-all hover:bg-primary/10"

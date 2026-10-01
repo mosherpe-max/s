@@ -8,6 +8,7 @@ import type { Seller, Venue, PaymentMethodType } from '@/lib/types';
 import { useCart } from '@/lib/cart-context';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
+import { useKeyboardOpen } from '@/hooks/use-keyboard-open';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup } from '@/components/ui/radio-group';
@@ -69,6 +70,7 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
   const [saveInfo, setSaveInfo] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const isKeyboardOpen = useKeyboardOpen();
   const [isStripeReady, setIsStripeReady] = useState(false);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [stripeCustomerId, setStripeCustomerId] = useState<string | null>(null);
@@ -539,7 +541,7 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
                 {/* Pinned above the Place Order button (rather than left in
                     normal scroll flow) so a patron can't miss this option by
                     simply not scrolling far enough to see it. */}
-                <div className="fixed bottom-7 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t z-50 animate-in slide-in-from-bottom-4 duration-500">
+                <div className={cn("fixed bottom-7 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t z-50 animate-in slide-in-from-bottom-4 duration-500", isKeyboardOpen && "hidden")}>
                   <div className="max-w-xl mx-auto px-2 space-y-3">
                     <div
                       className="flex items-center space-x-3 p-3 bg-primary/5 rounded-2xl border-2 border-primary/10 cursor-pointer transition-all hover:bg-primary/10"

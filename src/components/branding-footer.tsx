@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { StylizedKoopLogo } from './header';
 import Link from 'next/link';
+import { useKeyboardOpen } from '@/hooks/use-keyboard-open';
 
 interface BrandingFooterProps {
   className?: string;
@@ -15,12 +16,13 @@ interface BrandingFooterProps {
  */
 export function BrandingFooter({ className }: BrandingFooterProps) {
   const [mounted, setMounted] = useState(false);
+  const isKeyboardOpen = useKeyboardOpen();
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  if (!mounted) return null;
+  if (!mounted || isKeyboardOpen) return null;
 
   return (
     <footer className={cn(
