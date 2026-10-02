@@ -219,7 +219,7 @@ function OrderTrackingContent() {
 
       {/* 2. MAP / COMPLETION VIEW */}
       {!isBowling && (
-        <div className="h-[35vh] relative border-b shadow-sm shrink-0 overflow-hidden bg-slate-900">
+        <div className={cn("h-[35vh] relative border-b shadow-sm shrink-0 overflow-hidden bg-slate-900", isDelivered && "min-h-[200px]")}>
           {!isDelivered && isGolf && (
             <Button
               variant="secondary"
@@ -242,21 +242,21 @@ function OrderTrackingContent() {
           )}
 
           {isDelivered ? (
-            <div className="absolute inset-0 bg-[#213147] flex flex-col items-center justify-center text-center p-6 space-y-4 animate-in fade-in duration-700">
+            <div className="absolute inset-0 bg-[#213147] flex flex-col items-center justify-center text-center px-4 py-3 animate-in fade-in duration-700">
                <div className="absolute inset-0 z-0 opacity-10 pointer-events-none">
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full border-[30px] border-white" />
               </div>
-              <div className="relative z-10 space-y-4 flex flex-col items-center">
-                <div className="bg-primary/20 p-4 rounded-[2rem] border-2 border-primary/30">
-                  <PartyPopper className="h-10 w-10 text-primary" />
+              <div className="relative z-10 space-y-2.5 flex flex-col items-center">
+                <div className="bg-primary/20 p-2.5 rounded-2xl border-2 border-primary/30">
+                  <PartyPopper className="h-6 w-6 text-primary" />
                 </div>
                 <div>
-                  <h2 className="font-headline text-2xl font-black uppercase text-white tracking-tight leading-none">Order Delivered</h2>
-                  <p className="text-white/60 text-xs font-bold uppercase tracking-widest mt-3">Enjoy your time at {seller?.courseName}</p>
+                  <h2 className="font-headline text-xl font-black uppercase text-white tracking-tight leading-none">Order Delivered</h2>
+                  <p className="text-white/60 text-[10px] font-bold uppercase tracking-wider mt-1.5">Enjoy your time at {seller?.courseName}</p>
                 </div>
-                <Button asChild className="h-12 px-8 bg-primary hover:bg-primary/90 text-white font-black uppercase tracking-widest gap-2 shadow-2xl rounded-full">
+                <Button asChild className="h-10 px-6 text-xs bg-primary hover:bg-primary/90 text-white font-black uppercase tracking-wider gap-1.5 shadow-2xl rounded-full">
                   <Link href={`/sellers/${order.sellerId}/order`}>
-                    Order Again <ArrowRight className="h-4 w-4" />
+                    Order Again <ArrowRight className="h-3.5 w-3.5" />
                   </Link>
                 </Button>
               </div>
