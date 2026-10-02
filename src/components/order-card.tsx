@@ -97,23 +97,31 @@ export function OrderCard({
     )}>
       {/* COMPACT HEADER */}
       <CardHeader className="p-2.5 bg-white border-b flex flex-row items-center justify-between space-y-0">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 min-w-0">
           <div className={cn(
-            "flex items-center justify-center w-5 h-5 rounded-md font-black text-white text-[9px]",
+            "flex items-center justify-center w-5 h-5 rounded-md font-black text-white text-[9px] shrink-0",
             isOverdue ? 'bg-destructive' : 'bg-[#213147]'
           )}>
             {orderNumber}
           </div>
-          <div className="flex flex-col">
-            <span className="text-[9px] font-black uppercase text-[#213147] tracking-tight leading-none truncate max-w-[100px]">
+          <div className="flex flex-col min-w-0">
+            <span className="text-[9px] font-black uppercase text-[#213147] tracking-tight leading-none truncate">
               {order.customerName}
             </span>
-            <span className="text-[7px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5">
-              #{getNumericOrderId(order.id)}
-            </span>
+            <div className="flex items-center gap-1 mt-0.5 min-w-0 text-[7px] font-bold uppercase text-muted-foreground">
+              <span className="tracking-widest shrink-0">#{getNumericOrderId(order.id)}</span>
+              <span className="shrink-0">·</span>
+              <User className="h-2.5 w-2.5 shrink-0" />
+              <span className="font-black text-[#213147] truncate">
+                {isAssignedToMe ? 'You' : (order.assignedStaffName || 'Unassigned')}
+              </span>
+              {order.preparedByStaffName && (
+                <span className="truncate">· Prepped by {order.preparedByStaffName}</span>
+              )}
+            </div>
           </div>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 shrink-0">
            <div className={cn(
              "flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase",
              isOverdue ? "bg-destructive text-white" : "bg-slate-100 text-slate-500"
@@ -133,10 +141,10 @@ export function OrderCard({
       </CardHeader>
 
       {/* COMPACT CONTENT */}
-      <CardContent className="p-2.5 flex-1 space-y-3">
-        <div className="space-y-2">
+      <CardContent className="p-2.5 flex-1 space-y-2">
+        <div>
           {order.items.map(item => (
-            <div key={item.cartId} className="flex flex-col py-1 border-b border-slate-50 last:border-0">
+            <div key={item.cartId} className="flex flex-col py-0.5 border-b border-slate-50 last:border-0">
               <div className="flex justify-between text-sm leading-tight">
                 <span className="font-black text-[#213147] truncate flex-1 uppercase">
                   {item.quantity}x {item.name}
@@ -162,13 +170,13 @@ export function OrderCard({
             </div>
           ))}
 
-          <div className="flex justify-between items-center pt-2 border-t border-dashed mt-1">
+          <div className="flex justify-between items-center pt-1 border-t border-dashed mt-0.5">
             <span className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Total Value</span>
             <span className="text-base font-black text-primary font-mono">${(order.total || 0).toFixed(2)}</span>
           </div>
         </div>
         
-        <div className="flex flex-col gap-1 border-t pt-1.5">
+        <div className="border-t pt-1.5">
           <div className="flex items-center justify-between">
             {/* DELIVERY LOCATION */}
             {showLocationLabel ? (
@@ -182,27 +190,12 @@ export function OrderCard({
             )}
             
             {/* GPS FRESHNESS INDICATOR */}
-            <div className="flex items-center gap-1 text-[8px] font-black uppercase">
-              <Satellite className={cn("h-2 w-2", gpsStatus.color)} />
+            <div className="flex items-center gap-1 text-[11px] font-black uppercase">
+              <Satellite className={cn("h-3 w-3", gpsStatus.color)} />
               <span className={cn(gpsStatus.color)}>{gpsStatus.label}</span>
             </div>
           </div>
 
-          {/* STAFF ASSIGNMENT INFO */}
-          <div className="flex items-center justify-between bg-muted/30 rounded px-1.5 py-1">
-            <div className="flex items-center gap-1">
-              <User className="h-2.5 w-2.5 text-muted-foreground" />
-              <span className="text-[7px] font-black uppercase text-muted-foreground">Staff:</span>
-              <span className="text-[8px] font-black uppercase text-[#213147] truncate max-w-[80px]">
-                {isAssignedToMe ? 'YOU' : (order.assignedStaffName || 'Unassigned')}
-              </span>
-            </div>
-            {order.preparedByStaffName && (
-              <span className="text-[7px] font-bold uppercase text-muted-foreground truncate max-w-[90px]">
-                Prepped by {order.preparedByStaffName}
-              </span>
-            )}
-          </div>
         </div>
       </CardContent>
 
