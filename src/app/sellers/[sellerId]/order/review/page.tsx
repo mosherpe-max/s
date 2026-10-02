@@ -86,7 +86,7 @@ function ReviewOrderContent({ sellerId }: { sellerId: string }) {
         </Button>
         <div className="min-w-0 flex-1">
           <h1 className="font-headline font-black uppercase tracking-tight text-white text-sm leading-tight truncate">Review Order</h1>
-          <p className="text-[9px] font-bold text-white/50 uppercase tracking-[0.2em] truncate">{seller?.courseName}</p>
+          <p className="text-[9px] font-bold text-white/50 uppercase tracking-[0.2em] leading-tight break-words">{seller?.courseName}</p>
         </div>
       </header>
 

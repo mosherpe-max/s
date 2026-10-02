@@ -306,7 +306,10 @@ function BuyerOrderContent({ sellerId }: { sellerId: string }) {
         </div>
         <div className="relative z-10 flex flex-col items-start text-left space-y-4 max-w-2xl w-full mx-auto pt-2">
           <div className="flex items-center justify-between w-full gap-4">
-            <h1 className="font-headline text-2xl font-black text-white uppercase tracking-tight leading-none truncate flex-1">{seller?.courseName}</h1>
+            <h1 className={cn(
+              "font-headline font-black text-white uppercase tracking-tight leading-tight break-words min-w-0 flex-1",
+              (seller?.courseName?.length || 0) > 22 ? "text-xl" : "text-2xl"
+            )}>{seller?.courseName}</h1>
             <Button 
               variant="ghost"
               className="flex items-center gap-2 h-11 px-3 text-white hover:bg-white/10 relative group bg-white/5 rounded-xl border border-white/10 shrink-0"
