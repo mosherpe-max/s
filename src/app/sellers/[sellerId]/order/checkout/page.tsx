@@ -342,7 +342,7 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
         </Button>
         <div className="min-w-0 flex-1">
           <h1 className="font-headline font-black uppercase tracking-tight text-white text-sm leading-tight truncate">Checkout</h1>
-          <p className="text-[9px] font-bold text-white/50 uppercase tracking-[0.2em] truncate">{seller?.courseName}</p>
+          <p className="text-[9px] font-bold text-white/50 uppercase tracking-[0.2em] leading-tight break-words">{seller?.courseName}</p>
         </div>
         <div className="text-right shrink-0">
           <p className="text-[8px] font-black text-white/40 uppercase tracking-widest leading-none">Total</p>

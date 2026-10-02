@@ -80,7 +80,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormDescription } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormDescription, FormMessage } from '@/components/ui/form';
 import { cn, AUTHORIZED_SERVICE_MODES } from '@/lib/utils';
 import { StarterItemPicker } from '@/components/starter-item-picker';
 import { StarterModifierPicker } from '@/components/starter-modifier-picker';
@@ -133,8 +133,10 @@ const venueRegistrySchema = z.object({
 
 type VenueRegistryData = z.infer<typeof venueRegistrySchema>;
 
+const VENUE_NAME_MAX_LENGTH = 30;
+
 const newVenueSchema = z.object({
-  courseName: z.string().min(2, 'Course name required'),
+  courseName: z.string().min(2, 'Course name required').max(VENUE_NAME_MAX_LENGTH, `Keep it to ${VENUE_NAME_MAX_LENGTH} characters or fewer - use the venue's short name or nickname`),
   type: z.enum(['Golf Course', 'Bowling Center']),
   ownerUid: z.string().min(10, 'Valid Manager UID required'),
   contactName: z.string().min(2, 'Contact name required'),
@@ -625,7 +627,7 @@ export default function AdminVenueRegistryPage() {
                     <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><Store className="h-3 w-3" /> Identity & Type</Label>
                     <div className="grid grid-cols-1 gap-4">
                       <FormField control={onboardingForm.control} name="courseName" render={({ field }) => (
-                        <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Venue Name</FormLabel><FormControl><Input {...field} className="h-12 border-2 font-bold" /></FormControl></FormItem>
+                        <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Venue Name</FormLabel><FormControl><Input {...field} maxLength={VENUE_NAME_MAX_LENGTH} className="h-12 border-2 font-bold" /></FormControl><p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Shown in full to patrons - use the short name or nickname when possible ({field.value?.length || 0}/{VENUE_NAME_MAX_LENGTH})</p><FormMessage /></FormItem>
                       )} />
                       <FormField control={onboardingForm.control} name="type" render={({ field }) => (
                         <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Venue Type</FormLabel>
