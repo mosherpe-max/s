@@ -33,6 +33,7 @@ import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { FEE_DISCLOSURES, getDisclosureCategory } from '@/config/fee-disclosures';
 import { differenceInSeconds } from 'date-fns';
+import { LocationBlockedCard } from '@/components/location-blocked-card';
 
 function OrderTrackingContent() {
   const firestore = useFirestore();
@@ -45,6 +46,7 @@ function OrderTrackingContent() {
   const lastBroadcastTimeRef = useRef<number>(0);
   const [now, setNow] = useState<Date>(new Date());
   const [isWakeLockActive, setIsWakeLockActive] = useState(true);
+  const [locationBlocked, setLocationBlocked] = useState(false);
 
   const configRef = useMemoFirebase(() => (firestore ? doc(firestore, 'solution', 'config') : null), [firestore]);
   const { data: solutionConfig } = useDoc<SolutionConfig>(configRef);
@@ -131,6 +133,7 @@ function OrderTrackingContent() {
   }, [order?.status, isGolf, isDelivered, isWakeLockActive]);
 
   const broadcastCurrentLocation = (position: GeolocationPosition) => {
+    setLocationBlocked(false);
     if (!order || !firestore || isDelivered) return;
     const nowTime = Date.now();
     const syncInterval = (solutionConfig?.patronGpsRefreshIntervalSeconds || 30) * 1000;
@@ -149,7 +152,7 @@ function OrderTrackingContent() {
     if (typeof window !== 'undefined' && navigator.geolocation) {
       watchIdRef.current = navigator.geolocation.watchPosition(
         broadcastCurrentLocation,
-        null,
+        (err) => { if (err.code === err.PERMISSION_DENIED) setLocationBlocked(true); },
         { enableHighAccuracy: true }
       );
     }
@@ -164,11 +167,25 @@ function OrderTrackingContent() {
           broadcastCurrentLocation(p);
           toast({ title: "Signal Restored", description: "Your location is now up to date." });
         },
-        () => toast({ variant: "destructive", title: "Signal Failed", description: "Please check your GPS settings." }),
+        (err) => {
+          if (err.code === err.PERMISSION_DENIED) setLocationBlocked(true);
+          toast({ variant: "destructive", title: "Signal Failed", description: err.code === err.PERMISSION_DENIED ? "Location is still turned off for this page." : "Please check your GPS settings." });
+        },
         { enableHighAccuracy: true }
       );
     }
   };
+
+  // Coming back from the Settings app: if location was blocked, quietly try again.
+  useEffect(() => {
+    if (!locationBlocked) return;
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible' || !navigator.geolocation) return;
+      navigator.geolocation.getCurrentPosition(broadcastCurrentLocation, () => {}, { enableHighAccuracy: true });
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [locationBlocked, order?.id, firestore, isDelivered]);
 
   const handleUpdateLane = (lane: string) => {
     if (!firestore || !order) return;
@@ -279,7 +296,9 @@ function OrderTrackingContent() {
       {/* 3. DETAILS & CONTROLS */}
       <div className="p-4 space-y-4 max-w-2xl mx-auto w-full pb-24 flex-1">
         
-        {!isDelivered && isGolf && (
+        {!isDelivered && isGolf && locationBlocked && <LocationBlockedCard onRetry={handleManualRefresh} />}
+
+        {!isDelivered && isGolf && !locationBlocked && (
           <div className={cn(
             "rounded-2xl p-4 shadow-md border-2 transition-all duration-500 flex items-center justify-between gap-4",
             isSignalStale ? "bg-red-50 border-red-200" : "bg-green-50 border-green-200"
