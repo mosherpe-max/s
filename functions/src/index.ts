@@ -14,6 +14,7 @@ import webpush from 'web-push';
  */
 initializeApp();
 const db = getFirestore();
+const APP_BASE_URL = 'https://kooporder.app';
 
 /**
  * performOperationalReset
@@ -320,8 +321,8 @@ export const initializeVenueStripeOnboarding = onCall({
 
     const accountLink = await stripe.accountLinks.create({
       account: stripeAccountId,
-      refresh_url: `https://koop.app/onboarding-refresh?venueId=${venueId}`,
-      return_url: `https://koop.app/onboarding-success?venueId=${venueId}`,
+      refresh_url: `${APP_BASE_URL}/onboarding-refresh?venueId=${venueId}`,
+      return_url: `${APP_BASE_URL}/onboarding-success?venueId=${venueId}`,
       type: 'account_onboarding',
     });
 
@@ -517,7 +518,7 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({
 
     const client = twilio(accountSid, authToken);
     let body = "";
-    const link = `https://koop.app/orders/${event.params.orderId}`;
+    const link = `${APP_BASE_URL}/orders/${event.params.orderId}`;
     const beforeData = event.data?.before?.exists ? event.data.before.data() : null;
 
     if (beforeData) {
