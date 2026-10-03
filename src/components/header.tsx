@@ -219,6 +219,7 @@ export function AppHeader() {
   const isReviewOrCheckoutPage = pathname?.endsWith('/order/review') || pathname?.endsWith('/order/checkout');
   const isTrackPage = pathname?.endsWith('/order/track');
   const isHomePage = pathname === '/';
+  const isLoginPage = pathname?.startsWith('/login');
   
   const isAdminRoute = pathname?.startsWith('/admin') ||
                       (pathname?.startsWith('/sellers/') && !pathname.includes('/order'));
@@ -277,18 +278,20 @@ export function AppHeader() {
           </div>
 
           <div className="flex items-center gap-1 shrink-0">
-            <Button 
-              variant="ghost" 
-              className="flex items-center gap-2 h-11 px-3 text-white relative"
-              onClick={() => setIsCartOpen(true)}
-            >
-              <ShoppingCart className="h-5 w-5 text-white" />
-              {totalItems > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[8px] font-black rounded-full w-3.5 h-3.5 flex items-center justify-center">
-                  {totalItems}
-                </span>
-              )}
-            </Button>
+            {!isLoginPage && (
+              <Button 
+                variant="ghost" 
+                className="flex items-center gap-2 h-11 px-3 text-white relative"
+                onClick={() => setIsCartOpen(true)}
+              >
+                <ShoppingCart className="h-5 w-5 text-white" />
+                {totalItems > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[8px] font-black rounded-full w-3.5 h-3.5 flex items-center justify-center">
+                    {totalItems}
+                  </span>
+                )}
+              </Button>
+            )}
             <GlobalNavigator />
           </div>
         </div>
