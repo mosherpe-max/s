@@ -55,8 +55,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const handleLogout = async () => {
     if (!auth) return;
-    await signOut(auth);
-    router.push('/login');
+    try {
+      await signOut(auth);
+    } finally {
+      router.replace('/login');
+    }
   };
 
   if (isUserLoading) {
