@@ -572,7 +572,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
       </div>
 
       <div className="flex-1 flex flex-col md:flex-row overflow-auto p-4 gap-4">
-        <div className="relative w-full md:w-2/3 h-[40vh] md:h-full bg-muted rounded-xl overflow-hidden border-2 shadow-sm">
+        <div className="relative w-full md:w-2/3 h-[40vh] shrink-0 md:shrink md:h-full bg-muted rounded-xl overflow-hidden border-2 shadow-sm">
          <Button variant="outline" size="icon" className="absolute top-2 right-2 z-10 bg-background/80 h-8 w-8" onClick={() => setFitTrigger(p => p + 1)}><Focus className="h-4 w-4" /></Button>
           
           <div className="absolute top-3 left-3 z-10 pointer-events-none">
