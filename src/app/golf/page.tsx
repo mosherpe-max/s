@@ -52,7 +52,7 @@ export default function GolfPage() {
         }
       >
         <HeroText
-          h1="What's the gap between your best staff member and your worst?"
+          h1="What's the gap between your best beverage cart shift and your worst?"
           highlight="Koop closes it."
           tag="The app sells. Your staff delivers. Consistent every time."
           sub={
