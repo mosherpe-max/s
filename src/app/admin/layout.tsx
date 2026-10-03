@@ -119,7 +119,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className="p-4 border-t border-white/5">
           <Button variant="ghost" className="w-full justify-start text-white/40 hover:text-white gap-3 px-4 h-12" onClick={handleLogout}>
             <LogOut className="h-4 w-4" />
-            {sidebarOpen && <span className="text-[10px] font-black uppercase tracking-widest">Terminate</span>}
+            {sidebarOpen && <span className="text-[10px] font-black uppercase tracking-widest">Log Out</span>}
           </Button>
         </div>
       </aside>
@@ -143,10 +143,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   {NAV_ITEMS.map((item) => (
                     <NavButton key={item.id} item={item} />
                   ))}
-                  <Button variant="ghost" className="w-full justify-start text-white/40 hover:text-white gap-3 px-4 h-12 mt-4" onClick={handleLogout}>
-                    <LogOut className="h-4 w-4" />
-                    <span className="text-[10px] font-black uppercase tracking-widest">Terminate Session</span>
-                  </Button>
                 </div>
               </SheetContent>
             </Sheet>
@@ -174,6 +170,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                    <span className="text-[8px] font-bold text-white/40 uppercase tracking-widest">Koop Admin</span>
                 </div>
              </div>
+             <button onClick={handleLogout} aria-label="Log Out" className="p-2 text-white/50 hover:text-red-400 transition-colors flex items-center gap-2">
+               <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">Log Out</span>
+               <LogOut className="h-5 w-5" />
+             </button>
           </div>
         </header>
 
