@@ -18,16 +18,16 @@ export const metadata: Metadata = {
 const SMS = 'sms:+12488367515?&body=FOUNDER5';
 
 const diffCards = [
-  { h: 'The app sells consistently', li: ['Same patron experience every round', 'Menu, add-on prompts, and payment on every order', 'The gap between your best shift and your worst narrows, set by the app, not the person'] },
-  { h: 'Orders come to the golfer', li: ['Served on demand, not when the cart happens to pass', 'Every trip is a confirmed sale, with zero dead passes', "Your kitchen now sells to golfers on the course, a revenue stream the cart alone can't reach"] },
-  { h: 'No POS integration', li: ['No changes to your existing POS', 'Zero IT risk, no new hardware', 'Menus, training, and marketing materials included', 'Live in less than a week'] },
-  { h: 'Steady through turnover', li: ['Service quality stable regardless of who is hired', 'Revenue stays stable', 'Koop does not quit mid-season'] },
+  { h: 'App Sells Consistently', li: ['Same patron experience every round', 'Menu, add-on prompts, and payment on every order', 'The gap between your best shift and your worst narrows — set by the app, not the person'] },
+  { h: 'Orders Come to the Golfer', li: ['Served on demand — not when the cart happens to pass', 'Every delivery is a paid order — zero dead passes', "Your kitchen now sells to golfers on the course — a new revenue stream the cart alone can't reach"] },
+  { h: 'No POS Integration', li: ['No changes to your existing POS', 'Zero IT risk — no new hardware', 'Menus, training, and marketing materials included', 'Live in less than a week'] },
+  { h: 'Steady Through Turnover', li: ['Service quality stable regardless of who is hired', "Sales no longer swing with who's working", 'Koop does not quit mid-season'] },
 ];
 
 const pricing: PricingRow[] = [
-  { h: 'Launch fee', p: 'Menu creation, on-site marketing materials (cart stickers, yard signs, posters), and staff training.', was: '$399', v: '$0', l: 'founding member rate, one-time' },
-  { h: 'Monthly membership fee', p: 'Beverage cart and clubhouse service modes. Cancel anytime.', was: '$289', v: '$179', unit: '/mo', l: 'founding rate, locked in for 2 years' },
-  { h: 'Transaction fee', p: 'Paid by the patron. No per-order fees paid by the venue.', v: '$0.99', l: 'per order, paid by the patron' },
+  { h: 'Launch fee', p: 'Includes menu creation, on-site marketing materials (cart stickers, yard signs, posters), and staff training.', was: '$399', v: '$0', l: 'founding member rate — one-time' },
+  { h: 'Monthly membership fee', p: 'Beverage cart and clubhouse service modes. Cancel anytime.', was: '$289', v: '$179', unit: '/mo', l: 'founding rate, locked for 2 years' },
+  { h: 'Transaction fee', p: 'Paid by the patron — no per-order fees paid by the venue.', v: '$0.99', l: 'per order, paid by the patron' },
   { h: 'Card processing', p: 'Standard card processing, paid by the venue. Koop adds nothing on top.', v: 'Standard rates', l: 'no markup from Koop' },
 ];
 
@@ -97,25 +97,23 @@ export default function GolfPage() {
         </Section>
 
         <Section>
-          <h3 className={h3Class}>The Koop difference: <Red>every shift.</Red></h3>
-          <p className="mb-8 max-w-[640px] text-[#55637a]">Four reasons the numbers hold up whoever is working.</p>
+          <h3 className={`${h3Class} mb-6`}>The Koop difference <Red>— every shift.</Red></h3>
           <div className="grid grid-cols-1 min-[761px]:grid-cols-2 gap-5">
             {diffCards.map((c, i) => <BulletCard key={c.h} n={i + 1} title={c.h} items={c.li} />)}
           </div>
         </Section>
 
         <Section>
-          <h3 className={h3Class}>The math</h3>
-          <div className="mt-4 max-w-[780px] bg-white text-[#213147] border-2 border-[#E50000] rounded-[10px] p-[26px]">
-            <p className="m-0 mb-2 font-extrabold text-[clamp(1.4rem,3.6vw,2rem)] leading-tight">Koop pays for itself at 16 extra orders a month.</p>
+          <div className="max-w-[780px] bg-white text-[#213147] border-2 border-[#E50000] rounded-[10px] p-[26px]">
+            <p className="m-0 mb-2 font-extrabold uppercase text-[clamp(1.2rem,3vw,1.7rem)] leading-tight">Koop pays for itself at <Red>16 extra orders a month.</Red></p>
             <p className="m-0 mb-2 text-[#55637a]">At a $15 average order and 75% gross margin, that&apos;s about one extra order every other day.</p>
             <p className="mt-2.5 mb-0 text-[0.82rem] text-[#55637a]">Based on a $15 average order and 75% gross margin. Your numbers may vary.</p>
           </div>
         </Section>
 
         <Section id="pricing">
-          <h3 className={h3Class}>Pricing: <Red>founding member rates.</Red></h3>
-          <p className="mb-8 max-w-[640px] text-[#55637a]">Only 5 founding member spots, first come, first served. Spots close December 31, 2026.</p>
+          <h3 className={h3Class}>Pricing <Red>— founding member rates.</Red></h3>
+          <p className="mb-8 text-[0.75rem] font-bold uppercase tracking-wide text-[#E50000]">Only 5 founding member spots available — first come, first served. Spots close December 31, 2026.</p>
           <PricingTable rows={pricing} />
         </Section>
 
