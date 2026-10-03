@@ -394,6 +394,9 @@ export const applyStarterMenu = onCall({ region: 'us-central1' }, async (request
  * on multiple modes without duplicate docs or clobbering prior edits.
  * Also opts the item's category into that mode's categoryVisibility so an
  * import doesn't silently end up invisible on the buyer-facing menu.
+ * With no mode, items are only added to the venue's own list (availableOn
+ * empty, so nothing goes live) and ones already there are left untouched;
+ * the venue admin then adds them to a service mode when ready.
  * Callable by a super admin or the venue's own authorized admin.
  */
 export const applyStarterItems = onCall({ region: 'us-central1' }, async (request) => {
@@ -403,10 +406,10 @@ export const applyStarterItems = onCall({ region: 'us-central1' }, async (reques
     if (!Array.isArray(itemIds) || itemIds.length === 0) {
       throw new HttpsError('invalid-argument', 'Missing itemIds.');
     }
-    if (!SERVICE_MODE_LABELS[mode]) throw new HttpsError('invalid-argument', 'Missing or invalid mode.');
+    if (mode && !SERVICE_MODE_LABELS[mode]) throw new HttpsError('invalid-argument', 'Invalid mode.');
     await assertVenueAuthorized(request, venueId);
 
-    const modeLabel = SERVICE_MODE_LABELS[mode];
+    const modeLabel: string | null = mode ? SERVICE_MODE_LABELS[mode] : null;
     const librarySnap = await db.collection('starter_menu_item_library').get();
     const selected = librarySnap.docs.filter(d => itemIds.includes(d.id));
 
@@ -420,6 +423,7 @@ export const applyStarterItems = onCall({ region: 'us-central1' }, async (reques
 
     const batch = db.batch();
     const categoriesTouched = new Set<string>();
+    let alreadyInCatalog = 0;
 
     selected.forEach((templateDoc, index) => {
       const template = templateDoc.data();
@@ -428,10 +432,14 @@ export const applyStarterItems = onCall({ region: 'us-central1' }, async (reques
       categoriesTouched.add(template.category);
 
       if (existing?.exists) {
-        batch.update(itemRef, {
-          availableOn: FieldValue.arrayUnion(modeLabel),
-          updatedAt: FieldValue.serverTimestamp(),
-        });
+        if (modeLabel) {
+          batch.update(itemRef, {
+            availableOn: FieldValue.arrayUnion(modeLabel),
+            updatedAt: FieldValue.serverTimestamp(),
+          });
+        } else {
+          alreadyInCatalog++;
+        }
       } else {
         const modifierGroupIds = Array.from(new Set(
           (template.suggestedModifierGroups || []).map((name: string) => `${venueId}-${slugify(name)}`)
@@ -445,7 +453,7 @@ export const applyStarterItems = onCall({ region: 'us-central1' }, async (reques
           rank: nextRank++,
           imageUrl: template.imageUrl || '',
           modifierGroupIds,
-          availableOn: [modeLabel],
+          availableOn: modeLabel ? [modeLabel] : [],
           isAvailable: true,
           createdAt: FieldValue.serverTimestamp(),
           updatedAt: FieldValue.serverTimestamp(),
@@ -453,7 +461,7 @@ export const applyStarterItems = onCall({ region: 'us-central1' }, async (reques
       }
     });
 
-    if (categoriesTouched.size > 0) {
+    if (modeLabel && categoriesTouched.size > 0) {
       batch.set(db.collection('sellers').doc(venueId), {
         categoryVisibility: { [modeLabel]: FieldValue.arrayUnion(...Array.from(categoriesTouched)) },
       }, { merge: true });
@@ -461,7 +469,7 @@ export const applyStarterItems = onCall({ region: 'us-central1' }, async (reques
 
     await batch.commit();
 
-    return { totalCreated: selected.length };
+    return { totalCreated: selected.length - alreadyInCatalog, alreadyInCatalog };
   } catch (err: any) {
     logger.error("applyStarterItems Error", err);
     if (err instanceof HttpsError) throw err;
