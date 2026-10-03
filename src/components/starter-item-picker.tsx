@@ -16,8 +16,9 @@ import { useToast } from '@/hooks/use-toast';
 interface StarterItemPickerProps {
   sellerId: string;
   venueType: 'golf' | 'bowling';
-  mode: 'beverageCart' | 'clubhouse' | 'laneService';
-  modeLabel: string;
+  // Leave both out to add items to the venue's own list only (nothing goes live).
+  mode?: 'beverageCart' | 'clubhouse' | 'laneService';
+  modeLabel?: string;
   trigger: React.ReactNode;
   onImported?: () => void;
 }
@@ -45,7 +46,7 @@ export function StarterItemPicker({ sellerId, venueType, mode, modeLabel, trigge
   const candidates = useMemo(() => {
     return (library || [])
       .filter(item => item.venueType?.includes(venueType))
-      .filter(item => showAll || item.serviceMode === mode);
+      .filter(item => !mode || showAll || item.serviceMode === mode);
   }, [library, venueType, mode, showAll]);
 
   const grouped = useMemo(() => {
@@ -72,9 +73,15 @@ export function StarterItemPicker({ sellerId, venueType, mode, modeLabel, trigge
     try {
       const functions = getFunctions(firebaseApp, 'us-central1');
       const func = httpsCallable(functions, 'applyStarterItems');
-      const result = await func({ venueId: sellerId, itemIds: Array.from(selected), mode });
-      const data = result.data as { totalCreated: number };
-      toast({ title: 'Items Imported', description: `${data.totalCreated} item(s) added to ${modeLabel}.` });
+      const result = await func({ venueId: sellerId, itemIds: Array.from(selected), ...(mode ? { mode } : {}) });
+      const data = result.data as { totalCreated: number; alreadyInCatalog?: number };
+      const already = data.alreadyInCatalog ? ` ${data.alreadyInCatalog} already in your list.` : '';
+      toast({
+        title: 'Items Imported',
+        description: mode
+          ? `${data.totalCreated} item(s) added to ${modeLabel}.`
+          : `${data.totalCreated} item(s) added to your menu items.${already} Add them to a service mode when you're ready to sell them.`,
+      });
       setSelected(new Set());
       setOpen(false);
       onImported?.();
@@ -91,17 +98,21 @@ export function StarterItemPicker({ sellerId, venueType, mode, modeLabel, trigge
       <DialogContent closeClassName="text-white hover:text-white/80" className="sm:max-w-[600px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
         <DialogHeader className="p-8 bg-[#213147] text-white">
           <DialogTitle className="font-headline font-black uppercase text-xl flex items-center gap-2">
-            <Library className="h-5 w-5" /> Import Items &mdash; {modeLabel}
+            <Library className="h-5 w-5" /> {mode ? <>Import Items &mdash; {modeLabel}</> : 'Import From Library'}
           </DialogTitle>
         </DialogHeader>
         <div className="p-8 pb-4 flex items-center justify-between">
           <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">
             {selected.size} Selected
           </p>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Show All Modes</span>
-            <Switch checked={showAll} onCheckedChange={setShowAll} />
-          </label>
+          {mode ? (
+            <label className="flex items-center gap-2 cursor-pointer">
+              <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Show All Modes</span>
+              <Switch checked={showAll} onCheckedChange={setShowAll} />
+            </label>
+          ) : (
+            <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest text-right">Adds to your menu items &mdash; not live until you add them to a mode</p>
+          )}
         </div>
         <ScrollArea className="max-h-[50vh] px-8">
           <div className="space-y-6 pb-6">
@@ -109,7 +120,7 @@ export function StarterItemPicker({ sellerId, venueType, mode, modeLabel, trigge
               <div className="py-16 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto text-primary opacity-30" /></div>
             ) : grouped.length === 0 ? (
               <p className="text-center py-16 text-muted-foreground uppercase text-[10px] font-black opacity-30">
-                No matching library items for this market{showAll ? '' : ' and mode'}
+                No matching library items for this market{mode && !showAll ? ' and mode' : ''}
               </p>
             ) : grouped.map(([category, items]) => (
               <div key={category} className="space-y-2">

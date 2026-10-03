@@ -13,7 +13,8 @@ import {
   serverTimestamp,
   deleteDoc,
   deleteField,
-  writeBatch
+  writeBatch,
+  arrayUnion
 } from 'firebase/firestore';
 import { useFirestore, useDoc, useCollection, useMemoFirebase, useUser, useAuth, useFirebaseApp } from '@/firebase';
 import { getFunctions, httpsCallable } from 'firebase/functions';
@@ -841,6 +842,13 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     updateDoc(docRef, updateData).catch(() => {
       toast({ variant: 'destructive', title: 'Update Failed', description: 'Sign in as the venue owner or admin to change menu items.' });
     });
+
+    // If this mode keeps an explicit list of visible categories, make sure the
+    // item's category is on it - otherwise the item would be added but hidden.
+    const visibleCategories = seller?.categoryVisibility?.[mode];
+    if (action === 'add' && visibleCategories && !visibleCategories.includes(item.category)) {
+      updateDoc(doc(firestore, 'sellers', sellerId), { [`categoryVisibility.${mode}`]: arrayUnion(item.category) }).catch(() => {});
+    }
   };
 
   const handleToggleFeatureInMode = (itemId: string, mode: string) => {
@@ -1250,19 +1258,6 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                   <div className="flex items-center justify-between">
                     <h2 className="text-xl font-black uppercase text-[#213147]">Service Modes</h2>
                     <div className="flex items-center gap-3">
-                      {activeModeTab && MODE_KEY_BY_LABEL[activeModeTab] && (
-                        <StarterItemPicker
-                          sellerId={sellerId}
-                          venueType={seller?.type === 'Golf Course' ? 'golf' : 'bowling'}
-                          mode={MODE_KEY_BY_LABEL[activeModeTab]}
-                          modeLabel={activeModeTab}
-                          trigger={
-                            <Button variant="outline" size="sm" className="text-[9px] font-black uppercase tracking-widest h-9 px-4 rounded-lg border-2 gap-2">
-                              <Library className="h-3.5 w-3.5" /> Import From Library
-                            </Button>
-                          }
-                        />
-                      )}
                       <div className="flex gap-2 bg-[#213147] p-1 rounded-xl">
                         {seller?.menuTypes?.filter(m => AUTHORIZED_SERVICE_MODES.includes(m)).map(mode => (
                           <Button key={mode} variant={activeModeTab === mode ? 'default' : 'ghost'} size="sm" onClick={() => setActiveModeTab(mode)} className={cn("text-[9px] font-black uppercase tracking-widest h-9 px-4 rounded-lg", activeModeTab === mode ? "bg-primary text-white shadow-lg" : "text-white/40 hover:text-white hover:bg-white/5")}>
@@ -1392,9 +1387,20 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                 <div className="space-y-6 animate-in fade-in duration-500">
                   <div className="flex items-center justify-between">
                     <h2 className="text-xl font-black uppercase text-[#213147]">Master Catalog</h2>
+                    <div className="flex items-center gap-3">
+                    <StarterItemPicker
+                      sellerId={sellerId}
+                      venueType={seller?.type === 'Golf Course' ? 'golf' : 'bowling'}
+                      trigger={
+                        <Button variant="outline" className="font-black uppercase text-xs tracking-widest border-2 gap-2">
+                          <Library className="h-4 w-4" /> Import From Library
+                        </Button>
+                      }
+                    />
                     <Button onClick={() => { setEditingItem(null); itemForm.reset({ name: '', description: '', price: 0, category: '', isAvailable: true, imageUrl: '', availableOn: [], featuredOn: [], modifierGroupIds: [] }); setIsItemFormOpen(true); }} className="bg-primary font-black uppercase text-xs tracking-widest">
                       <Plus className="h-4 w-4 mr-2" /> New Product
                     </Button>
+                    </div>
                   </div>
                   <Card className="border-2 rounded-[2rem] overflow-hidden shadow-sm bg-white">
                     <Table>
