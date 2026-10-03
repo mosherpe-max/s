@@ -1310,6 +1310,25 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                       <Card className="border-2 shadow-sm overflow-hidden">
                         <CardHeader className="bg-[#213147] text-white py-4 border-b">
                           <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+                            <Star className="h-3.5 w-3.5" /> Featured
+                          </CardTitle>
+                          <CardDescription className="text-[8px] font-bold text-white/50 uppercase tracking-wider">
+                            Shown first on the {activeModeTab} menu
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent className="pt-6 space-y-2">
+                          <p className="text-[9px] font-bold text-muted-foreground uppercase leading-relaxed">
+                            Tap the <Star className="h-3 w-3 inline-block text-amber-500 fill-current mx-0.5" /> star on any item below to feature it. Featured items appear in a highlighted Featured section at the very top of the {activeModeTab} menu, and stay in their normal category too. Tap the star again to remove it.
+                          </p>
+                          <p className="text-[9px] font-bold text-muted-foreground uppercase leading-relaxed">
+                            A solid star means the item is featured. Each service mode has its own featured list. A few well-chosen items (about 3 to 6) stand out best.
+                          </p>
+                        </CardContent>
+                      </Card>
+
+                      <Card className="border-2 shadow-sm overflow-hidden">
+                        <CardHeader className="bg-[#213147] text-white py-4 border-b">
+                          <CardTitle className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
                             <Sparkles className="h-3.5 w-3.5" /> Upsell
                           </CardTitle>
                           <CardDescription className="text-[8px] font-bold text-white/50 uppercase tracking-wider">
@@ -1318,7 +1337,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                         </CardHeader>
                         <CardContent className="pt-6">
                           <p className="text-[9px] font-bold text-muted-foreground uppercase leading-relaxed">
-                            Tap the <Sparkles className="h-3 w-3 inline-block text-indigo-500 mx-0.5" /> icon on any item below to make it upsell-eligible. Koop automatically offers a complementary pick on the Review screen &mdash; a drink if the cart is food-only, food if it's drinks-only.
+                            Tap the <Sparkles className="h-3 w-3 inline-block text-indigo-500 mx-0.5" /> icon on any item below to make it upsell-eligible. Koop automatically offers a complementary pick on the Review screen &mdash; a drink if the cart is food-only, food if it's drinks-only. A solid <Sparkles className="h-3 w-3 inline-block text-indigo-500 fill-current mx-0.5" /> means the item is upsell-eligible.
                           </p>
                         </CardContent>
                       </Card>
