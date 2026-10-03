@@ -21,3 +21,22 @@ export function requestPatronLocation(timeoutMs = 8000): Promise<PatronLocation 
     );
   });
 }
+
+// How a patron turns location back on after blocking it. Browsers can't reopen the
+// permission prompt once it's been denied, so this is the way back.
+export function getLocationFixSteps(): string[] {
+  const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+  if (/iPad|iPhone|iPod/.test(ua)) {
+    return [
+      'Open the Settings app.',
+      'Tap Privacy & Security, then Location Services.',
+      'Find Safari Websites (or Koop if you use it from your Home Screen) and choose While Using the App.',
+      'Come back to this page and tap Try again.',
+    ];
+  }
+  return [
+    'Tap the lock or tune icon next to the web address.',
+    'Tap Permissions, then Location, and choose Allow.',
+    'Tap Try again.',
+  ];
+}
