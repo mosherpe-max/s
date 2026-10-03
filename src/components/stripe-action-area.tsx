@@ -1,7 +1,7 @@
 'use client';
 
 import { useStripe, useElements } from '@stripe/react-stripe-js';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ import { Loader2, CreditCard } from 'lucide-react';
 import { CheckoutBrandingBar } from '@/components/checkout-branding-bar';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
+import { needsPatronLocation, requestPatronLocation } from '@/lib/patron-location';
 
 interface StripeActionAreaProps {
   clientSecret: string;
@@ -71,6 +72,9 @@ export function StripeActionArea({
     }
 
     setIsProcessing(true);
+    // Started now, from the tap, and only awaited once the payment has gone through,
+    // so it never slows the payment itself.
+    const locationPromise = needsPatronLocation(orderData?.menuType) ? requestPatronLocation() : Promise.resolve(null);
     try {
       // Saved-card path bypasses the Payment Element entirely - confirm
       // directly against the saved payment method id, no card form needed.
@@ -111,8 +115,10 @@ export function StripeActionArea({
           }
         }
 
+        const patronLocation = await locationPromise;
         const finalOrderData = {
           ...orderData,
+          ...(patronLocation ? { deliveryLocation: patronLocation, lastGpsUpdate: serverTimestamp() } : {}),
           customerEmail: patronEmail,
           customerName: patronName,
           customerPhone: patronPhone.replace(/\D/g, ''),

@@ -22,6 +22,7 @@ import { Elements } from '@stripe/react-stripe-js';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { cn } from '@/lib/utils';
 import { mockBuyerLocation } from '@/lib/data';
+import { needsPatronLocation, requestPatronLocation } from '@/lib/patron-location';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 import Link from 'next/link';
@@ -216,6 +217,7 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
       return;
     }
     setIsProcessing(true);
+    const locationPromise = needsPatronLocation(menuTypeFromUrl) ? requestPatronLocation() : Promise.resolve(null);
     try {
       let currentUser = user;
       if (!currentUser && auth) {
@@ -230,13 +232,15 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
         localStorage.setItem('koop_patron_phone', patronPhone);
       }
 
+      const patronLocation = await locationPromise;
       const orderData: any = {
         sellerId,
         buyerProfileId: currentUser.uid,
         customerEmail: patronEmail,
         customerName: patronName || 'Guest Patron',
         customerPhone: patronPhone.replace(/\D/g, ''),
-        deliveryLocation: mockBuyerLocation,
+        deliveryLocation: patronLocation || mockBuyerLocation,
+        ...(patronLocation ? { lastGpsUpdate: serverTimestamp() } : {}),
         items: activeOrderItems,
         subtotal,
         serviceFee: solutionFee,
