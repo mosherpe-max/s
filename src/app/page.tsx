@@ -242,10 +242,10 @@ export default function HomePage() {
           <h2 className="font-headline text-5xl md:text-8xl font-black uppercase mb-6 tracking-tighter leading-none">Ready to Take<br />More Orders?</h2>
           <p className="text-lg md:text-xl text-[#8a9ab0] max-w-[500px] mx-auto mb-12 leading-relaxed">Join golf courses and bowling centers already using Koop to capture more revenue with zero POS headaches.</p>
           <div className="flex wrap justify-center gap-4">
-            <a href="mailto:sales@kooporders.com" className="font-headline text-sm md:text-base font-bold uppercase tracking-widest bg-[#E50000] hover:bg-[#c40000] text-white px-12 py-5 rounded transition-all shadow-2xl">
+            <a href="mailto:hello@kooporder.com?subject=Request%20a%20demo" className="font-headline text-sm md:text-base font-bold uppercase tracking-widest bg-[#E50000] hover:bg-[#c40000] text-white px-12 py-5 rounded transition-all shadow-2xl">
               Request a Demo
             </a>
-            <a href="mailto:info@kooporders.com" className="font-headline text-sm md:text-base font-bold uppercase tracking-widest border-2 border-[#F0F0F0]/20 hover:border-[#F0F0F0] text-[#F0F0F0] px-12 py-5 rounded transition-all">
+            <a href="mailto:hello@kooporder.com?subject=Talk%20to%20sales" className="font-headline text-sm md:text-base font-bold uppercase tracking-widest border-2 border-[#F0F0F0]/20 hover:border-[#F0F0F0] text-[#F0F0F0] px-12 py-5 rounded transition-all">
               Talk to Sales
             </a>
           </div>

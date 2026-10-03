@@ -398,7 +398,7 @@ export default function AdminSystemConfigPage() {
                       defaultValue={config?.supportEmail} 
                       onBlur={(e) => handleUpdateConfig('supportEmail', e.target.value)}
                       className="h-12 border-2 font-bold"
-                      placeholder="support@kooporders.com"
+                      placeholder="hello@kooporder.com"
                    />
                 </div>
                 <div className="space-y-2">

@@ -254,7 +254,7 @@ export default function LoginPage() {
                     <Input 
                       id="email" 
                       type="email" 
-                      placeholder="identity@kooporders.com" 
+                      placeholder="identity@kooporder.com" 
                       className="pl-10 h-11 border-2 font-bold"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
