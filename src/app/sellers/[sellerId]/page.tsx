@@ -988,8 +988,8 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                 <span className="text-[8px] font-bold text-white/40 uppercase tracking-widest">Venue Admin</span>
              </div>
           </div>
-          <button onClick={handleLogout} className="p-2 text-white/50 hover:text-red-400 transition-colors flex items-center gap-2">
-            <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">Release Device</span>
+          <button onClick={handleLogout} aria-label="Log Out" className="p-2 text-white/50 hover:text-red-400 transition-colors flex items-center gap-2">
+            <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">Log Out</span>
             <LogOut className="h-5 w-5" />
           </button>
         </div>

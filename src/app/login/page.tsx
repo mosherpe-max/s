@@ -104,7 +104,7 @@ export default function LoginPage() {
     setIsLoading(true);
     try {
       await signOut(auth);
-      toast({ title: "Session Terminated" });
+      toast({ title: "Logged out" });
     } finally {
       setIsLoading(false);
     }
@@ -241,7 +241,7 @@ export default function LoginPage() {
                 className="w-full text-muted-foreground hover:text-destructive h-10 uppercase text-[10px] font-black tracking-[0.2em] gap-2"
               >
                 <LogOut className="h-3.5 w-3.5" />
-                Terminate Session
+                Log Out
               </Button>
             </div>
           ) : (
