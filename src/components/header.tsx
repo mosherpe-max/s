@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
+import { isMarketingPath } from '@/lib/marketing-paths';
 import { useState, useEffect, useMemo } from 'react';
 import { doc } from 'firebase/firestore';
 import { useFirestore, useDoc, useMemoFirebase } from '@/firebase';
@@ -218,7 +219,7 @@ export function AppHeader() {
   const isMenuPage = pathname?.endsWith('/order');
   const isReviewOrCheckoutPage = pathname?.endsWith('/order/review') || pathname?.endsWith('/order/checkout');
   const isTrackPage = pathname?.endsWith('/order/track');
-  const isHomePage = pathname === '/';
+  const isHomePage = isMarketingPath(pathname);
   
   const isAdminRoute = pathname?.startsWith('/admin') ||
                       (pathname?.startsWith('/sellers/') && !pathname.includes('/order'));

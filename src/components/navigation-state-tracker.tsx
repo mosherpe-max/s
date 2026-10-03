@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { usePathname, useSearchParams, useRouter } from 'next/navigation';
+import { isMarketingPath } from '@/lib/marketing-paths';
 
 /**
  * NavigationStateTracker
@@ -24,7 +25,7 @@ function isPatronPath(path: string): boolean {
     path.startsWith('/sales') ||
     path.startsWith('/sellers') && (path.includes('/bevcart') || path.includes('/clubhouse') || path.includes('/laneside') || path.includes('/staff-login'));
 
-  return !isInternal && path !== '/';
+  return !isInternal && !isMarketingPath(path);
 }
 
 export function NavigationStateTracker() {

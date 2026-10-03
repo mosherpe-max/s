@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import { MARKETING_PATHS } from '@/lib/marketing-paths';
 
 // kooporder.com is the public marketing site; kooporder.app is the product
 // (Koop Admin, Venue Admin, staff terminals, patron ordering). Both domains
@@ -9,11 +10,11 @@ import { NextResponse, type NextRequest } from 'next/server';
 const APP_ORIGIN = 'https://kooporder.app';
 const MARKETING_HOSTS = new Set(['kooporder.com', 'www.kooporder.com']);
 
-// Add future marketing pages (e.g. '/pricing') here.
-const MARKETING_PATHS = new Set(['/', '/golf', '/bowling']);
+// Marketing pages are listed in src/lib/marketing-paths.ts.
+const MARKETING_PATH_SET = new Set(MARKETING_PATHS);
 
 // Assets the marketing pages themselves need.
-const SHARED_PREFIXES = ['/_next/', '/icons/'];
+const SHARED_PREFIXES = ['/_next/', '/icons/', '/marketing/'];
 const SHARED_FILES = new Set(['/favicon.ico', '/icon', '/apple-icon', '/robots.txt', '/sitemap.xml']);
 
 // Install/offline plumbing for the product only: the marketing host must not
@@ -28,7 +29,7 @@ export function middleware(request: NextRequest) {
 
   const { pathname, search } = request.nextUrl;
 
-  if (MARKETING_PATHS.has(pathname) || SHARED_FILES.has(pathname) || SHARED_PREFIXES.some((p) => pathname.startsWith(p))) {
+  if (MARKETING_PATH_SET.has(pathname) || SHARED_FILES.has(pathname) || SHARED_PREFIXES.some((p) => pathname.startsWith(p))) {
     return NextResponse.next();
   }
   if (APP_ONLY_FILES.has(pathname)) {
