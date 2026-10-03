@@ -10,7 +10,7 @@ const APP_ORIGIN = 'https://kooporder.app';
 const MARKETING_HOSTS = new Set(['kooporder.com', 'www.kooporder.com']);
 
 // Add future marketing pages (e.g. '/pricing') here.
-const MARKETING_PATHS = new Set(['/']);
+const MARKETING_PATHS = new Set(['/', '/golf', '/bowling']);
 
 // Assets the marketing pages themselves need.
 const SHARED_PREFIXES = ['/_next/', '/icons/'];
