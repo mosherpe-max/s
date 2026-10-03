@@ -776,7 +776,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     }
   };
 
-  const handleLogout = async () => { if (!auth) return; await signOut(auth); router.push('/login'); };
+  const handleLogout = async () => { if (!auth) return; try { await signOut(auth); } finally { router.replace('/login'); } };
 
   const handleShareStaffLink = async () => {
     const url = `${baseUrl}/sellers/${sellerId}/staff-login`;
