@@ -77,13 +77,13 @@ export function UpsellRail({ upsellItemIds, menuItems, orderItems, onAdd }: Upse
             </button>
           </div>
 
-          {/* Column count is fixed to how many items were originally
-              offered, not how many remain - otherwise the last unadded
-              card would stretch to fill the freed column instead of
-              staying the same size. */}
-          <div className={cn("grid gap-3", offeredItems.length === 1 ? "grid-cols-1" : "grid-cols-2")}>
+          {/* Cards are always half-width, whether one or two items were
+              offered, so a lone suggestion stays the same size instead of
+              stretching across the whole screen. They stay centered, and
+              the last card keeps its size after the other is added. */}
+          <div className="flex flex-wrap justify-center gap-3">
             {upsellItems.map(item => (
-              <div key={item.id} className="bg-white rounded-[1.25rem] border-2 border-slate-100 shadow-sm overflow-hidden flex flex-col">
+              <div key={item.id} className="w-[calc(50%-0.375rem)] bg-white rounded-[1.25rem] border-2 border-slate-100 shadow-sm overflow-hidden flex flex-col">
                 <div className="relative aspect-square w-full bg-muted shrink-0 border-b-2 border-slate-100 overflow-hidden">
                   {item.imageUrl ? (
                     <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />
