@@ -132,6 +132,7 @@ import { PrintMarketingKit } from '@/components/print-marketing-kit';
 import { ModifierManagement } from '@/components/modifier-management';
 import { StarterItemPicker } from '@/components/starter-item-picker';
 import { ActiveOrdersPanel } from '@/components/active-orders-panel';
+import { ModeStatusSwitches } from '@/components/mode-status-switches';
 import { ImageUploadDropzone } from '@/components/image-upload-dropzone';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { categories } from '@/lib/types';
@@ -1053,25 +1054,25 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                                        <ModeIcon className="h-3.5 w-3.5 text-[#213147]/40" />
                                        <CardTitle className="text-[10px] font-black uppercase tracking-widest text-[#213147]">{mode}</CardTitle>
                                     </div>
-                                    <Switch checked={isActive} onCheckedChange={(val) => handleUpdateField(field, val)} className="data-[state=checked]:bg-green-500 scale-75" />
+                                    <ModeStatusSwitches
+                                       isActive={isActive}
+                                       isPaused={isPausedByStaff || isAutoThrottled}
+                                       onActiveChange={(val) => handleUpdateField(field, val)}
+                                       onPausedChange={(paused) => {
+                                          if (paused) {
+                                             setPauseConfirmMode(mode);
+                                          } else {
+                                             handleUpdateField(pausedField, false);
+                                             handleUpdateField(throttledField, false);
+                                          }
+                                       }}
+                                    />
                                  </CardHeader>
                                  <CardContent className="p-6 space-y-6">
-                                    {isPausedByStaff || isAutoThrottled ? (
-                                       <div className="flex items-center justify-between gap-2 p-3 rounded-xl bg-amber-50 border-2 border-amber-100">
-                                          <div className="flex items-center gap-1.5">
-                                             <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-                                             <p className="text-[8px] font-black uppercase text-amber-700 leading-tight">{isPausedByStaff ? 'Paused by Staff' : 'Auto-Paused - Queue Full'}</p>
-                                          </div>
-                                          <Button size="sm" variant="outline" className="h-7 text-[8px] font-black uppercase tracking-widest border-amber-200 bg-white hover:bg-amber-100 shrink-0" onClick={() => { handleUpdateField(pausedField, false); handleUpdateField(throttledField, false); }}>
-                                             Resume Now
-                                          </Button>
-                                       </div>
-                                    ) : (
-                                       <div className="flex items-center justify-between gap-2 p-3 rounded-xl bg-slate-50 border-2 border-slate-100">
-                                          <p className="text-[8px] font-black uppercase text-muted-foreground leading-tight">New Orders Accepted</p>
-                                          <Button size="sm" variant="outline" className="h-7 text-[8px] font-black uppercase tracking-widest border-slate-200 bg-white hover:bg-destructive/5 hover:text-destructive hover:border-destructive/20 shrink-0 gap-1.5" onClick={() => setPauseConfirmMode(mode)}>
-                                             <Ban className="h-3 w-3" /> Pause New Orders
-                                          </Button>
+                                    {isAutoThrottled && !isPausedByStaff && (
+                                       <div className="flex items-center gap-1.5 p-3 rounded-xl bg-amber-50 border-2 border-amber-100">
+                                          <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                                          <p className="text-[8px] font-black uppercase text-amber-700 leading-tight">Auto-paused - queue full</p>
                                        </div>
                                     )}
                                     <div className="grid grid-cols-2 gap-4 border-b pb-6">
