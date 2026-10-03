@@ -308,7 +308,7 @@ function BuyerOrderContent({ sellerId }: { sellerId: string }) {
           <div className="flex items-center justify-between w-full gap-4">
             <h1 className={cn(
               "font-headline font-black text-white uppercase tracking-tight leading-tight break-words min-w-0 flex-1",
-              (seller?.courseName?.length || 0) > 22 ? "text-xl" : "text-2xl"
+              (seller?.courseName?.length || 0) > 16 ? "text-base" : "text-lg"
             )}>{seller?.courseName}</h1>
             <Button 
               variant="ghost"
