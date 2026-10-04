@@ -40,3 +40,18 @@ export function getLocationFixSteps(): string[] {
     'Tap Try again.',
   ];
 }
+
+export const DRIVING_RANGE = 'Driving Range';
+export const DEFAULT_HOLE_COUNT = 18;
+
+// The places a patron can say they are when they won't share location:
+// each hole number, then the driving range if the course has one.
+export function getHoleOptions(holeCount?: number, hasDrivingRange?: boolean): string[] {
+  const count = holeCount && holeCount > 0 ? holeCount : DEFAULT_HOLE_COUNT;
+  const holes = Array.from({ length: count }, (_, i) => String(i + 1));
+  return hasDrivingRange ? [...holes, DRIVING_RANGE] : holes;
+}
+
+export function formatHole(hole: string): string {
+  return hole === DRIVING_RANGE ? DRIVING_RANGE : `Hole ${hole}`;
+}

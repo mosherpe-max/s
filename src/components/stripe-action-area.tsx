@@ -10,7 +10,7 @@ import { Loader2, CreditCard } from 'lucide-react';
 import { CheckoutBrandingBar } from '@/components/checkout-branding-bar';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
-import { needsPatronLocation, requestPatronLocation } from '@/lib/patron-location';
+import type { LocationChoice } from '@/components/patron-location-gate';
 
 interface StripeActionAreaProps {
   clientSecret: string;
@@ -36,6 +36,9 @@ interface StripeActionAreaProps {
   // form is mounted at all for this path.
   savedPaymentMethod: { id: string; brand: string; last4: string } | null;
   useNewCard: boolean;
+  // Settles the patron's location (or the hole they're on) before they are charged.
+  // Resolves to null if they back out.
+  askForLocation: () => Promise<LocationChoice | null>;
 }
 
 export function StripeActionArea({
@@ -54,6 +57,7 @@ export function StripeActionArea({
   isStripeReady,
   savedPaymentMethod,
   useNewCard,
+  askForLocation,
 }: StripeActionAreaProps) {
   const stripe = useStripe();
   const elements = useElements();
@@ -72,9 +76,13 @@ export function StripeActionArea({
     }
 
     setIsProcessing(true);
-    // Started now, from the tap, and only awaited once the payment has gone through,
-    // so it never slows the payment itself.
-    const locationPromise = needsPatronLocation(orderData?.menuType) ? requestPatronLocation() : Promise.resolve(null);
+    // Asked from the tap, before any charge: the order only goes ahead once we know
+    // where to bring it (a real location, or the hole the patron picked).
+    const placement = await askForLocation();
+    if (!placement) {
+      setIsProcessing(false);
+      return;
+    }
     try {
       // Saved-card path bypasses the Payment Element entirely - confirm
       // directly against the saved payment method id, no card form needed.
@@ -115,10 +123,11 @@ export function StripeActionArea({
           }
         }
 
-        const patronLocation = await locationPromise;
+        const patronLocation = placement.location;
         const finalOrderData = {
           ...orderData,
           ...(patronLocation ? { deliveryLocation: patronLocation, lastGpsUpdate: serverTimestamp() } : {}),
+          ...(placement.hole ? { deliveryHole: placement.hole, deliveryHoleUpdatedAt: serverTimestamp() } : {}),
           customerEmail: patronEmail,
           customerName: patronName,
           customerPhone: patronPhone.replace(/\D/g, ''),

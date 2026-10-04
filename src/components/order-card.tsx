@@ -8,6 +8,7 @@ import { Button } from './ui/button';
 import { Clock, AlertTriangle, ChevronRight, CheckCircle2, Truck, Timer, Satellite, User, UserPlus, UserMinus, Repeat, MapPin, MessageSquare } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { cn, getNumericOrderId } from '@/lib/utils';
+import { formatHole } from '@/lib/patron-location';
 
 interface OrderCardProps {
   order: Order;
@@ -81,6 +82,12 @@ export function OrderCard({
   };
 
   const gpsStatus = getGpsStatus();
+
+  // Patron didn't share location but told us which hole they're on. Show it prominently,
+  // with how long ago they said so, since groups move on every 10-15 minutes.
+  const holeTime = order.deliveryHoleUpdatedAt?.toDate?.()?.getTime() || null;
+  const holeMinutesElapsed = holeTime ? Math.max(0, Math.floor((now - holeTime) / 60000)) : null;
+  const showHole = !!order.deliveryHole && !order.deliveryLocation;
 
   // Condition for showing the location label
   const showLocationLabel = order.menuTypeLocation || order.menuType === 'Lane Delivery';
@@ -183,6 +190,15 @@ export function OrderCard({
               <div className="flex items-center gap-1.5 text-sm font-black text-primary uppercase">
                 <MapPin className="h-3.5 w-3.5" /> {order.menuTypeLocation || 'Standard'}
               </div>
+            ) : showHole ? (
+              <div className="flex items-center gap-1.5 text-sm font-black text-primary uppercase">
+                <MapPin className="h-3.5 w-3.5" /> {formatHole(order.deliveryHole!)}
+                {holeMinutesElapsed !== null && (
+                  <span className="text-[9px] font-black text-muted-foreground normal-case">
+                    {holeMinutesElapsed < 1 ? 'just now' : `${holeMinutesElapsed}m ago`}
+                  </span>
+                )}
+              </div>
             ) : (
               <div className="flex items-center gap-1.5 text-[8px] font-black uppercase text-muted-foreground">
                 <MapPin className="h-2.5 w-2.5 opacity-40" /> GPS Tracked
@@ -191,8 +207,8 @@ export function OrderCard({
             
             {/* GPS FRESHNESS INDICATOR */}
             <div className="flex items-center gap-1 text-[11px] font-black uppercase">
-              <Satellite className={cn("h-3 w-3", gpsStatus.color)} />
-              <span className={cn(gpsStatus.color)}>{gpsStatus.label}</span>
+              <Satellite className={cn("h-3 w-3", showHole ? 'text-amber-500' : gpsStatus.color)} />
+              <span className={cn(showHole ? 'text-amber-500' : gpsStatus.color)}>{showHole ? 'Location off' : gpsStatus.label}</span>
             </div>
           </div>
 

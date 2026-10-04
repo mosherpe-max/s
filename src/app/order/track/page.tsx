@@ -34,6 +34,7 @@ import { useToast } from '@/hooks/use-toast';
 import { FEE_DISCLOSURES, getDisclosureCategory } from '@/config/fee-disclosures';
 import { differenceInSeconds } from 'date-fns';
 import { LocationBlockedCard } from '@/components/location-blocked-card';
+import { formatHole, getHoleOptions } from '@/lib/patron-location';
 
 function OrderTrackingContent() {
   const firestore = useFirestore();
@@ -187,6 +188,17 @@ function OrderTrackingContent() {
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, [locationBlocked, order?.id, firestore, isDelivered]);
 
+  const handleUpdateHole = (hole: string) => {
+    if (!firestore || !order) return;
+    updateDoc(doc(firestore, 'orders', order.id), {
+      deliveryHole: hole,
+      deliveryHoleUpdatedAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    }).then(() => {
+      toast({ title: "Location Updated", description: `Staff will look for you at ${formatHole(hole)}.` });
+    });
+  };
+
   const handleUpdateLane = (lane: string) => {
     if (!firestore || !order) return;
     const newLocation = `Lane ${lane}`;
@@ -296,9 +308,16 @@ function OrderTrackingContent() {
       {/* 3. DETAILS & CONTROLS */}
       <div className="p-4 space-y-4 max-w-2xl mx-auto w-full pb-24 flex-1">
         
-        {!isDelivered && isGolf && locationBlocked && <LocationBlockedCard onRetry={handleManualRefresh} />}
+        {!isDelivered && isGolf && (locationBlocked || (!!order.deliveryHole && !order.deliveryLocation)) && (
+          <LocationBlockedCard
+            onRetry={handleManualRefresh}
+            hole={!order.deliveryLocation ? order.deliveryHole : undefined}
+            holeOptions={getHoleOptions(seller?.holeCount, seller?.hasDrivingRange)}
+            onHoleChange={handleUpdateHole}
+          />
+        )}
 
-        {!isDelivered && isGolf && !locationBlocked && (
+        {!isDelivered && isGolf && !locationBlocked && !(order.deliveryHole && !order.deliveryLocation) && (
           <div className={cn(
             "rounded-2xl p-4 shadow-md border-2 transition-all duration-500 flex items-center justify-between gap-4",
             isSignalStale ? "bg-red-50 border-red-200" : "bg-green-50 border-green-200"

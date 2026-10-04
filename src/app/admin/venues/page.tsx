@@ -119,6 +119,8 @@ const venueRegistrySchema = z.object({
   payoutsEnabled: z.boolean().default(false),
   menuTypes: z.array(z.string()).min(1, 'At least one service mode required'),
   laneCount: z.coerce.number().min(0).optional(),
+  holeCount: z.coerce.number().int().min(1, 'At least 1 hole').max(36, 'At most 36 holes').default(18),
+  hasDrivingRange: z.boolean().default(false),
   status: z.enum(['Active', 'Inactive']).default('Active'),
   latitude: z.coerce.number(),
   longitude: z.coerce.number(),
@@ -147,7 +149,9 @@ const newVenueSchema = z.object({
   state: z.string().length(2, 'State code (e.g. MI)'),
   zip: z.string().min(5, 'Valid zip code required'),
   menuTypes: z.array(z.string()).min(1, 'Select at least one mode'),
-  laneCount: z.coerce.number().min(0).optional()
+  laneCount: z.coerce.number().min(0).optional(),
+  holeCount: z.coerce.number().int().min(1, 'At least 1 hole').max(36, 'At most 36 holes').default(18),
+  hasDrivingRange: z.boolean().default(false)
 });
 
 type NewVenueData = z.infer<typeof newVenueSchema>;
@@ -205,6 +209,8 @@ export default function AdminVenueRegistryPage() {
       payoutsEnabled: false,
       menuTypes: [],
       laneCount: 0,
+      holeCount: 18,
+      hasDrivingRange: false,
       status: 'Active',
       latitude: 0,
       longitude: 0,
@@ -232,7 +238,9 @@ export default function AdminVenueRegistryPage() {
       state: '',
       zip: '',
       menuTypes: ['Beverage Cart', 'Clubhouse'],
-      laneCount: 0
+      laneCount: 0,
+      holeCount: 18,
+      hasDrivingRange: false
     }
   });
 
@@ -254,6 +262,8 @@ export default function AdminVenueRegistryPage() {
         payoutsEnabled: !!reg.payoutsEnabled,
         menuTypes: seller?.menuTypes || [],
         laneCount: seller?.laneCount || 0,
+        holeCount: seller?.holeCount || 18,
+        hasDrivingRange: !!seller?.hasDrivingRange,
         status: seller?.status || 'Active',
         latitude: seller?.latitude || 0,
         longitude: seller?.longitude || 0,
@@ -280,15 +290,17 @@ export default function AdminVenueRegistryPage() {
     const sellerRef = doc(firestore, 'sellers', selectedVenue.venueId);
 
     const {
-      menuTypes, laneCount, status, latitude, longitude,
+      menuTypes, laneCount, holeCount, hasDrivingRange, status, latitude, longitude,
       contactName, contactEmail, contactPhone, streetAddress, city, state, zip,
       ...venueData
     } = data;
+    const isGolfVenue = sellers?.find(s => s.id === selectedVenue.venueId)?.type === 'Golf Course';
 
     batch.update(venueRef, { ...venueData, updatedAt: serverTimestamp() });
     batch.update(sellerRef, {
       menuTypes, laneCount, status, latitude, longitude,
       contactName, contactEmail, contactPhone, streetAddress, city, state, zip,
+      ...(isGolfVenue ? { holeCount, hasDrivingRange } : {}),
       updatedAt: serverTimestamp()
     });
 
@@ -324,6 +336,7 @@ export default function AdminVenueRegistryPage() {
         streetAddress: data.streetAddress, city: data.city, state: data.state, zip: data.zip,
         menuTypes: data.menuTypes, taxRate: 6.0, serviceFee: 1.50, ownerId: data.ownerUid,
         laneCount: data.type === 'Bowling Center' ? data.laneCount : 0,
+        ...(data.type === 'Golf Course' ? { holeCount: data.holeCount, hasDrivingRange: data.hasDrivingRange } : {}),
         latitude: 0,
         longitude: 0,
         orderThresholds: masterDefaults || {},
@@ -633,6 +646,24 @@ export default function AdminVenueRegistryPage() {
                         <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Venue Type</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Golf Course">Golf Course</SelectItem><SelectItem value="Bowling Center">Bowling Center</SelectItem></SelectContent></Select></FormItem>
                       )} />
+                      {onboardingForm.watch('type') === 'Golf Course' && (
+                        <div className="space-y-3 animate-in slide-in-from-top-2 duration-300">
+                          <FormField control={onboardingForm.control} name="holeCount" render={({ field }) => (
+                            <FormItem className="text-left">
+                              <FormLabel className="text-[10px] font-black uppercase">Number of Holes</FormLabel>
+                              <FormControl><Input {...field} type="number" min={1} max={36} className="h-12 border-2 font-bold" /></FormControl>
+                              <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Patrons pick their hole from this list if they won&apos;t share location</p>
+                              <FormMessage />
+                            </FormItem>
+                          )} />
+                          <FormField control={onboardingForm.control} name="hasDrivingRange" render={({ field }) => (
+                            <FormItem className="flex flex-row items-center justify-between p-3 rounded-xl border-2 bg-slate-50 border-slate-100 space-y-0">
+                              <div className="flex flex-col text-left"><FormLabel className="text-[10px] font-black uppercase text-[#213147]">Driving Range</FormLabel><span className="text-[8px] font-bold text-muted-foreground uppercase">Offer it as a delivery location</span></div>
+                              <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} className="data-[state=checked]:bg-green-600" /></FormControl>
+                            </FormItem>
+                          )} />
+                        </div>
+                      )}
                       {onboardingForm.watch('type') === 'Bowling Center' && (
                         <FormField control={onboardingForm.control} name="laneCount" render={({ field }) => (
                           <FormItem className="text-left animate-in slide-in-from-top-2 duration-300">
@@ -967,6 +998,22 @@ export default function AdminVenueRegistryPage() {
                                />
                              )} />
                           </div>
+                          {sellers?.find(s => s.id === selectedVenue?.venueId)?.type === 'Golf Course' && (
+                            <>
+                              <FormField control={registryForm.control} name="holeCount" render={({ field }) => (
+                                <FormItem className="text-left p-3 rounded-xl border-2 bg-slate-50 border-slate-100">
+                                  <FormLabel className="text-[10px] font-black uppercase">Number of Holes</FormLabel>
+                                  <FormControl><Input {...field} type="number" min={1} max={36} className="h-10 border-2 font-bold bg-white" /></FormControl>
+                                  <p className="text-[8px] font-bold text-muted-foreground uppercase mt-1">Patrons pick their hole from this list if they won&apos;t share location</p>
+                                  <FormMessage />
+                                </FormItem>
+                              )} />
+                              <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border-2 border-slate-100">
+                                <div className="flex flex-col text-left"><span className="text-[10px] font-black uppercase text-[#213147]">Driving Range</span><span className="text-[8px] font-bold text-muted-foreground uppercase">Offer it as a delivery location</span></div>
+                                <FormField control={registryForm.control} name="hasDrivingRange" render={({ field }) => (<Switch checked={field.value} onCheckedChange={field.onChange} className="data-[state=checked]:bg-green-600" />)} />
+                              </div>
+                            </>
+                          )}
                           {sellers?.find(s => s.id === selectedVenue?.venueId)?.type === 'Bowling Center' && (
                             <FormField control={registryForm.control} name="laneCount" render={({ field }) => (
                               <FormItem className="text-left p-3 rounded-xl border-2 bg-slate-50 border-slate-100">
