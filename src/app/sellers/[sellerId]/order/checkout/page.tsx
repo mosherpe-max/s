@@ -21,7 +21,7 @@ import { loadStripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { cn } from '@/lib/utils';
-import { needsPatronLocation, requestPatronLocation } from '@/lib/patron-location';
+import { usePatronLocationGate } from '@/components/patron-location-gate';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 import Link from 'next/link';
@@ -50,6 +50,11 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
 
   const sellerRef = useMemoFirebase(() => (firestore ? doc(firestore, 'sellers', sellerId) : null), [firestore, sellerId]);
   const { data: seller, isLoading: isSellerLoading } = useDoc<Seller>(sellerRef);
+  const { askForLocation, gateDialog } = usePatronLocationGate({
+    menuType: menuTypeFromUrl,
+    holeCount: seller?.holeCount,
+    hasDrivingRange: seller?.hasDrivingRange,
+  });
 
   const venueRef = useMemoFirebase(() => (firestore ? doc(firestore, 'venues', sellerId) : null), [firestore, sellerId]);
   const { data: venue, isLoading: isVenueLoading } = useDoc<Venue>(venueRef);
@@ -216,7 +221,12 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
       return;
     }
     setIsProcessing(true);
-    const locationPromise = needsPatronLocation(menuTypeFromUrl) ? requestPatronLocation() : Promise.resolve(null);
+    // Location (or the patron's hole) is settled before the order is placed.
+    const placement = await askForLocation();
+    if (!placement) {
+      setIsProcessing(false);
+      return;
+    }
     try {
       let currentUser = user;
       if (!currentUser && auth) {
@@ -231,7 +241,7 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
         localStorage.setItem('koop_patron_phone', patronPhone);
       }
 
-      const patronLocation = await locationPromise;
+      const patronLocation = placement.location;
       const orderData: any = {
         sellerId,
         buyerProfileId: currentUser.uid,
@@ -239,6 +249,7 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
         customerName: patronName || 'Guest Patron',
         customerPhone: patronPhone.replace(/\D/g, ''),
         ...(patronLocation ? { deliveryLocation: patronLocation, lastGpsUpdate: serverTimestamp() } : {}),
+        ...(placement.hole ? { deliveryHole: placement.hole, deliveryHoleUpdatedAt: serverTimestamp() } : {}),
         items: activeOrderItems,
         subtotal,
         serviceFee: solutionFee,
@@ -332,6 +343,7 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
 
   return (
     <div className="flex flex-col min-h-screen bg-[#F0F0F0]">
+      {gateDialog}
       <header className="shrink-0 bg-[#213147] px-4 py-3 flex items-center gap-3 shadow-md border-b-2 border-[#E50000] sticky top-0 z-40">
         <Button
           variant="ghost"
@@ -530,6 +542,7 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
                     isStripeReady={isStripeReady}
                     savedPaymentMethod={savedPaymentMethod}
                     useNewCard={useNewCard}
+                    askForLocation={askForLocation}
                   />
                 </Elements>
               )

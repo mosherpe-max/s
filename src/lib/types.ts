@@ -131,6 +131,10 @@ export interface Seller {
   halfwayHouseNames?: string[];
   laneCount?: number;
   tableCount?: number;
+  /** Golf: holes on the course (patron picks one when location sharing is off). Defaults to 18. */
+  holeCount?: number;
+  /** Golf: also offer "Driving Range" as a place to deliver to. */
+  hasDrivingRange?: boolean;
   streetAddress: string;
   city: string;
   state: string;
@@ -308,6 +312,9 @@ export interface Order {
     latitude: number;
     longitude: number;
   };
+  /** Where the patron said they are ('7' or 'Driving Range') when they didn't share location. */
+  deliveryHole?: string;
+  deliveryHoleUpdatedAt?: Timestamp;
   lastGpsUpdate?: Timestamp;
   refreshRequestedAt?: Timestamp;
   items: OrderItem[];
