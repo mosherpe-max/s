@@ -478,10 +478,11 @@ export default function ClubhouseDriverDashboardPage({ params }: { params: Promi
   const mappedBuyers = useMemo(() => {
     if (!now || !clubhouseOrders) return [];
     return clubhouseOrders
+      .filter(o => o.deliveryLocation)
       .map(o => {
         const lastGps = o.lastGpsUpdate?.toDate();
         const color = getSignalColor(lastGps, solutionConfig?.gpsFreshnessThresholds);
-        return { id: o.id, name: o.customerName, location: o.deliveryLocation, colorOverride: color, colorClass: o.status === 'Out for Delivery' ? "bg-blue-600" : "bg-indigo-600" };
+        return { id: o.id, name: o.customerName, location: o.deliveryLocation!, colorOverride: color, colorClass: o.status === 'Out for Delivery' ? "bg-blue-600" : "bg-indigo-600" };
       });
   }, [clubhouseOrders, now, solutionConfig]);
 

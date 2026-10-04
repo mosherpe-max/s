@@ -21,7 +21,6 @@ import { loadStripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { cn } from '@/lib/utils';
-import { mockBuyerLocation } from '@/lib/data';
 import { needsPatronLocation, requestPatronLocation } from '@/lib/patron-location';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
@@ -239,8 +238,7 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
         customerEmail: patronEmail,
         customerName: patronName || 'Guest Patron',
         customerPhone: patronPhone.replace(/\D/g, ''),
-        deliveryLocation: patronLocation || mockBuyerLocation,
-        ...(patronLocation ? { lastGpsUpdate: serverTimestamp() } : {}),
+        ...(patronLocation ? { deliveryLocation: patronLocation, lastGpsUpdate: serverTimestamp() } : {}),
         items: activeOrderItems,
         subtotal,
         serviceFee: solutionFee,
@@ -276,7 +274,6 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
     return {
       sellerId,
       buyerProfileId: user.uid,
-      deliveryLocation: mockBuyerLocation,
       items: activeOrderItems,
       subtotal,
       serviceFee: solutionFee,
