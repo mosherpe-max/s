@@ -303,7 +303,8 @@ export interface Order {
   customerEmail?: string;
   menuType: string;
   menuTypeLocation?: string;
-  deliveryLocation: {
+  /** Absent when the patron's location was unavailable (e.g. blocked) or the menu doesn't need one. */
+  deliveryLocation?: {
     latitude: number;
     longitude: number;
   };
