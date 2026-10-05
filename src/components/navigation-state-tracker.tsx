@@ -16,16 +16,20 @@ import { isMarketingPath } from '@/lib/marketing-paths';
  * (e.g. /sellers/[id]/order). This landing overrides the saved state and 
  * becomes the new "active" session URL.
  */
-// We only track "patron" experience pages (Menu, Tracking, Onboarding Success)
-// We explicitly IGNORE the landing page, login, staff sign-in, and all administrative routes
-function isPatronPath(path: string): boolean {
-  const isInternal =
-    path.startsWith('/admin') ||
-    path.startsWith('/login') ||
-    path.startsWith('/sales') ||
-    path.startsWith('/sellers') && (path.includes('/bevcart') || path.includes('/clubhouse') || path.includes('/laneside') || path.includes('/staff-login'));
+// Only the patron's own screens are worth resuming: the menu, checkout and order
+// tracking. Everything else (venue admin dashboard, Koop admin, sales, staff
+// terminals, login, onboarding, marketing) is deliberately NOT remembered - those
+// need a login, and resuming into one from the Home Screen icon (which has no
+// address bar to escape with) traps a signed-out phone on a screen it can't use.
+// This is an allowlist so any page added later is ignored unless it is listed here.
+const PATRON_PATH_PATTERNS = [
+  /^\/order(\/|$)/,                        // /order/track
+  /^\/orders(\/|$)/,
+  /^\/sellers\/[^/]+\/(menu|order)(\/|$)/, // venue menu, cart, checkout
+];
 
-  return !isInternal && !isMarketingPath(path);
+function isPatronPath(path: string): boolean {
+  return !isMarketingPath(path) && PATRON_PATH_PATTERNS.some((re) => re.test(path));
 }
 
 export function NavigationStateTracker() {
