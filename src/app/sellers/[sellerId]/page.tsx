@@ -290,6 +290,14 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   const router = useRouter();
   const { toast } = useToast();
 
+  // This is the signed-in venue admin dashboard. A signed-out visitor (e.g. an old
+  // session that expired, or a phone that reopened here) gets the login screen
+  // instead of an empty dashboard they can't use. A patron's anonymous session
+  // counts as signed out here: it exists, but can't read any of this.
+  useEffect(() => {
+    if (!isUserLoading && (!user || user.isAnonymous)) router.replace('/login');
+  }, [isUserLoading, user, router]);
+
   const [activeNav, setActiveNav] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
