@@ -22,6 +22,8 @@ import { Elements } from '@stripe/react-stripe-js';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { cn } from '@/lib/utils';
 import { usePatronLocationGate } from '@/components/patron-location-gate';
+import { PatronTermsAgreement } from '@/components/patron-terms-agreement';
+import { usePatronTerms } from '@/lib/patron-terms';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 import Link from 'next/link';
@@ -50,6 +52,7 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
 
   const sellerRef = useMemoFirebase(() => (firestore ? doc(firestore, 'sellers', sellerId) : null), [firestore, sellerId]);
   const { data: seller, isLoading: isSellerLoading } = useDoc<Seller>(sellerRef);
+  const terms = usePatronTerms();
   const { askForLocation, gateDialog } = usePatronLocationGate({
     menuType: menuTypeFromUrl,
     holeCount: seller?.holeCount,
@@ -220,6 +223,11 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
       toast({ variant: 'destructive', title: 'Details Required', description: 'Please complete your contact info to receive tracking updates.' });
       return;
     }
+    if (!terms.canProceed) {
+      toast({ variant: 'destructive', title: 'Terms Required', description: 'Please agree to the Terms & Conditions to place your order.' });
+      return;
+    }
+    terms.recordAcceptance();
     setIsProcessing(true);
     // Location (or the patron's hole) is settled before the order is placed.
     const placement = await askForLocation();
@@ -250,6 +258,7 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
         customerPhone: patronPhone.replace(/\D/g, ''),
         ...(patronLocation ? { deliveryLocation: patronLocation, lastGpsUpdate: serverTimestamp() } : {}),
         ...(placement.hole ? { deliveryHole: placement.hole, deliveryHoleUpdatedAt: serverTimestamp() } : {}),
+        ...terms.orderFields(),
         items: activeOrderItems,
         subtotal,
         serviceFee: solutionFee,
@@ -543,6 +552,7 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
                     savedPaymentMethod={savedPaymentMethod}
                     useNewCard={useNewCard}
                     askForLocation={askForLocation}
+                    terms={terms}
                   />
                 </Elements>
               )
@@ -565,8 +575,9 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
                         <p className="text-[8px] font-bold text-muted-foreground uppercase mt-1">Securely saves your contact info on this device.</p>
                       </div>
                     </div>
+                    <PatronTermsAgreement terms={terms} />
                     {isFormValid && (
-                      <Button size="lg" className="w-full h-14 font-black uppercase tracking-widest gap-2 shadow-xl" onClick={handleManualOrder} disabled={isProcessing}>
+                      <Button size="lg" className="w-full h-14 font-black uppercase tracking-widest gap-2 shadow-xl" onClick={handleManualOrder} disabled={isProcessing || !terms.canProceed}>
                         {isProcessing ? <Loader2 className="animate-spin" /> : <ShoppingBag className="h-5 w-5" />} PLACE ORDER
                       </Button>
                     )}

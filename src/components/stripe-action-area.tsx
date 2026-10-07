@@ -11,6 +11,8 @@ import { CheckoutBrandingBar } from '@/components/checkout-branding-bar';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 import type { LocationChoice } from '@/components/patron-location-gate';
+import { PatronTermsAgreement } from '@/components/patron-terms-agreement';
+import type { PatronTermsState } from '@/lib/patron-terms';
 
 interface StripeActionAreaProps {
   clientSecret: string;
@@ -39,6 +41,8 @@ interface StripeActionAreaProps {
   // Settles the patron's location (or the hole they're on) before they are charged.
   // Resolves to null if they back out.
   askForLocation: () => Promise<LocationChoice | null>;
+  // The patron's agreement to the Terms & Conditions, required before paying.
+  terms: PatronTermsState;
 }
 
 export function StripeActionArea({
@@ -58,6 +62,7 @@ export function StripeActionArea({
   savedPaymentMethod,
   useNewCard,
   askForLocation,
+  terms,
 }: StripeActionAreaProps) {
   const stripe = useStripe();
   const elements = useElements();
@@ -75,6 +80,11 @@ export function StripeActionArea({
       return;
     }
 
+    if (!terms.canProceed) {
+      toast({ variant: 'destructive', title: 'Terms Required', description: 'Please agree to the Terms & Conditions to place your order.' });
+      return;
+    }
+    terms.recordAcceptance();
     setIsProcessing(true);
     // Asked from the tap, before any charge: the order only goes ahead once we know
     // where to bring it (a real location, or the hole the patron picked).
@@ -128,6 +138,7 @@ export function StripeActionArea({
           ...orderData,
           ...(patronLocation ? { deliveryLocation: patronLocation, lastGpsUpdate: serverTimestamp() } : {}),
           ...(placement.hole ? { deliveryHole: placement.hole, deliveryHoleUpdatedAt: serverTimestamp() } : {}),
+          ...terms.orderFields(),
           customerEmail: patronEmail,
           customerName: patronName,
           customerPhone: patronPhone.replace(/\D/g, ''),
@@ -172,12 +183,14 @@ export function StripeActionArea({
             </div>
           </div>
 
+          <PatronTermsAgreement terms={terms} />
+
           {isFormValid && (
             <Button
               size="lg"
               className="w-full h-14 font-black uppercase tracking-widest gap-2 shadow-xl"
               onClick={handleStripePayment}
-              disabled={isProcessing || (!usingSavedCard && !isStripeReady)}
+              disabled={isProcessing || !terms.canProceed || (!usingSavedCard && !isStripeReady)}
             >
               {isProcessing ? <Loader2 className="animate-spin" /> : <CreditCard className="h-5 w-5" />}
               PAY & PLACE ORDER

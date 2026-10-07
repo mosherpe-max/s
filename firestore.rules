@@ -33,6 +33,18 @@ service cloud.firestore {
       allow write: if isSuperAdmin();
     }
 
+    // Patron Terms & Conditions: patrons read the current version at checkout;
+    // only a super admin publishes a new one, and every published version is
+    // kept (admin-only) as a record of what patrons agreed to.
+    match /solution/patronTerms {
+      allow read: if true;
+      allow write: if isSuperAdmin();
+
+      match /versions/{versionId} {
+        allow read, write: if isSuperAdmin();
+      }
+    }
+
     // Global Starter Libraries
     match /starter_modifier_library/{groupId} {
       allow read: if true;
