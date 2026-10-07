@@ -66,12 +66,21 @@ export default function GlobalLibrariesPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [editingItem, setEditingItem] = useState<StarterMenuItem | null>(null);
   const [editingMod, setEditingMod] = useState<StarterModifierGroup | null>(null);
+  // The option rows (label + price add-on) being edited in the Modifier Template dialog.
+  // Price is kept as text so a half-typed number like "1." isn't mangled while typing.
+  const [modOptions, setModOptions] = useState<{ label: string; price: string }[]>([{ label: '', price: '' }]);
   const [isSeedingKit, setIsSeedingKit] = useState(false);
   const [itemImageUrl, setItemImageUrl] = useState('');
 
   useEffect(() => {
     if (isItemDialogOpen) setItemImageUrl(editingItem?.imageUrl || '');
   }, [isItemDialogOpen, editingItem]);
+
+  useEffect(() => {
+    if (!isModDialogOpen) return;
+    const existing = (editingMod?.options || []).map(o => ({ label: o.label, price: o.priceModifier ? String(o.priceModifier) : '' }));
+    setModOptions(existing.length > 0 ? existing : [{ label: '', price: '' }]);
+  }, [isModDialogOpen, editingMod]);
 
   const menuTemplatesQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'starter_menu_item_library') : null), [firestore]);
   const modTemplatesQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'starter_modifier_library') : null), [firestore]);
@@ -132,11 +141,34 @@ export default function GlobalLibrariesPage() {
       return;
     }
 
+    const filledOptions = modOptions.filter(o => o.label.trim() !== '');
+    if (filledOptions.length === 0) {
+      toast({ variant: 'destructive', title: 'Add at Least One Option', description: 'A modifier group needs options for patrons to choose from, e.g. "Ranch" or "No ice".' });
+      setIsProcessing(false);
+      return;
+    }
+    const seenLabels = new Set<string>();
+    for (const o of filledOptions) {
+      const key = o.label.trim().toLowerCase();
+      if (seenLabels.has(key)) {
+        toast({ variant: 'destructive', title: 'Duplicate Option', description: `"${o.label.trim()}" is listed more than once.` });
+        setIsProcessing(false);
+        return;
+      }
+      seenLabels.add(key);
+      if (o.price.trim() !== '' && !Number.isFinite(Number(o.price))) {
+        toast({ variant: 'destructive', title: 'Check the Price', description: `"${o.price}" isn't a valid price for "${o.label.trim()}".` });
+        setIsProcessing(false);
+        return;
+      }
+    }
+
     const data: any = {
       id,
       name: formData.get('name'),
       venueType: modVenueType,
-      category: formData.get('category'),
+      category: formData.get('category') || 'universal',
+      options: filledOptions.map(o => ({ label: o.label.trim(), priceModifier: o.price.trim() === '' ? 0 : Math.round(Number(o.price) * 100) / 100 })),
       selectionType: formData.get('selectionType'),
       required: formData.get('required') === 'on',
       sortOrder: parseInt(formData.get('sortOrder') as string) || 0,
@@ -149,6 +181,7 @@ export default function GlobalLibrariesPage() {
         setIsModDialogOpen(false);
         setEditingMod(null);
       })
+      .catch(() => toast({ variant: 'destructive', title: 'Save Failed', description: 'The modifier template could not be saved.' }))
       .finally(() => setIsProcessing(false));
   };
 
@@ -279,6 +312,9 @@ export default function GlobalLibrariesPage() {
                       <TableCell className="px-8 py-4">
                         <p className="font-black text-sm uppercase text-[#213147]">{mod.name}</p>
                         <p className="text-[9px] font-bold text-muted-foreground uppercase">Global ID: {mod.id}</p>
+                        <p className={cn("text-[9px] font-black uppercase", (mod.options || []).length > 0 ? "text-muted-foreground" : "text-destructive")}>
+                          {(mod.options || []).length > 0 ? `${mod.options.length} option${mod.options.length === 1 ? '' : 's'}` : 'No options yet - edit to add'}
+                        </p>
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1">
@@ -386,7 +422,7 @@ export default function GlobalLibrariesPage() {
 
       {/* MOD DIALOG */}
       <Dialog open={isModDialogOpen} onOpenChange={(o) => { setIsModDialogOpen(o); if (!o) setEditingMod(null); }}>
-        <DialogContent closeClassName="text-white hover:text-white/80" className="sm:max-w-[450px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
+        <DialogContent closeClassName="text-white hover:text-white/80" className="sm:max-w-[450px] max-h-[92vh] overflow-y-auto rounded-[2rem] p-0 border-2 shadow-2xl text-left">
           <DialogHeader className="p-8 bg-[#213147] text-white">
             <DialogTitle className="font-headline font-black uppercase text-xl">Modifier Template</DialogTitle>
           </DialogHeader>
@@ -421,6 +457,61 @@ export default function GlobalLibrariesPage() {
                        <span className="text-[10px] font-bold text-muted-foreground uppercase">Required</span>
                     </div>
                   </div>
+               </div>
+               <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase">Category</Label>
+                  <Select name="category" defaultValue={editingMod?.category || 'universal'}>
+                    <SelectTrigger className="h-11 border-2 font-bold"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="universal">Universal</SelectItem>
+                      <SelectItem value="food">Food</SelectItem>
+                      <SelectItem value="beverage">Beverage</SelectItem>
+                    </SelectContent>
+                  </Select>
+               </div>
+               <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-[10px] font-black uppercase">Options</Label>
+                    <span className="text-[9px] font-bold text-muted-foreground uppercase">Name and price add-on</span>
+                  </div>
+                  <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                    {modOptions.map((opt, index) => (
+                      <div key={index} className="flex items-center gap-2">
+                        <Input
+                          value={opt.label}
+                          onChange={(e) => setModOptions(prev => prev.map((o, i) => i === index ? { ...o, label: e.target.value } : o))}
+                          placeholder="Option name"
+                          aria-label={`Option ${index + 1} name`}
+                          className="h-11 border-2 font-bold flex-1 min-w-0"
+                        />
+                        <div className="relative w-24 shrink-0">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">+$</span>
+                          <Input
+                            value={opt.price}
+                            onChange={(e) => setModOptions(prev => prev.map((o, i) => i === index ? { ...o, price: e.target.value } : o))}
+                            inputMode="decimal"
+                            placeholder="0.00"
+                            aria-label={`Option ${index + 1} price add-on`}
+                            className="h-11 border-2 font-bold pl-8"
+                          />
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          disabled={modOptions.length === 1}
+                          onClick={() => setModOptions(prev => prev.filter((_, i) => i !== index))}
+                          aria-label={`Remove option ${index + 1}`}
+                          className="h-9 w-9 shrink-0 hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                  <Button type="button" variant="outline" onClick={() => setModOptions(prev => [...prev, { label: '', price: '' }])} className="w-full h-10 border-2 border-dashed font-black uppercase text-[10px] tracking-widest gap-2">
+                    <Plus className="h-3.5 w-3.5" /> Add Option
+                  </Button>
                </div>
                <Button type="submit" disabled={isProcessing} className="w-full h-14 bg-primary font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl rounded-2xl">
                  {isProcessing ? <Loader2 className="animate-spin" /> : <Save className="h-4 w-4" />} Save Global Modifier
