@@ -314,6 +314,9 @@ export interface Order {
   };
   /** Where the patron said they are ('7' or 'Driving Range') when they didn't share location. */
   deliveryHole?: string;
+  /** Version of the Patron Terms & Conditions the patron agreed to, and when. */
+  termsAcceptedVersion?: string;
+  termsAcceptedAt?: Timestamp;
   deliveryHoleUpdatedAt?: Timestamp;
   lastGpsUpdate?: Timestamp;
   refreshRequestedAt?: Timestamp;
