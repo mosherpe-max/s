@@ -9,10 +9,15 @@ const MAX_UPSELL_ITEMS = 2;
  * as featuredOn, so a deleted/renamed item can never leave a dangling
  * reference the way a hand-picked item ID on the seller doc could).
  *
- * When the cart is purely food or purely beverage, prefers eligible items
- * from the complementary bucket (offer a drink to a food-only cart and vice
- * versa). A mixed cart, or a complementary bucket with no eligible items,
- * falls back to the top-ranked eligible items regardless of category.
+ * The rail always aims for two offers, in this order of preference:
+ *  - Mixed cart (food and beverage): one beverage and one food item, so the
+ *    patron is shown both kinds.
+ *  - Purely food or purely beverage cart: the complementary bucket first
+ *    (a drink for a food-only cart and vice versa).
+ *  - Anything else (empty, or only uncategorised items): top-ranked eligible.
+ * Whenever that leaves a slot empty (e.g. the venue flagged no drinks, or the
+ * patron already has them), it is filled with the next best eligible item, so a
+ * single offer only appears when just one eligible item is left.
  */
 export function pickUpsellItemIds(cartItems: OrderItem[], menuItems: MenuItem[], mode: string): string[] {
   if (!mode) return [];
@@ -39,13 +44,23 @@ export function pickUpsellItemIds(cartItems: OrderItem[], menuItems: MenuItem[],
       .filter((supertype): supertype is 'food' | 'beverage' => supertype === 'food' || supertype === 'beverage')
   );
 
-  if (cartSupertypes.size === 1) {
-    const complementary = cartSupertypes.has('food') ? 'beverage' : 'food';
-    const complementaryMatches = eligible.filter(item => CATEGORY_SUPERTYPE[item.category] === complementary);
-    if (complementaryMatches.length > 0) {
-      return complementaryMatches.slice(0, MAX_UPSELL_ITEMS).map(item => item.id);
-    }
+  const topOf = (supertype: 'food' | 'beverage') =>
+    eligible.filter(item => CATEGORY_SUPERTYPE[item.category] === supertype);
+
+  // What we'd like to offer first, best first.
+  let preferred: MenuItem[] = [];
+  if (cartSupertypes.size === 2) {
+    // Mixed cart: the best drink and the best food item.
+    preferred = [topOf('beverage')[0], topOf('food')[0]].filter((item): item is MenuItem => !!item).sort(byRank);
+  } else if (cartSupertypes.size === 1) {
+    preferred = topOf(cartSupertypes.has('food') ? 'beverage' : 'food');
   }
 
-  return eligible.slice(0, MAX_UPSELL_ITEMS).map(item => item.id);
+  // Fill any remaining slots with the next best eligible items.
+  const picked: MenuItem[] = [];
+  for (const item of [...preferred, ...eligible]) {
+    if (picked.length >= MAX_UPSELL_ITEMS) break;
+    if (!picked.includes(item)) picked.push(item);
+  }
+  return picked.map(item => item.id);
 }
