@@ -2,6 +2,7 @@
 'use client';
 
 import React, { useState, useEffect, use } from 'react';
+import { unlockStaffAlertSound } from '@/lib/staff-alert-sound';
 import { collection, query, where, getDocs, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { signInAnonymously } from 'firebase/auth';
 import { useFirestore, useDoc, useMemoFirebase, useAuth } from '@/firebase';
@@ -151,6 +152,8 @@ export default function StaffLoginPage({ params }: { params: Promise<{ sellerId:
   };
 
   const handleRoleSelect = async (menuType: string) => {
+    // Starting a shift is a real tap: use it to allow the new-order chime on this phone.
+    unlockStaffAlertSound();
     if (!authenticatedStaff || !firestore || !sellerId || !seller) return;
 
     const fieldMap: Record<string, string> = {

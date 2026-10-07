@@ -1,6 +1,7 @@
 'use client';
 
 import { collection, query, where, doc, updateDoc, serverTimestamp, deleteDoc, deleteField } from 'firebase/firestore';
+import { playStaffAlertSound, useStaffAlertSound } from '@/lib/staff-alert-sound';
 import { useCollection, useFirestore, useMemoFirebase, useDoc, useUser } from '@/firebase';
 import { useEffect, useState, useMemo, useRef, use } from 'react';
 import { Switch } from '@/components/ui/switch';
@@ -342,16 +343,18 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
     };
   }, [allOrders]);
 
+  useStaffAlertSound();
+
   // NEW ORDER ALERT LOGIC
   useEffect(() => {
     if (!lanesideOrders || !now) return;
     const currentOrderIds = new Set(lanesideOrders.map(o => o.id));
     const newOrders = lanesideOrders.filter(o => !lastOrderIdsRef.current.has(o.id));
     if (newOrders.length > 0 && !initialLoadRef.current) {
-      // In-app toast only - the standalone PWA on this iOS version ejects
-      // into Safari chrome the moment any code touches the Notification API
-      // (even a permission status read) or creates a Web Audio AudioContext,
-      // regardless of gesture timing, so neither is used here.
+      // Toast plus a chime. The chime uses one audio context that was started
+      // from a tap (see staff-alert-sound) and does nothing if the phone hasn't
+      // allowed sound; the Notification API is deliberately not used here.
+      playStaffAlertSound();
       toast({ title: "NEW LANE ORDER!" });
     }
     lastOrderIdsRef.current = currentOrderIds;
