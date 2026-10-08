@@ -575,7 +575,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
       </div>
 
       <div className="flex-1 flex flex-col md:flex-row overflow-auto p-4 gap-4">
-        <div className="relative w-full md:w-2/3 h-[40vh] shrink-0 md:shrink md:h-full bg-muted rounded-xl overflow-hidden border-2 shadow-sm">
+        <div className="relative w-full md:w-auto md:flex-1 md:min-w-0 h-[40vh] shrink-0 md:shrink md:h-full bg-muted rounded-xl overflow-hidden border-2 shadow-sm">
          <Button variant="outline" size="icon" className="absolute top-2 right-2 z-10 bg-background/80 h-8 w-8" onClick={() => setFitTrigger(p => p + 1)}><Focus className="h-4 w-4" /></Button>
           
           <div className="absolute top-3 left-3 z-10 pointer-events-none">
@@ -606,7 +606,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
             />
           )}
         </div>
-        <div className="w-full md:w-1/3 flex flex-col bg-background border-2 rounded-xl overflow-hidden min-h-0 text-left">
+        <div className="w-full md:w-1/3 md:min-w-[360px] md:shrink-0 flex flex-col bg-background border-2 rounded-xl overflow-hidden min-h-0 text-left">
           <div className="shrink-0 border-b bg-muted/10 px-4 py-3 flex items-center justify-between">
             <h2 className="font-headline text-xs font-black flex items-center gap-2 uppercase tracking-widest">
               <span>Active Orders</span>
