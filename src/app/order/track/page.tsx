@@ -439,10 +439,12 @@ function OrderTrackingContent() {
                  <span>Subtotal</span>
                  <span className="font-mono">${order.subtotal.toFixed(2)}</span>
                </div>
-               <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                 <span>Tax</span>
-                 <span className="font-mono">${order.tax.toFixed(2)}</span>
-               </div>
+               {order.tax > 0 && (
+                 <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                   <span>Tax</span>
+                   <span className="font-mono">${order.tax.toFixed(2)}</span>
+                 </div>
+               )}
                <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
                  <span>Gratuity</span>
                  <span className="font-mono">${order.tip.toFixed(2)}</span>
