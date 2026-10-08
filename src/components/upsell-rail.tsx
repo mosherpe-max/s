@@ -31,7 +31,10 @@ export function UpsellRail({ upsellItemIds, menuItems, orderItems, onAdd }: Upse
     .map(id => menuItems.find(m => m.id === id))
     .filter((item): item is MenuItem => !!item && item.isAvailable !== false);
 
-  const upsellItems = offeredItems.filter(item => !addedIds.has(item.id));
+  // An offered item disappears once it is in the cart (whether added here or earlier),
+  // and nothing replaces it: the offer is fixed for the checkout.
+  const inCartIds = new Set(orderItems.filter(i => i.quantity > 0).map(i => i.id));
+  const upsellItems = offeredItems.filter(item => !addedIds.has(item.id) && !inCartIds.has(item.id));
 
   const isHidden = dismissedAll || upsellItems.length === 0;
 
