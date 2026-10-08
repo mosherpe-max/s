@@ -129,10 +129,13 @@ export default function HomePage() {
         <div className="w-full max-w-[1120px] mx-auto px-6">
           <header className="pt-12 pb-10 max-w-[860px]">
             <h1 className="m-0 font-extrabold uppercase text-[clamp(2.3rem,7vw,4.4rem)] leading-none tracking-[-0.03em]">
-              Sell to the guest who <span className="text-[#E50000]">never flagged you down.</span>
+              Keep the amenity. <span className="text-[#E50000]">Remove the variability.</span>
             </h1>
-            <p className="mt-6 max-w-[560px] text-[1.12rem] leading-relaxed text-[#c9d2e0]">
-              Guests order from the course or the lane. They scan, order, and pay on their phone, and your staff brings it out.{' '}
+            <p className="mt-6 mb-0 inline-block bg-[#E50000] px-4 py-2 font-extrabold uppercase text-[clamp(1.05rem,3vw,1.5rem)] leading-tight">
+              The app sells. Your staff delivers.
+            </p>
+            <p className="mt-6 max-w-[600px] text-[1.12rem] leading-relaxed text-[#c9d2e0]">
+              Sales and service can vary dramatically depending on who is working. Koop makes the selling process consistent, so every guest gets the same menu, ordering, upselling, and payment experience, every shift. They scan, order, and pay on their phone, and your staff brings it out.{' '}
               <strong className="text-white font-semibold">No app to download. No POS changes. No hardware.</strong> Live in less than a week.
             </p>
           </header>
@@ -143,8 +146,8 @@ export default function HomePage() {
               href="/golf"
               art={<GolfArt />}
               title="Golf courses"
-              line="Every cart trip becomes a paid sale."
-              desc="Golfers order when they're thirsty and your staff delivers to their GPS location. Your kitchen now sells on the course too. Pays for itself at 16 extra orders a month."
+              line="Every delivery is a paid order. Zero dead passes."
+              desc="Golfers scan, order, and pay from their phone and your staff delivers to their GPS location. Your clubhouse kitchen becomes another on-course sales channel. 16 extra orders a month covers the $179 fee."
               chip="$179/mo founding rate. Launch fee waived. 5 spots."
               cta="See Koop for golf"
             />
