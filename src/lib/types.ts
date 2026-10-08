@@ -59,6 +59,7 @@ export interface SolutionConfig {
   enabledModes?: string[]; // Globally authorized modes by Koop Admin
   stripeFeePercent?: number; // Estimated Stripe processing fee %, deducted from Koop's application fee
   stripeFeeFixed?: number; // Estimated Stripe fixed fee in cents, deducted from Koop's application fee
+  ackTargetPercent?: number; // Goal for the share of orders acknowledged within the venue's max acknowledge time (1-100); defaults to 90
   updatedAt: Timestamp;
 }
 

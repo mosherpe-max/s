@@ -149,7 +149,8 @@ import {
   ResponsiveContainer,
   Legend,
   ComposedChart,
-  Line
+  Line,
+  ReferenceLine
 } from 'recharts';
 import {
   DndContext,
@@ -428,8 +429,10 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     return { dailyRevenue, modes, realTimeOperations };
   }, [orders, seller, staffList, solutionConfig]);
 
+  const ackTargetPercent = solutionConfig?.ackTargetPercent ?? 90;
+
   const analyticsTimeframeData = useMemo(() => {
-    if (!orders || !seller) return { revenue: [], acknowledgement: [], duration: [], modes: [] };
+    if (!orders || !seller) return { revenue: [], acknowledgement: [], ackSummary: null as null | { pct: number; avgSeconds: number; count: number }, duration: [], modes: [] };
     
     const now = new Date();
     let interval: { start: Date, end: Date };
@@ -490,6 +493,11 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       return data;
     });
 
+    // Share of acknowledged orders answered within the venue's max acknowledge time, per
+    // period and overall. Based on acknowledged orders, the same basis as the average.
+    let ackTotal = 0;
+    let ackWithinTotal = 0;
+    let ackSecondsTotal = 0;
     const ackData = labels.map(({ label, date }) => {
       const data: any = { name: label };
       const dayStart = startOfDay(date);
@@ -505,18 +513,28 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       );
       
       const ackOrders = filteredOrders.filter(o => o.acknowledgedAt);
-      const avgAck = ackOrders.length > 0 ? ackOrders.reduce((sum, o) => sum + differenceInSeconds(o.acknowledgedAt!.toDate(), o.createdAt.toDate()), 0) / ackOrders.length : 0;
+      const ackSeconds = ackOrders.map(o => differenceInSeconds(o.acknowledgedAt!.toDate(), o.createdAt.toDate()));
+      const secondsSum = ackSeconds.reduce((sum, v) => sum + v, 0);
       
       const thresholds = seller.orderThresholds || {};
-      const exceedCount = ackOrders.filter(o => {
+      const withinCount = ackOrders.filter((o, i) => {
         const modeT = thresholds[o.menuType]?.maxOrderAcknowledgeSeconds ?? solutionConfig?.orderThresholds?.[o.menuType]?.maxOrderAcknowledgeSeconds ?? 120;
-        return differenceInSeconds(o.acknowledgedAt!.toDate(), o.createdAt.toDate()) > modeT;
+        return ackSeconds[i] <= modeT;
       }).length;
 
-      data.avgSeconds = Math.round(avgAck);
-      data.exceedCount = exceedCount;
+      ackTotal += ackOrders.length;
+      ackWithinTotal += withinCount;
+      ackSecondsTotal += secondsSum;
+
+      data.avgSeconds = ackOrders.length > 0 ? Math.round(secondsSum / ackOrders.length) : 0;
+      // null (not 0) when nothing was acknowledged, so the line leaves a gap instead of dropping to 0%
+      data.withinPct = ackOrders.length > 0 ? Math.round((withinCount / ackOrders.length) * 1000) / 10 : null;
+      data.ackCount = ackOrders.length;
       return data;
     });
+    const ackSummary = ackTotal > 0
+      ? { pct: Math.round((ackWithinTotal / ackTotal) * 1000) / 10, avgSeconds: Math.round(ackSecondsTotal / ackTotal), count: ackTotal }
+      : null;
 
     const durData = labels.map(({ label, date }) => {
       const data: any = { name: label };
@@ -553,7 +571,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       return data;
     });
 
-    return { revenue: revenueData, acknowledgement: ackData, duration: durData, modes };
+    return { revenue: revenueData, acknowledgement: ackData, ackSummary, duration: durData, modes };
   }, [orders, seller, analyticsTimeframe, analyticsMode, solutionConfig]);
 
   const dailySalesLocksQuery = useMemoFirebase(() => (
@@ -1145,8 +1163,8 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                          <CardContent className="pt-10 h-[350px]"><ResponsiveContainer width="100%" height="100%"><BarChart data={analyticsTimeframeData.revenue}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 9, fontWeight: 900 }} /><YAxis axisLine={false} tickLine={false} tick={{ fontSize: 9, fontWeight: 900 }} tickFormatter={(v) => `$${v}`} /><Tooltip formatter={(v: number) => [`$${v.toFixed(2)}`]} /><Legend iconType="circle" />{analyticsMode === 'All' ? (analyticsTimeframeData.modes.map(mode => (<Bar key={mode} dataKey={mode} stackId="a" fill={getModeColor(mode)} radius={[0, 0, 0, 0]} barSize={20} />))) : (<Bar dataKey={analyticsMode} fill={getModeColor(analyticsMode)} radius={[4, 4, 0, 0]} barSize={20} />)}</BarChart></ResponsiveContainer></CardContent>
                       </Card>
                       <Card className="border-2 shadow-sm overflow-hidden">
-                         <CardHeader className="bg-slate-50 border-b py-4"><div className="flex items-center gap-2"><Timer className="h-3.5 w-3.5 text-indigo-600" /><CardTitle className="text-[10px] font-black uppercase tracking-widest text-[#213147]">Acknowledgement Responsiveness</CardTitle></div></CardHeader>
-                         <CardContent className="pt-10 h-[350px]"><ResponsiveContainer width="100%" height="100%"><ComposedChart data={analyticsTimeframeData.acknowledgement}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 9, fontWeight: 900 }} /><YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fontSize: 9, fontWeight: 900 }} tickFormatter={(v) => `${v}s`} /><YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{ fontSize: 9, fontWeight: 900 }} /><Tooltip /><Legend /><Bar yAxisId="left" name="Avg Seconds" dataKey="avgSeconds" fill="#4f46e5" radius={[4, 4, 0, 0]} barSize={20} /><Line yAxisId="right" name="Exceeding Limit" type="monotone" dataKey="exceedCount" stroke="#ef4444" strokeWidth={3} dot={{ r: 4, fill: '#ef4444' }} /></ComposedChart></ResponsiveContainer></CardContent>
+                         <CardHeader className="bg-slate-50 border-b py-4"><div className="flex items-center justify-between gap-3 flex-wrap"><div className="flex items-center gap-2"><Timer className="h-3.5 w-3.5 text-indigo-600" /><CardTitle className="text-[10px] font-black uppercase tracking-widest text-[#213147]">Acknowledgement Responsiveness</CardTitle></div>{analyticsTimeframeData.ackSummary ? (<Badge className={cn("text-[8px] font-black uppercase border-0 text-white", analyticsTimeframeData.ackSummary.pct >= ackTargetPercent ? "bg-green-600" : "bg-red-600")}>{analyticsTimeframeData.ackSummary.pct}% within limit - goal {ackTargetPercent}%</Badge>) : (<Badge variant="outline" className="text-[8px] font-black uppercase bg-white">Goal {ackTargetPercent}%</Badge>)}</div></CardHeader>
+                         <CardContent className="pt-10 h-[350px]"><ResponsiveContainer width="100%" height="100%"><ComposedChart data={analyticsTimeframeData.acknowledgement}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 9, fontWeight: 900 }} /><YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fontSize: 9, fontWeight: 900 }} tickFormatter={(v) => `${v}s`} /><YAxis yAxisId="right" orientation="right" domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} axisLine={false} tickLine={false} tick={{ fontSize: 9, fontWeight: 900 }} tickFormatter={(v) => `${v}%`} /><Tooltip formatter={(value: any, name: any) => name === '% Within Limit' ? [`${value}%`, name] : [`${value}s`, name]} /><Legend /><Bar yAxisId="left" name="Avg Ack Time" dataKey="avgSeconds" fill="#4f46e5" radius={[4, 4, 0, 0]} barSize={20} /><ReferenceLine yAxisId="right" y={ackTargetPercent} stroke="#16a34a" strokeDasharray="6 4" strokeWidth={2} label={{ value: `Goal ${ackTargetPercent}%`, position: 'insideBottomLeft', fill: '#16a34a', fontSize: 10, fontWeight: 900 }} /><Line yAxisId="right" name="% Within Limit" type="linear" dataKey="withinPct" stroke="#213147" strokeWidth={3} dot={{ r: 4, fill: '#213147' }} connectNulls={false} /></ComposedChart></ResponsiveContainer></CardContent>
                       </Card>
                    </div>
                 </div>
