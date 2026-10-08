@@ -158,14 +158,67 @@ export function PageHero({ children, offer }: { children: React.ReactNode; offer
   );
 }
 
-export function HeroText({ h1, highlight, tag, sub }: { h1: React.ReactNode; highlight: string; tag: string; sub: React.ReactNode }) {
+export function HeroText({ h1, highlight, tag, sub, banner = false }: { h1: React.ReactNode; highlight: string; tag?: string; sub: React.ReactNode; banner?: boolean }) {
   return (
     <>
       <h1 className="m-0 font-extrabold uppercase text-[clamp(2rem,5.6vw,3.6rem)] leading-[1.02] tracking-[-0.03em]">
-        {h1} <span className="inline-block bg-[#E50000] px-3.5 pt-1 pb-1.5 mt-3">{highlight}</span>
+        {h1}{' '}
+        {/* banner: a smaller one-line red band under the headline, like the flyer's tagline strip */}
+        <span className={banner ? 'inline-block bg-[#E50000] px-4 py-2 mt-4 text-[0.52em] leading-tight tracking-[-0.01em]' : 'inline-block bg-[#E50000] px-3.5 pt-1 pb-1.5 mt-3'}>{highlight}</span>
       </h1>
-      <p className="mt-[22px] mb-0 italic text-[#c9d2e0] text-[1.1rem]">{tag}</p>
-      <p className="mt-[18px] mb-0 max-w-[560px] text-[#c9d2e0] leading-relaxed">{sub}</p>
+      {tag && <p className="mt-[22px] mb-0 italic text-[#c9d2e0] text-[1.1rem]">{tag}</p>}
+      <div className="mt-[18px] mb-0 max-w-[560px] text-[#c9d2e0] leading-relaxed [&>p]:m-0 [&>p+p]:mt-3">{sub}</div>
     </>
+  );
+}
+
+// A red bar of short promises under a bold one-line heading (the flyer's
+// "The app does the selling" strip).
+export function PromiseBar({ heading, items }: { heading: string; items: string[] }) {
+  return (
+    <div>
+      <p className={`${condensed} m-0 mb-4 text-center font-bold uppercase text-[clamp(1.2rem,3.2vw,1.7rem)] tracking-[0.02em]`}>{heading}</p>
+      <ul className="m-0 p-0 list-none rounded-[10px] bg-[#E50000] px-6 py-4 text-white font-semibold flex flex-wrap justify-center min-[761px]:justify-between gap-x-8 gap-y-2.5 [&>li]:flex [&>li]:items-center [&>li]:gap-2.5 [&>li]:before:content-[''] [&>li]:before:block [&>li]:before:w-2 [&>li]:before:h-2 [&>li]:before:bg-white">
+        {items.map((t) => <li key={t}>{t}</li>)}
+      </ul>
+    </div>
+  );
+}
+
+// "Easy to add": short reassurance items in one card; detail line optional.
+export function EasyToAdd({ items }: { items: { h: string; p?: string }[] }) {
+  return (
+    <div className="max-w-[880px] bg-white text-[#213147] border border-[#d8dce3] rounded-[10px] px-6 py-5 grid grid-cols-1 min-[641px]:grid-cols-2 gap-x-10 gap-y-4">
+      {items.map((it) => (
+        <div key={it.h} className="relative pl-[18px] before:content-[''] before:absolute before:left-0 before:top-[7px] before:w-2 before:h-2 before:bg-[#E50000]">
+          <h4 className="m-0 text-[0.92rem] font-extrabold uppercase tracking-[0.02em]">{it.h}</h4>
+          {it.p && <p className="mt-0.5 mb-0 text-[#55637a] text-[0.95rem]">{it.p}</p>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// The founding member offer: big monthly price on the left, what's included on the right.
+export function FoundingOffer({
+  price, unit, until, bullets, after,
+}: {
+  price: string; unit: string; until: string; bullets: string[]; after: string;
+}) {
+  return (
+    <div className="max-w-[880px] bg-[#213147] text-white rounded-[10px] p-8 min-[761px]:p-10 grid grid-cols-1 min-[761px]:grid-cols-[auto_1fr] gap-8 min-[761px]:gap-10 items-center">
+      <div>
+        <p className="m-0 font-extrabold leading-none text-[clamp(3.4rem,10vw,5rem)]">
+          {price}<small className="ml-1.5 text-[1.4rem] font-semibold uppercase text-[#9fb0c7]">{unit}</small>
+        </p>
+        <p className="mt-3 mb-0 text-[0.72rem] font-bold uppercase tracking-[0.18em] text-[#c9d2e0]">{until}</p>
+      </div>
+      <div className="min-[761px]:border-l-4 min-[761px]:border-[#E50000] min-[761px]:pl-10">
+        <ul className="m-0 p-0 list-none text-[1.15rem] font-bold [&>li]:relative [&>li]:py-1.5 [&>li]:pl-[22px] [&>li]:before:content-[''] [&>li]:before:absolute [&>li]:before:left-0 [&>li]:before:top-[17px] [&>li]:before:w-2 [&>li]:before:h-2 [&>li]:before:bg-[#E50000]">
+          {bullets.map((b) => <li key={b}>{b}</li>)}
+        </ul>
+        <p className="mt-4 mb-0 italic text-[0.92rem] text-[#9fb0c7]">{after}</p>
+      </div>
+    </div>
   );
 }
