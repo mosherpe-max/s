@@ -103,6 +103,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableFooter,
 } from "@/components/ui/table";
 import {
   Sheet,
@@ -138,6 +139,7 @@ import { ImageUploadDropzone } from '@/components/image-upload-dropzone';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { categories } from '@/lib/types';
 import type { MenuItem, Seller, Order, StaffMember, SolutionConfig, Venue, ModifierGroup, DailySalesLock } from '@/lib/types';
+import { buildSalesReportCsv, filterSalesRows, totalSalesRows } from '@/lib/sales-report';
 import { signOut } from 'firebase/auth';
 import { 
   BarChart, 
@@ -313,6 +315,11 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   const [isProcessingSave, setIsProcessingSave] = useState(false);
   const [baseUrl, setBaseUrl] = useState('');
   const [isDownloading, setIsDownloading] = useState(false);
+
+  // Sales Report filters: one service mode (or all) and a date range, defaulting to this month.
+  const [salesMode, setSalesMode] = useState<string>('All');
+  const [salesFrom, setSalesFrom] = useState<string>(() => format(startOfMonth(new Date()), 'yyyy-MM-dd'));
+  const [salesTo, setSalesTo] = useState<string>(() => format(new Date(), 'yyyy-MM-dd'));
   const [isConnectingStripe, setIsConnectingStripe] = useState(false);
 
   // Analytics State
@@ -663,6 +670,44 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       setDoc(lockRef, { ...lock, lockedAt: serverTimestamp() }).catch(() => {});
     });
   }, [firestore, sellerId, dailySalesReport.pendingLocks]);
+
+  // The report as the venue has filtered it: chosen service mode and date range, with a
+  // total for each dollar column. Dates are 'yyyy-MM-dd', so plain string comparison
+  // orders them correctly.
+  const salesReportView = useMemo(() => {
+    const rows = filterSalesRows(dailySalesReport.rows, salesMode, salesFrom, salesTo);
+    return { rows, totals: totalSalesRows(rows) };
+  }, [dailySalesReport.rows, salesMode, salesFrom, salesTo]);
+
+  const setSalesPreset = (preset: 'today' | '7d' | 'month' | 'lastMonth' | 'year') => {
+    const today = new Date();
+    const fmt = (d: Date) => format(d, 'yyyy-MM-dd');
+    if (preset === 'today') { setSalesFrom(fmt(today)); setSalesTo(fmt(today)); }
+    if (preset === '7d') { setSalesFrom(fmt(subDays(today, 6))); setSalesTo(fmt(today)); }
+    if (preset === 'month') { setSalesFrom(fmt(startOfMonth(today))); setSalesTo(fmt(today)); }
+    if (preset === 'lastMonth') {
+      const firstOfThisMonth = startOfMonth(today);
+      setSalesFrom(fmt(startOfMonth(subDays(firstOfThisMonth, 1)))); setSalesTo(fmt(subDays(firstOfThisMonth, 1)));
+    }
+    if (preset === 'year') { setSalesFrom(fmt(startOfYear(today))); setSalesTo(fmt(today)); }
+  };
+
+  const handleDownloadSalesReport = () => {
+    const { rows, totals } = salesReportView;
+    const csv = buildSalesReportCsv(rows, totals, salesMode);
+    const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const venueName = (seller?.courseName || 'Venue').replace(/[^a-z0-9]+/gi, '_');
+    const modePart = salesMode === 'All' ? 'All_Modes' : salesMode.replace(/\s+/g, '_');
+    link.href = url;
+    link.download = `${venueName}_Sales_Report_${modePart}_${salesFrom || 'start'}_to_${salesTo || 'today'}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+    toast({ title: 'Sales Report Downloaded', description: `${rows.length} day${rows.length === 1 ? '' : 's'} included.` });
+  };
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }), 
@@ -1240,6 +1285,38 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
               {activeNav === 'sales-report' && (
                 <div className="space-y-6 animate-in fade-in duration-500">
                   <div className="flex items-center gap-3"><div className="p-2 bg-primary/10 rounded-lg"><Receipt className="h-6 w-6 text-primary" /></div><div className="text-left"><h2 className="text-xl font-black uppercase text-[#213147]">Sales Report</h2><p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">One line per day per service mode &mdash; net of Koop's fees, for your own bookkeeping</p></div></div>
+                  <Card className="border-2 shadow-sm bg-white p-4">
+                    <div className="flex flex-wrap items-end gap-4">
+                      <div className="space-y-1.5">
+                        <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Service Mode</Label>
+                        <Select value={salesMode} onValueChange={setSalesMode}>
+                          <SelectTrigger className="h-10 w-48 border-2 font-black uppercase text-[10px] tracking-widest bg-white"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="All" className="text-[10px] font-black uppercase">All Service Modes</SelectItem>
+                            {(seller?.menuTypes || []).filter(m => AUTHORIZED_SERVICE_MODES.includes(m)).map(m => (
+                              <SelectItem key={m} value={m} className="text-[10px] font-black uppercase">{m}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="sales-from" className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">From</Label>
+                        <Input id="sales-from" type="date" value={salesFrom} max={salesTo || undefined} onChange={(e) => setSalesFrom(e.target.value)} className="h-10 w-40 border-2 font-bold" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="sales-to" className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">To</Label>
+                        <Input id="sales-to" type="date" value={salesTo} min={salesFrom || undefined} onChange={(e) => setSalesTo(e.target.value)} className="h-10 w-40 border-2 font-bold" />
+                      </div>
+                      <Button onClick={handleDownloadSalesReport} disabled={salesReportView.rows.length === 0} className="h-10 ml-auto font-black uppercase text-[10px] tracking-widest gap-2">
+                        <Download className="h-4 w-4" /> Download CSV
+                      </Button>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 mt-3">
+                      {([['today', 'Today'], ['7d', 'Last 7 Days'], ['month', 'This Month'], ['lastMonth', 'Last Month'], ['year', 'Year to Date']] as const).map(([key, label]) => (
+                        <Button key={key} type="button" variant="outline" size="sm" onClick={() => setSalesPreset(key)} className="h-7 rounded-full border-2 text-[9px] font-black uppercase tracking-widest">{label}</Button>
+                      ))}
+                    </div>
+                  </Card>
                   <Card className="border-2 rounded-[2rem] overflow-hidden shadow-sm bg-white">
                     <Table>
                       <TableHeader className="bg-slate-50">
@@ -1254,9 +1331,9 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {dailySalesReport.rows.length === 0 ? (
-                          <TableRow><TableCell colSpan={7} className="py-16 text-center text-[10px] font-black uppercase text-muted-foreground">No completed orders yet</TableCell></TableRow>
-                        ) : dailySalesReport.rows.map(row => (
+                        {salesReportView.rows.length === 0 ? (
+                          <TableRow><TableCell colSpan={7} className="py-16 text-center text-[10px] font-black uppercase text-muted-foreground">No completed orders for this selection</TableCell></TableRow>
+                        ) : salesReportView.rows.map(row => (
                           <TableRow key={`${row.date}__${row.menuType}`} className="group hover:bg-slate-50/50 transition-colors">
                             <TableCell className="px-8 font-bold text-sm">{format(new Date(`${row.date}T00:00:00`), 'MMM d, yyyy')}</TableCell>
                             <TableCell><Badge variant="outline" className="text-[8px] font-black uppercase bg-slate-100 border-slate-200">{row.menuType}</Badge></TableCell>
@@ -1274,6 +1351,19 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                           </TableRow>
                         ))}
                       </TableBody>
+                      {salesReportView.rows.length > 0 && (
+                        <TableFooter className="bg-slate-50">
+                          <TableRow>
+                            <TableCell className="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-[#213147]">Total</TableCell>
+                            <TableCell className="text-[9px] font-black uppercase text-muted-foreground">{salesMode === 'All' ? 'All modes' : salesMode}</TableCell>
+                            <TableCell className="text-right font-mono font-black text-sm text-[#213147]">${salesReportView.totals.netPayout.toFixed(2)}</TableCell>
+                            <TableCell className="text-right font-mono font-black text-sm text-[#213147]">${salesReportView.totals.tax.toFixed(2)}</TableCell>
+                            <TableCell className="text-right font-mono font-black text-sm text-[#213147]">${salesReportView.totals.tip.toFixed(2)}</TableCell>
+                            <TableCell className="text-right font-black text-sm text-[#213147]">{salesReportView.totals.orderCount}</TableCell>
+                            <TableCell className="px-8" />
+                          </TableRow>
+                        </TableFooter>
+                      )}
                     </Table>
                   </Card>
                 </div>
