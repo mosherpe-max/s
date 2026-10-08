@@ -5,6 +5,8 @@ import { onSchedule } from "firebase-functions/v2/scheduler";
 import * as logger from "firebase-functions/logger";
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import { getAuth } from "firebase-admin/auth";
+import { randomBytes } from "crypto";
 import Stripe from 'stripe';
 import twilio from 'twilio';
 import webpush from 'web-push';
@@ -106,6 +108,120 @@ async function assertVenueAuthorized(request: CallableRequest, venueId: string) 
 
   throw new HttpsError('permission-denied', 'Not authorized for this venue.');
 }
+
+/**
+ * assertSuperAdmin
+ * Only the Koop admin may create venue admin logins or issue reset links.
+ */
+function assertSuperAdmin(request: CallableRequest) {
+  if (!request.auth) throw new HttpsError('unauthenticated', 'Sign-in required.');
+  const email = request.auth.token.email?.toLowerCase();
+  const isSuperAdmin = request.auth.uid === 'o9vAQy0aFRPSNPoG0ETvjiGt9If1' || email === 'mosherpe@gmail.com';
+  if (!isSuperAdmin) throw new HttpsError('permission-denied', 'Koop admin access required.');
+}
+
+const SUPER_ADMIN_EMAIL = 'mosherpe@gmail.com';
+const SUPER_ADMIN_UID = 'o9vAQy0aFRPSNPoG0ETvjiGt9If1';
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/**
+ * createVenueAdminLogin
+ * Koop admin sets up a login for a venue's manager: creates the Firebase sign-in
+ * (or reuses one that exists), maps their email to the venue so the login page
+ * routes them to its dashboard (roles_seller_admin, which also grants the access
+ * the Firestore rules check), and returns a link for them to choose their own
+ * password. No password is ever generated for a person to see: the account starts
+ * with a random one nobody knows, and the link replaces it.
+ */
+export const createVenueAdminLogin = onCall({ region: 'us-central1' }, async (request) => {
+  try {
+    assertSuperAdmin(request);
+    const venueId = typeof request.data?.venueId === 'string' ? request.data.venueId.trim() : '';
+    const email = typeof request.data?.email === 'string' ? request.data.email.trim().toLowerCase() : '';
+    const name = typeof request.data?.name === 'string' ? request.data.name.trim().slice(0, 80) : '';
+
+    if (!venueId) throw new HttpsError('invalid-argument', 'Missing venueId.');
+    if (!EMAIL_PATTERN.test(email)) throw new HttpsError('invalid-argument', 'Enter a valid email address.');
+    if (email === SUPER_ADMIN_EMAIL) throw new HttpsError('invalid-argument', 'That email is the Koop admin account.');
+
+    const sellerRef = db.collection('sellers').doc(venueId);
+    const sellerSnap = await sellerRef.get();
+    if (!sellerSnap.exists) throw new HttpsError('not-found', 'Venue not found.');
+    const courseName = sellerSnap.data()?.courseName || venueId;
+
+    const roleRef = db.collection('roles_seller_admin').doc(email);
+    const roleSnap = await roleRef.get();
+    if (roleSnap.exists && roleSnap.data()?.sellerId !== venueId) {
+      throw new HttpsError('failed-precondition', `That email is already the admin login for another venue (${roleSnap.data()?.courseName || roleSnap.data()?.sellerId}).`);
+    }
+
+    const auth = getAuth();
+    let userRecord;
+    let created = false;
+    try {
+      userRecord = await auth.getUserByEmail(email);
+      if (userRecord.uid === SUPER_ADMIN_UID) throw new HttpsError('invalid-argument', 'That email is the Koop admin account.');
+    } catch (err: any) {
+      if (err instanceof HttpsError) throw err;
+      if (err?.code !== 'auth/user-not-found') throw err;
+      userRecord = await auth.createUser({
+        email,
+        displayName: name || undefined,
+        password: randomBytes(24).toString('base64url'),
+        emailVerified: false,
+      });
+      created = true;
+    }
+
+    const venueRef = db.collection('venues').doc(venueId);
+    const venueSnap = await venueRef.get();
+    const batch = db.batch();
+    batch.set(roleRef, {
+      userName: name || userRecord.displayName || email,
+      email,
+      sellerId: venueId,
+      courseName,
+      uid: userRecord.uid,
+      assignedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+    // Record an owner on the venue records only if none is set, so adding a second
+    // admin never replaces the first.
+    if (venueSnap.exists && !venueSnap.data()?.ownerUid) batch.update(venueRef, { ownerUid: userRecord.uid, updatedAt: FieldValue.serverTimestamp() });
+    if (!sellerSnap.data()?.ownerId) batch.update(sellerRef, { ownerId: userRecord.uid, updatedAt: FieldValue.serverTimestamp() });
+    await batch.commit();
+
+    const resetLink = await auth.generatePasswordResetLink(email);
+    return { uid: userRecord.uid, created, email, resetLink };
+  } catch (err: any) {
+    logger.error("createVenueAdminLogin Error", err);
+    if (err instanceof HttpsError) throw err;
+    throw new HttpsError('internal', err.message || 'Failed to create the venue admin login.');
+  }
+});
+
+/**
+ * generateVenueAdminResetLink
+ * Koop admin gets a fresh password-reset link for an existing venue admin, to send
+ * them directly (for example by text) when they can't use the emailed one.
+ */
+export const generateVenueAdminResetLink = onCall({ region: 'us-central1' }, async (request) => {
+  try {
+    assertSuperAdmin(request);
+    const email = typeof request.data?.email === 'string' ? request.data.email.trim().toLowerCase() : '';
+    if (!EMAIL_PATTERN.test(email)) throw new HttpsError('invalid-argument', 'Enter a valid email address.');
+
+    // Only for people who are set up as a venue admin, not any account in the project.
+    const roleSnap = await db.collection('roles_seller_admin').doc(email).get();
+    if (!roleSnap.exists) throw new HttpsError('failed-precondition', 'That email is not a venue admin login.');
+
+    const resetLink = await getAuth().generatePasswordResetLink(email);
+    return { email, resetLink };
+  } catch (err: any) {
+    logger.error("generateVenueAdminResetLink Error", err);
+    if (err instanceof HttpsError) throw err;
+    throw new HttpsError('internal', err.message || 'Failed to create a reset link.');
+  }
+});
 
 const slugify = (name: string) => name.toLowerCase()
   .replace(/[^a-z0-9]/g, '-')

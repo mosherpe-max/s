@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { useAuth, useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { 
   signInWithEmailAndPassword, 
+  sendPasswordResetEmail,
   signOut 
 } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
@@ -36,6 +37,11 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isAdminSettingUp, setIsAdminSettingUp] = useState(false);
+
+  // Forgot-password flow: the person asks for a reset link themselves, from this screen.
+  const [isResetMode, setIsResetMode] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+  const [isSendingReset, setIsSendingReset] = useState(false);
 
   // Hardcoded Super Admin Check (Primary Solution Control)
   const isSuperAdmin = user?.uid === SUPER_ADMIN_ID || 
@@ -130,6 +136,37 @@ export default function LoginPage() {
     } finally {
       setIsAdminSettingUp(false);
     }
+  };
+
+  const handleSendReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!auth) return;
+    const address = email.trim();
+    if (!address) return;
+    setIsSendingReset(true);
+    try {
+      await sendPasswordResetEmail(auth, address);
+      setResetSent(true);
+    } catch (error: any) {
+      if (error?.code === 'auth/invalid-email') {
+        toast({ variant: "destructive", title: "Check the Email", description: "Enter the email address you sign in with." });
+      } else if (error?.code === 'auth/too-many-requests') {
+        toast({ variant: "destructive", title: "Please Wait", description: "Too many requests. Try again in a few minutes." });
+      } else if (error?.code === 'auth/network-request-failed') {
+        toast({ variant: "destructive", title: "No Connection", description: "Check your connection and try again." });
+      } else {
+        // Anything else (including "no such account") looks the same as success, so this
+        // screen never reveals which emails have a login.
+        setResetSent(true);
+      }
+    } finally {
+      setIsSendingReset(false);
+    }
+  };
+
+  const leaveResetMode = () => {
+    setIsResetMode(false);
+    setResetSent(false);
   };
 
   const copyUid = () => {
@@ -245,6 +282,56 @@ export default function LoginPage() {
               </Button>
             </div>
           ) : (
+            isResetMode ? (
+            <form onSubmit={handleSendReset} className="space-y-6">
+              {resetSent ? (
+                <div className="space-y-4">
+                  <div className="bg-green-50 border-2 border-green-100 p-4 rounded-xl flex items-start gap-3">
+                    <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0 mt-0.5" />
+                    <p className="text-xs font-bold text-green-800 leading-relaxed">
+                      If {email.trim()} has a login, a link to choose a new password is on its way. Check your inbox and spam folder. The link works for about an hour.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <p className="text-xs font-medium text-muted-foreground leading-relaxed">
+                    Enter the email you sign in with and we&apos;ll send you a link to choose a new password.
+                  </p>
+                  <div className="space-y-2">
+                    <Label htmlFor="reset-email" className="text-[10px] font-black uppercase tracking-widest">Solution Identity</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="reset-email"
+                        type="email"
+                        placeholder="identity@kooporder.com"
+                        className="pl-10 h-11 border-2 font-bold"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                      />
+                    </div>
+                  </div>
+                  <Button
+                    type="submit"
+                    className="w-full h-12 bg-[#213147] hover:bg-[#213147]/90 text-white shadow-xl font-headline font-black uppercase tracking-widest gap-2"
+                    disabled={isSendingReset || !email.trim()}
+                  >
+                    {isSendingReset ? <Loader2 className="animate-spin" /> : <Mail className="h-4 w-4" />}
+                    SEND RESET LINK
+                  </Button>
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={leaveResetMode}
+                className="w-full text-center text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground hover:text-primary underline underline-offset-4"
+              >
+                Back to sign in
+              </button>
+            </form>
+            ) : (
             <form onSubmit={handleEmailAuth} className="space-y-6">
               <div className="space-y-4">
                 <div className="space-y-2">
@@ -293,7 +380,16 @@ export default function LoginPage() {
                 {isLoading ? <Loader2 className="animate-spin" /> : <LogIn className="h-4 w-4" />}
                 SECURE LOGIN
               </Button>
+
+              <button
+                type="button"
+                onClick={() => setIsResetMode(true)}
+                className="w-full text-center text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground hover:text-primary underline underline-offset-4"
+              >
+                Forgot your password?
+              </button>
             </form>
+            )
           )}
         </CardContent>
         <CardFooter className="bg-muted/10 border-t py-4 text-center justify-center">
