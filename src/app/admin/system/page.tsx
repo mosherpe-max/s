@@ -141,6 +141,28 @@ export default function AdminSystemConfigPage() {
                    </p>
                 </div>
 
+                <div className="space-y-4">
+                   <Label className="text-[10px] font-black uppercase">Acknowledgement Target (% within limit)</Label>
+                   <Input
+                     type="number"
+                     min="1" max="100"
+                     defaultValue={config?.ackTargetPercent ?? 90}
+                     className="h-12 border-2 font-bold w-24 text-center"
+                     onBlur={(e) => {
+                       const value = parseInt(e.target.value);
+                       if (!(value >= 1 && value <= 100)) {
+                         toast({ variant: 'destructive', title: 'Enter a Percentage', description: 'The target must be between 1 and 100.' });
+                         e.target.value = String(config?.ackTargetPercent ?? 90);
+                         return;
+                       }
+                       handleUpdateConfig('ackTargetPercent', value);
+                     }}
+                   />
+                   <p className="text-[9px] text-muted-foreground uppercase font-medium max-w-lg leading-relaxed">
+                      The goal for the share of orders a venue acknowledges within its own maximum acknowledge time. Shown as the goal line on each venue&apos;s Acknowledgement Responsiveness chart. Defaults to 90%.
+                   </p>
+                </div>
+
                 <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border-2 border-slate-100">
                    <div className="text-left">
                       <p className="text-xs font-black uppercase text-[#213147]">Twilio SMS Notifications</p>
