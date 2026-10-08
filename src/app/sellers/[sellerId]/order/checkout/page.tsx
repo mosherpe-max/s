@@ -24,6 +24,7 @@ import { cn } from '@/lib/utils';
 import { usePatronLocationGate } from '@/components/patron-location-gate';
 import { PatronTermsAgreement } from '@/components/patron-terms-agreement';
 import { usePatronTerms } from '@/lib/patron-terms';
+import { clearUpsellOffer } from '@/lib/use-upsell-offer';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 import Link from 'next/link';
@@ -312,6 +313,7 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
     // Set before clearCart() so the empty-cart guard below doesn't see the
     // now-empty cart and redirect to the menu, racing the push to /order/track.
     setOrderJustPlaced(true);
+    clearUpsellOffer(sellerId, menuTypeFromUrl);
     router.push(`/order/track?id=${orderId}&sellerId=${sellerId}`);
     clearCart();
   };
