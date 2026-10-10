@@ -148,6 +148,7 @@ import { percentWithin, resolveThresholds } from '@/lib/ops-stats';
 import { LiveOperationsOverview, type ModeOverviewRow } from '@/components/live-operations-overview';
 import { LOG_RANGES, logRangeStart, type LogRange } from '@/lib/log-range';
 import { getTaxRate } from '@/lib/tax';
+import { nextCategoryList } from '@/lib/category-visibility';
 import { signOut } from 'firebase/auth';
 import { 
   BarChart, 
@@ -925,6 +926,16 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       });
   };
 
+  // Turns a menu category on or off for one service mode, for patrons. Items stay in the
+  // catalog; the category (and its items, including under Featured and the upsell) just
+  // isn't shown on that mode while it is off.
+  const handleToggleCategoryOnMode = (mode: string, category: string, visible: boolean) => {
+    const allCategories = categories.filter(c => c !== 'Featured');
+    const next = nextCategoryList(seller?.categoryVisibility?.[mode], allCategories, category, visible);
+    if (next === null) return;
+    handleUpdateField(`categoryVisibility.${mode}`, next === 'reset' ? deleteField() : next);
+  };
+
   const handleConnectStripe = async () => {
     if (!firebaseApp || !sellerId) return;
     setIsConnectingStripe(true);
@@ -1581,6 +1592,35 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                       </Card>
                     </div>
                     <div className="lg:col-span-3 space-y-10">
+                      <Card className="border-2 shadow-sm">
+                        <CardHeader className="bg-slate-50 border-b py-4">
+                          <CardTitle className="text-[10px] font-black uppercase tracking-widest text-[#213147]">Categories on {activeModeTab}</CardTitle>
+                          <CardDescription className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">
+                            Turn a category off to hide it from patrons on this service mode. Its items stay in your catalog, and you can turn it back on any time.
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent className="pt-5">
+                          <div className="flex flex-wrap gap-2">
+                            {categories.filter(c => c !== 'Featured' && (menuItems || []).some(i => i.category === c)).map(category => {
+                              const isVisible = seller?.categoryVisibility?.[activeModeTab]?.includes(category) ?? true;
+                              const itemCount = (menuItems || []).filter(i => i.category === category && i.availableOn?.includes(activeModeTab)).length;
+                              return (
+                                <label key={category} htmlFor={`cat-${activeModeTab}-${category}`} className={cn("flex items-center gap-2 rounded-full border-2 pl-3 pr-2 py-1 cursor-pointer transition-colors", isVisible ? "bg-white border-slate-200" : "bg-slate-50 border-dashed border-slate-200 opacity-70")}>
+                                  <span className="text-[10px] font-black uppercase tracking-wide text-[#213147]">{category}</span>
+                                  <span className="text-[8px] font-bold uppercase text-muted-foreground">{isVisible ? `${itemCount} on menu` : 'Hidden'}</span>
+                                  <Switch
+                                    id={`cat-${activeModeTab}-${category}`}
+                                    checked={isVisible}
+                                    onCheckedChange={(checked) => handleToggleCategoryOnMode(activeModeTab, category, checked)}
+                                    aria-label={`${category} visible on ${activeModeTab}`}
+                                    className="data-[state=checked]:bg-green-500 scale-75"
+                                  />
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </CardContent>
+                      </Card>
                       {categories.filter(c => c !== 'Featured').map(category => { 
                         const isVisible = seller?.categoryVisibility?.[activeModeTab]?.includes(category) ?? true; 
                         if (!isVisible) return null; 

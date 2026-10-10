@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, use, useEffect, useMemo, Suspense } from 'react';
+import { isCategoryVisible } from '@/lib/category-visibility';
 import { isModePaused } from '@/lib/mode-status';
 import { collection, doc, query, where } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase, useDoc, useUser } from '@/firebase';
@@ -223,8 +224,14 @@ function BuyerOrderContent({ sellerId }: { sellerId: string }) {
 
   const filteredMenuItems = useMemo(() => {
     if (!menuItems || !selectedMenuType) return [];
-    return menuItems.filter(item => item.isAvailable !== false && (item.availableOn?.includes(selectedMenuType) || item.featuredOn?.includes(selectedMenuType)));
-  }, [menuItems, selectedMenuType]);
+    // Items in a category the venue has turned off for this mode are left out entirely,
+    // so they don't reappear under Featured either.
+    return menuItems.filter(item =>
+      item.isAvailable !== false &&
+      isCategoryVisible(seller, selectedMenuType, item.category) &&
+      (item.availableOn?.includes(selectedMenuType) || item.featuredOn?.includes(selectedMenuType))
+    );
+  }, [menuItems, selectedMenuType, seller]);
 
   const currentCategories = useMemo(() => {
     if (!seller || !filteredMenuItems.length) return [];

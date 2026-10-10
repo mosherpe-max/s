@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { FEE_DISCLOSURES, getDisclosureCategory } from '@/config/fee-disclosures';
 import { useUpsellOffer } from '@/lib/use-upsell-offer';
+import { isCategoryVisible } from '@/lib/category-visibility';
 import { computeTax, getTaxRate } from '@/lib/tax';
 
 function ReviewOrderContent({ sellerId }: { sellerId: string }) {
@@ -38,7 +39,12 @@ function ReviewOrderContent({ sellerId }: { sellerId: string }) {
 
   const activeOrderItems = useMemo(() => orderItems.filter((item) => item.quantity > 0), [orderItems]);
   // Chosen once per checkout (at most two items) and not refilled when one is added.
-  const upsellItemIds = useUpsellOffer(sellerId, menuTypeFromUrl, activeOrderItems, menuItems);
+  // Upsell never offers an item from a category the venue has turned off for this mode.
+  const upsellMenuItems = useMemo(
+    () => (menuItems ? menuItems.filter(i => isCategoryVisible(seller, menuTypeFromUrl, i.category)) : menuItems),
+    [menuItems, seller, menuTypeFromUrl]
+  );
+  const upsellItemIds = useUpsellOffer(sellerId, menuTypeFromUrl, activeOrderItems, upsellMenuItems);
   const subtotal = useMemo(() => activeOrderItems.reduce((acc, item) => {
     const modsPrice = item.selectedModifiers ? Object.values(item.selectedModifiers).flat().reduce((s, m) => s + m.priceAdjustment, 0) : 0;
     return acc + (item.price + modsPrice) * item.quantity;
