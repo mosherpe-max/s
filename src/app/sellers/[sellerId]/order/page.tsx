@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, use, useEffect, useMemo, Suspense } from 'react';
+import { isModePaused } from '@/lib/mode-status';
 import { collection, doc, query, where } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase, useDoc, useUser } from '@/firebase';
 import type { Seller, MenuItem, OrderItem, SolutionConfig, Venue, StaffMember, Order } from '@/lib/types';
@@ -164,8 +165,9 @@ function BuyerOrderContent({ sellerId }: { sellerId: string }) {
   const isModeAvailable = (type: string) => {
     if (!seller) return false;
 
-    // Prototyping Bypass: Demos are always "Online" to allow exploration
-    if (sellerId.startsWith('demo-')) return true;
+    // Prototyping Bypass: Demos are always "Online" to allow exploration (no staff or
+    // open/closed checks), but a pause someone chose still stops orders.
+    if (sellerId.startsWith('demo-')) return !isModeBusy(type);
 
     const isGloballyAuthorized = !solutionConfig || (solutionConfig.enabledModes?.includes(type) ?? true);
     if (!isGloballyAuthorized) return false;
@@ -191,15 +193,7 @@ function BuyerOrderContent({ sellerId }: { sellerId: string }) {
   // distinct from the *Active/no-staff checks above so the "unavailable"
   // screen can tell a patron this is temporary instead of implying the
   // venue is closed or unstaffed.
-  const isModeBusy = (type: string) => {
-    if (!seller || sellerId.startsWith('demo-')) return false;
-    switch (type) {
-      case 'Beverage Cart': return !!seller.bevcartPausedByStaff || !!seller.bevcartAutoThrottled;
-      case 'Clubhouse': return !!seller.clubhousePausedByStaff || !!seller.clubhouseAutoThrottled;
-      case 'Lane Delivery': return !!seller.lanedeliveryPausedByStaff || !!seller.lanedeliveryAutoThrottled;
-      default: return false;
-    }
-  };
+  const isModeBusy = (type: string) => isModePaused(seller, type, sellerId);
 
   useEffect(() => {
     if (!menuTypeFromUrl && seller && !isSellerLoading && staffList && isAccessValid) {
