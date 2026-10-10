@@ -141,6 +141,7 @@ import { categories } from '@/lib/types';
 import type { MenuItem, Seller, Order, StaffMember, SolutionConfig, Venue, ModifierGroup, DailySalesLock } from '@/lib/types';
 import { buildSalesReportCsv, filterSalesRows, totalSalesRows } from '@/lib/sales-report';
 import { percentWithin, resolveThresholds } from '@/lib/ops-stats';
+import { LOG_RANGES, logRangeStart, type LogRange } from '@/lib/log-range';
 import { signOut } from 'firebase/auth';
 import { 
   BarChart, 
@@ -308,6 +309,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   const [pauseConfirmMode, setPauseConfirmMode] = useState<string | null>(null);
   const [itemToDelete, setItemToDelete] = useState<MenuItem | null>(null);
   const [orderSearchTerm, setOrderSearchTerm] = useState('');
+  const [logRange, setLogRange] = useState<LogRange>('today');
   const [activeModeTab, setActiveModeTab] = useState('');
   const [isStaffFormOpen, setIsStaffFormOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
@@ -1009,16 +1011,26 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
   if (isUserLoading || isSellerLoading || isVenueLoading) return <div className="flex flex-col items-center justify-center h-screen bg-[#213147] text-white"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
 
+  // Fulfillment Log rows: the chosen date range, then the search, newest first.
+  const fulfillmentLogOrders = useMemo(() => {
+    const start = logRangeStart(logRange).getTime();
+    const term = orderSearchTerm.toLowerCase();
+    return (orders || [])
+      .filter(o => o.createdAt && o.createdAt.toMillis() >= start)
+      .filter(o => o.customerName.toLowerCase().includes(term) || getNumericOrderId(o.id).includes(orderSearchTerm))
+      .sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
+  }, [orders, logRange, orderSearchTerm]);
+
   const NAV_ITEMS = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "analytics", label: "Analytics", icon: BarChart3 },
-    { id: "marketing", label: "Marketing", icon: Megaphone },
     { id: "orders", label: "Fulfillment Log", icon: ClipboardCheck },
-    { id: "sales-report", label: "Sales Report", icon: Receipt },
     { id: "modes", label: "Service Modes", icon: Zap },
     { id: "menu", label: "Menu Items", icon: UtensilsCrossed },
-    { id: "staff", label: "Staff", icon: Users },
     { id: "modifiers", label: "Modifiers", icon: SlidersHorizontal },
+    { id: "staff", label: "Staff", icon: Users },
+    { id: "sales-report", label: "Sales Report", icon: Receipt },
+    { id: "marketing", label: "Marketing", icon: Megaphone },
     { id: "settings", label: "Settings", icon: SettingsIcon }
   ];
 
@@ -1301,8 +1313,8 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
               {activeNav === 'orders' && (
                 <div className="space-y-6 animate-in fade-in duration-500">
-                  <div className="flex items-center justify-between"><h2 className="text-xl font-black uppercase text-[#213147]">Fulfillment Log</h2><div className="relative w-64"><Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" /><Input placeholder="Search ticket or name..." value={orderSearchTerm} onChange={(e) => setOrderSearchTerm(e.target.value)} className="pl-10 h-10 border-2 rounded-xl" /></div></div>
-                  <Card className="border-2 rounded-[2rem] overflow-hidden shadow-sm bg-white"><Table><TableHeader className="bg-slate-50"><TableRow><TableHead className="px-8 py-5 text-[10px] font-black uppercase tracking-widest">Ticket</TableHead><TableHead className="text-[10px] font-black uppercase tracking-widest">Customer</TableHead><TableHead className="text-[10px] font-black uppercase tracking-widest">Mode</TableHead><TableHead className="text-[10px] font-black uppercase tracking-widest">Status</TableHead><TableHead className="text-[10px] font-black uppercase tracking-widest text-right px-8">Net Total</TableHead></TableRow></TableHeader><TableBody>{(orders || []).filter(o => o.customerName.toLowerCase().includes(orderSearchTerm.toLowerCase()) || getNumericOrderId(o.id).includes(orderSearchTerm)).sort((a, b) => (b.updatedAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0)).map(o => (<TableRow key={o.id} className="group hover:bg-slate-50/50 transition-colors"><TableCell className="px-8 font-mono font-black text-primary text-xs">#{getNumericOrderId(o.id)}</TableCell><TableCell><div className="flex flex-col text-left"><span className="font-bold text-sm uppercase">{o.customerName}</span><span className="text-[9px] uppercase text-muted-foreground">{o.createdAt ? format(o.createdAt.toDate(), 'MMM d, h:mm a') : ''}</span></div></TableCell><TableCell><Badge variant="outline" className="text-[8px] font-black uppercase bg-slate-100 border-slate-200">{o.menuType}</Badge></TableCell><TableCell><Badge className={cn("text-[8px] font-black uppercase border-0", o.status === 'Delivered' ? "bg-green-500" : o.status === 'Cancelled' ? "bg-red-500" : "bg-primary animate-pulse")}>{o.status}</Badge></TableCell><TableCell className="text-right px-8 font-mono font-black text-sm">${(o.total - (o.serviceFee || 0)).toFixed(2)}</TableCell></TableRow>))}</TableBody></Table></Card>
+                  <div className="flex flex-wrap items-center justify-between gap-3"><div className="text-left"><h2 className="text-xl font-black uppercase text-[#213147]">Fulfillment Log</h2><p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">{fulfillmentLogOrders.length} order{fulfillmentLogOrders.length === 1 ? '' : 's'}</p></div><div className="flex flex-wrap items-center gap-3"><div className="flex gap-1 bg-slate-100 p-1 rounded-xl">{LOG_RANGES.map(r => (<Button key={r.id} type="button" variant={logRange === r.id ? 'default' : 'ghost'} size="sm" onClick={() => setLogRange(r.id)} className={cn("h-8 px-3 text-[9px] font-black uppercase tracking-widest rounded-lg", logRange === r.id ? "bg-[#213147] text-white" : "text-slate-500")}>{r.label}</Button>))}</div><div className="relative w-64"><Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" /><Input placeholder="Search ticket or name..." value={orderSearchTerm} onChange={(e) => setOrderSearchTerm(e.target.value)} className="pl-10 h-10 border-2 rounded-xl" /></div></div></div>
+                  <Card className="border-2 rounded-[2rem] overflow-hidden shadow-sm bg-white"><Table><TableHeader className="bg-slate-50"><TableRow><TableHead className="px-8 py-5 text-[10px] font-black uppercase tracking-widest">Ticket</TableHead><TableHead className="text-[10px] font-black uppercase tracking-widest">Customer</TableHead><TableHead className="text-[10px] font-black uppercase tracking-widest">Mode</TableHead><TableHead className="text-[10px] font-black uppercase tracking-widest">Status</TableHead><TableHead className="text-[10px] font-black uppercase tracking-widest text-right px-8">Net Total</TableHead></TableRow></TableHeader><TableBody>{fulfillmentLogOrders.length === 0 ? (<TableRow><TableCell colSpan={5} className="py-16 text-center text-[10px] font-black uppercase text-muted-foreground">No orders for this selection</TableCell></TableRow>) : fulfillmentLogOrders.map(o => (<TableRow key={o.id} className="group hover:bg-slate-50/50 transition-colors"><TableCell className="px-8 font-mono font-black text-primary text-xs">#{getNumericOrderId(o.id)}</TableCell><TableCell><div className="flex flex-col text-left"><span className="font-bold text-sm uppercase">{o.customerName}</span><span className="text-[9px] uppercase text-muted-foreground">{o.createdAt ? format(o.createdAt.toDate(), 'MMM d, h:mm a') : ''}</span></div></TableCell><TableCell><Badge variant="outline" className="text-[8px] font-black uppercase bg-slate-100 border-slate-200">{o.menuType}</Badge></TableCell><TableCell><Badge className={cn("text-[8px] font-black uppercase border-0", o.status === 'Delivered' ? "bg-green-500" : o.status === 'Cancelled' ? "bg-red-500" : "bg-primary animate-pulse")}>{o.status}</Badge></TableCell><TableCell className="text-right px-8 font-mono font-black text-sm">${(o.total - (o.serviceFee || 0)).toFixed(2)}</TableCell></TableRow>))}</TableBody></Table></Card>
                 </div>
               )}
 
