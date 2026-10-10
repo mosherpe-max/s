@@ -305,6 +305,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [pauseConfirmMode, setPauseConfirmMode] = useState<string | null>(null);
+  const [itemToDelete, setItemToDelete] = useState<MenuItem | null>(null);
   const [orderSearchTerm, setOrderSearchTerm] = useState('');
   const [activeModeTab, setActiveModeTab] = useState('');
   const [isStaffFormOpen, setIsStaffFormOpen] = useState(false);
@@ -825,6 +826,19 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       handleUpdateField(getPausedFieldForMode(pauseConfirmMode), true);
     }
     setPauseConfirmMode(null);
+  };
+
+  // Deleting a menu item always goes through the confirmation popup first.
+  const confirmDeleteItem = () => {
+    const item = itemToDelete;
+    setItemToDelete(null);
+    if (!item || !firestore) return;
+    const docRef = doc(firestore, 'sellers', sellerId, 'menuItems', item.id);
+    deleteDoc(docRef)
+      .then(() => toast({ title: 'Menu Item Deleted', description: `${item.name} was removed from your menu.` }))
+      .catch(async () => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: docRef.path, operation: 'delete' } satisfies SecurityRuleContext));
+      });
   };
 
   const handleConnectStripe = async () => {
@@ -1548,7 +1562,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                                 <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-primary" onClick={() => { setEditingItem(item); itemForm.reset({ name: item.name, description: item.description || '', price: item.price, category: item.category, isAvailable: item.isAvailable !== false, imageUrl: item.imageUrl || '', availableOn: item.availableOn || [], featuredOn: item.featuredOn || [], modifierGroupIds: item.modifierGroupIds || [] }); setIsItemFormOpen(true); }}>
                                   <Edit className="h-4 w-4" />
                                 </Button>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-destructive" onClick={() => { const docRef = doc(firestore!, 'sellers', sellerId, 'menuItems', item.id); deleteDoc(docRef).catch(async (e) => { errorEmitter.emit('permission-error', new FirestorePermissionError({ path: docRef.path, operation: 'delete' } satisfies SecurityRuleContext)); }); }}>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-destructive" onClick={() => setItemToDelete(item)} aria-label={`Delete ${item.name}`}>
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
                               </div>
@@ -2087,6 +2101,26 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
           </div>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
+        <AlertDialogContent className="rounded-[2rem] border-2 shadow-2xl p-8">
+          <AlertDialogHeader className="text-left space-y-4">
+            <div className="bg-destructive/10 p-3 rounded-2xl w-fit"><Trash2 className="h-8 w-8 text-destructive" /></div>
+            <div className="space-y-1">
+              <AlertDialogTitle className="font-headline font-black uppercase text-xl">Delete Menu Item?</AlertDialogTitle>
+              <AlertDialogDescription className="text-sm font-medium leading-relaxed">
+                <strong className="text-foreground">{itemToDelete?.name}</strong> will be removed from your menu and from every service mode. Orders already placed are not affected. This can&apos;t be undone.
+              </AlertDialogDescription>
+            </div>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-8 gap-3">
+            <AlertDialogCancel className="rounded-xl font-black uppercase text-[10px] tracking-widest border-2 h-12">Keep Item</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteItem} className="bg-destructive hover:bg-destructive/90 rounded-xl font-black uppercase text-[10px] tracking-widest h-12 px-8">
+              Delete Item
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={!!pauseConfirmMode} onOpenChange={(open) => !open && setPauseConfirmMode(null)}>
         <AlertDialogContent className="rounded-[2rem] border-2 shadow-2xl p-8">
