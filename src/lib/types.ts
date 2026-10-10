@@ -346,6 +346,7 @@ export interface Order {
   preparedByStaffId?: string;
   preparedByStaffName?: string;
   paymentMethod?: PaymentMethodType;
+  stripePaymentIntentId?: string; // The card payment's Stripe reference, for matching deposits
   // Set once the "running late" staff push fires, so the scheduled check
   // never re-sends it on every pass for the same order.
   lateAlertSentAt?: Timestamp;
