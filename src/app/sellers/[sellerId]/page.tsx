@@ -140,6 +140,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { categories } from '@/lib/types';
 import type { MenuItem, Seller, Order, StaffMember, SolutionConfig, Venue, ModifierGroup, DailySalesLock } from '@/lib/types';
 import { buildSalesReportCsv, filterSalesRows, totalSalesRows } from '@/lib/sales-report';
+import { percentWithin, resolveThresholds } from '@/lib/ops-stats';
 import { signOut } from 'firebase/auth';
 import { 
   BarChart, 
@@ -411,20 +412,29 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       const modeOrdersToday = orders.filter(o => o.menuType === mode && o.createdAt && isToday(o.createdAt.toDate()));
       const deliveredToday = modeOrdersToday.filter(o => o.status === 'Delivered');
       
-      const thresholds = seller.orderThresholds?.[mode] || solutionConfig?.orderThresholds?.[mode] || { maxOrderAcknowledgeSeconds: 120, warningOrderProcessingMinutes: 15, maxOrderProcessingMinutes: 25 };
+      // Each limit falls back on its own, so a venue that only overrode one of them still
+      // gets Koop's default for the others.
+      const thresholds = resolveThresholds(seller.orderThresholds?.[mode], solutionConfig?.orderThresholds?.[mode]);
       
       const acknowledged = modeOrdersToday.filter(o => o.acknowledgedAt);
-      const avgAck = acknowledged.length > 0 ? acknowledged.reduce((sum, o) => sum + differenceInSeconds(o.acknowledgedAt!.toDate(), o.createdAt.toDate()), 0) / acknowledged.length : 0;
-      const exceedMaxAckCount = acknowledged.filter(o => differenceInSeconds(o.acknowledgedAt!.toDate(), o.createdAt.toDate()) > thresholds.maxOrderAcknowledgeSeconds).length;
+      const ackSeconds = acknowledged.map(o => differenceInSeconds(o.acknowledgedAt!.toDate(), o.createdAt.toDate()));
+      const avgAck = ackSeconds.length > 0 ? ackSeconds.reduce((sum, v) => sum + v, 0) / ackSeconds.length : 0;
+      const exceedMaxAckCount = ackSeconds.filter(v => v > thresholds.maxOrderAcknowledgeSeconds).length;
 
       const fulfilled = deliveredToday.filter(o => o.deliveredAt);
-      const avgDuration = fulfilled.length > 0 ? fulfilled.reduce((sum, o) => sum + differenceInMinutes(o.deliveredAt!.toDate(), o.createdAt.toDate()), 0) / fulfilled.length : 0;
-      const exceedWarnCount = fulfilled.filter(o => differenceInMinutes(o.deliveredAt!.toDate(), o.createdAt.toDate()) > thresholds.warningOrderProcessingMinutes).length;
-      const exceedMaxCount = fulfilled.filter(o => differenceInMinutes(o.deliveredAt!.toDate(), o.createdAt.toDate()) > thresholds.maxOrderProcessingMinutes).length;
+      const durMinutes = fulfilled.map(o => differenceInMinutes(o.deliveredAt!.toDate(), o.createdAt.toDate()));
+      const avgDuration = durMinutes.length > 0 ? durMinutes.reduce((sum, v) => sum + v, 0) / durMinutes.length : 0;
+      const exceedWarnCount = durMinutes.filter(v => v > thresholds.warningOrderProcessingMinutes).length;
+      const exceedMaxCount = durMinutes.filter(v => v > thresholds.maxOrderProcessingMinutes).length;
 
       realTimeOperations[mode] = {
         avgAck: Math.round(avgAck),
         exceedMaxAckCount,
+        // Share of today's orders inside the max setting, and that setting, for the card
+        ackWithinPct: percentWithin(ackSeconds, thresholds.maxOrderAcknowledgeSeconds),
+        ackMaxSeconds: thresholds.maxOrderAcknowledgeSeconds,
+        durWithinPct: percentWithin(durMinutes, thresholds.maxOrderProcessingMinutes),
+        durMaxMinutes: thresholds.maxOrderProcessingMinutes,
         avgDuration: parseFloat(avgDuration.toFixed(1)),
         exceedWarnCount,
         exceedMaxCount,
@@ -1174,11 +1184,11 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                                     </div>
                                     <div className="space-y-4">
                                        <div className="flex justify-between items-start">
-                                          <div className="space-y-1"><p className="text-[8px] font-black uppercase text-muted-foreground flex items-center gap-1"><Timer className="h-2 w-2" /> Acknowledge</p><div className="flex items-baseline gap-1"><span className="text-sm font-black">{stats?.avgAck || 0}s</span><span className="text-[8px] font-bold text-muted-foreground uppercase">Avg</span></div></div>
+                                          <div className="space-y-1"><p className="text-[8px] font-black uppercase text-muted-foreground flex items-center gap-1"><Timer className="h-2 w-2" /> Acknowledge</p><div className="flex items-baseline gap-1"><span className="text-sm font-black">{stats?.avgAck || 0}s</span><span className="text-[8px] font-bold text-muted-foreground uppercase">Avg</span></div><p className={cn("text-[8px] font-black uppercase", stats?.ackWithinPct == null ? "text-muted-foreground" : stats.ackWithinPct >= ackTargetPercent ? "text-green-600" : "text-red-600")}>{stats?.ackWithinPct == null ? '-' : `${stats.ackWithinPct}%`} within {stats?.ackMaxSeconds}s</p></div>
                                           {stats?.exceedMaxAckCount > 0 && <Badge variant="destructive" className="h-4 px-1 text-[7px] font-black uppercase">Exceed: {stats.exceedMaxAckCount}</Badge>}
                                        </div>
                                        <div className="flex justify-between items-start">
-                                          <div className="space-y-1"><p className="text-[8px] font-black uppercase text-muted-foreground flex items-center gap-1"><Clock className="h-2 w-2" /> Duration</p><div className="flex items-baseline gap-1"><span className="text-sm font-black">{stats?.avgDuration || 0}m</span><span className="text-[8px] font-bold text-muted-foreground uppercase">Avg</span></div></div>
+                                          <div className="space-y-1"><p className="text-[8px] font-black uppercase text-muted-foreground flex items-center gap-1"><Clock className="h-2 w-2" /> Duration</p><div className="flex items-baseline gap-1"><span className="text-sm font-black">{stats?.avgDuration || 0}m</span><span className="text-[8px] font-bold text-muted-foreground uppercase">Avg</span></div><p className={cn("text-[8px] font-black uppercase", stats?.durWithinPct == null ? "text-muted-foreground" : stats.durWithinPct >= ackTargetPercent ? "text-green-600" : "text-red-600")}>{stats?.durWithinPct == null ? '-' : `${stats.durWithinPct}%`} within {stats?.durMaxMinutes}m</p></div>
                                           <div className="flex flex-col items-end gap-1">{stats?.exceedWarnCount > 0 && <Badge className="bg-amber-500 text-white h-4 px-1 text-[7px] font-black uppercase">Warn: {stats.exceedWarnCount}</Badge>}{stats?.exceedMaxCount > 0 && <Badge variant="destructive" className="h-4 px-1 text-[7px] font-black uppercase">Late: {stats.exceedMaxCount}</Badge>}</div>
                                        </div>
                                     </div>
