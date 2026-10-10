@@ -37,11 +37,13 @@ export function PricingBreakdown({
           <p className="font-mono text-foreground font-bold shrink-0">${subtotal.toFixed(2)}</p>
         </div>
 
-        {/* TAX */}
-        <div className="flex justify-between items-center px-1 gap-2">
-          <p className="truncate">Estimated Tax ({taxRate}%)</p>
-          <p className="font-mono text-foreground font-bold shrink-0">${tax.toFixed(2)}</p>
-        </div>
+        {/* TAX - not shown when the venue doesn't charge tax on this service */}
+        {taxRate > 0 && (
+          <div className="flex justify-between items-center px-1 gap-2">
+            <p className="truncate">Estimated Tax ({taxRate}%)</p>
+            <p className="font-mono text-foreground font-bold shrink-0">${tax.toFixed(2)}</p>
+          </div>
+        )}
 
         {/* TIP */}
         <div className="flex justify-between items-center px-1 gap-2">

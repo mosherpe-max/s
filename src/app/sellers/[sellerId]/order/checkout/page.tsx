@@ -26,6 +26,7 @@ import { usePatronLocationGate } from '@/components/patron-location-gate';
 import { PatronTermsAgreement } from '@/components/patron-terms-agreement';
 import { usePatronTerms } from '@/lib/patron-terms';
 import { clearUpsellOffer } from '@/lib/use-upsell-offer';
+import { computeTax, getTaxRate } from '@/lib/tax';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 import Link from 'next/link';
@@ -94,13 +95,13 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
     return acc + (item.price + modsPrice) * item.quantity;
   }, 0), [activeOrderItems]);
 
-  const taxRate = seller?.taxRate ?? 6.0;
+  const taxRate = getTaxRate(seller, menuTypeFromUrl);
   const solutionFee = useMemo(() => {
     if (venue?.patronConvenienceFee !== undefined) return venue.patronConvenienceFee / 100;
     if (!seller) return 0;
     return (menuTypeFromUrl && seller.serviceFees?.[menuTypeFromUrl]) || seller.serviceFee || 0;
   }, [seller, venue, menuTypeFromUrl]);
-  const tax = subtotal * (taxRate / 100);
+  const tax = computeTax(subtotal, taxRate);
   const finalTotal = subtotal + solutionFee + tax + tip;
   const baseTotalForBackend = subtotal + tax + tip;
 

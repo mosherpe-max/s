@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { FEE_DISCLOSURES, getDisclosureCategory } from '@/config/fee-disclosures';
 import { useUpsellOffer } from '@/lib/use-upsell-offer';
+import { computeTax, getTaxRate } from '@/lib/tax';
 
 function ReviewOrderContent({ sellerId }: { sellerId: string }) {
   const firestore = useFirestore();
@@ -43,13 +44,13 @@ function ReviewOrderContent({ sellerId }: { sellerId: string }) {
     return acc + (item.price + modsPrice) * item.quantity;
   }, 0), [activeOrderItems]);
 
-  const taxRate = seller?.taxRate ?? 6.0;
+  const taxRate = getTaxRate(seller, menuTypeFromUrl);
   const solutionFee = useMemo(() => {
     if (venue?.patronConvenienceFee !== undefined) return venue.patronConvenienceFee / 100;
     if (!seller) return 0;
     return (menuTypeFromUrl && seller.serviceFees?.[menuTypeFromUrl]) || seller.serviceFee || 0;
   }, [seller, venue, menuTypeFromUrl]);
-  const tax = subtotal * (taxRate / 100);
+  const tax = computeTax(subtotal, taxRate);
 
   const disclosureCategory = getDisclosureCategory(seller?.type);
   const checkoutNotice = FEE_DISCLOSURES[disclosureCategory].checkout;

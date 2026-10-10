@@ -147,7 +147,8 @@ export interface Seller {
   contactPhone: string;
   serviceFee: number; // Legacy/Master fee in dollars
   serviceFees?: Record<string, number>; // Individual overrides in dollars
-  taxRate: number;
+  taxRate: number; // Venue-wide default sales tax %, used for any mode without its own rate in taxRates
+  taxRates?: Record<string, number>; // Sales tax % per service mode, set by the venue admin (0 = no tax)
   status: 'Active' | 'Inactive';
   isFoundingPartner?: boolean;
   bevcartActive?: boolean;

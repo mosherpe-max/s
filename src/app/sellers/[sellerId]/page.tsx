@@ -147,6 +147,7 @@ import { REPORT_PRESETS, reportRange, type ReportPreset } from '@/lib/report-ran
 import { percentWithin, resolveThresholds } from '@/lib/ops-stats';
 import { LiveOperationsOverview, type ModeOverviewRow } from '@/components/live-operations-overview';
 import { LOG_RANGES, logRangeStart, type LogRange } from '@/lib/log-range';
+import { getTaxRate } from '@/lib/tax';
 import { signOut } from 'firebase/auth';
 import { 
   BarChart, 
@@ -877,6 +878,23 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
         requestResourceData: { [field]: value },
       } satisfies SecurityRuleContext));
     });
+  };
+
+  // Saves one service mode's sales tax rate. A blank entry puts the mode back on the
+  // venue-wide default; anything else must be a percentage from 0 to 100 (0 = no tax).
+  const handleUpdateTaxRate = (mode: string, raw: string, input: HTMLInputElement) => {
+    const trimmed = raw.trim();
+    if (trimmed === '') {
+      handleUpdateField(`taxRates.${mode}`, deleteField());
+      return;
+    }
+    const value = Number(trimmed);
+    if (!Number.isFinite(value) || value < 0 || value > 100) {
+      toast({ variant: 'destructive', title: 'Check the Tax Rate', description: 'Enter a percentage from 0 to 100 (0 means no tax).' });
+      input.value = String(getTaxRate(seller, mode));
+      return;
+    }
+    handleUpdateField(`taxRates.${mode}`, Math.round(value * 100) / 100);
   };
 
   const getPausedFieldForMode = (mode: string) => (
@@ -1858,6 +1876,36 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                             </Button>
                           </>
                         )}
+                      </CardContent>
+                    </Card>
+                    <Card className="border-2 shadow-sm md:col-span-2">
+                      <CardHeader className="bg-slate-50 border-b py-4">
+                        <CardTitle className="text-[10px] font-black uppercase tracking-widest text-[#213147] flex items-center gap-2"><Receipt className="h-3 w-3" /> Sales Tax</CardTitle>
+                        <CardDescription className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">Set the tax rate patrons are charged for each service mode. Enter 0 if you don't charge tax on a mode. Applies to new orders; orders already placed keep the tax they were charged.</CardDescription>
+                      </CardHeader>
+                      <CardContent className="pt-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          {seller?.menuTypes?.filter(m => AUTHORIZED_SERVICE_MODES.includes(m)).map(mode => (
+                            <div key={`${mode}-${getTaxRate(seller, mode)}`} className="space-y-1.5 p-4 rounded-xl border-2 bg-slate-50 border-slate-100">
+                              <Label htmlFor={`tax-${mode}`} className="text-[10px] font-black uppercase text-[#213147]">{mode}</Label>
+                              <div className="relative">
+                                <Input
+                                  id={`tax-${mode}`}
+                                  type="number"
+                                  inputMode="decimal"
+                                  min={0}
+                                  max={100}
+                                  step="0.01"
+                                  defaultValue={getTaxRate(seller, mode)}
+                                  onBlur={(e) => handleUpdateTaxRate(mode, e.target.value, e.target)}
+                                  className="h-10 border-2 font-bold bg-white pr-8"
+                                />
+                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">%</span>
+                              </div>
+                              <p className="text-[8px] font-bold text-muted-foreground uppercase leading-tight">{getTaxRate(seller, mode) === 0 ? 'No tax charged' : 'Sales tax on the food and drink subtotal'}</p>
+                            </div>
+                          ))}
+                        </div>
                       </CardContent>
                     </Card>
                     <Card className="border-2 shadow-sm md:col-span-2">
