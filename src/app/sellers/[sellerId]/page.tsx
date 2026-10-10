@@ -139,7 +139,14 @@ import { ImageUploadDropzone } from '@/components/image-upload-dropzone';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { categories } from '@/lib/types';
 import type { MenuItem, Seller, Order, StaffMember, SolutionConfig, Venue, ModifierGroup, DailySalesLock } from '@/lib/types';
-import { buildSalesReportCsv, filterSalesRows, totalSalesRows } from '@/lib/sales-report';
+import {
+  buildOrderDetailCsv, buildSalesReportCsv, filterSalesOrderRows, filterSalesRows, paymentLabel, totalSalesOrderRows, totalSalesRows,
+  type SalesOrderRow, type SalesPaymentFilter,
+} from '@/lib/sales-report';
+import { REPORT_PRESETS, reportRange, type ReportPreset } from '@/lib/report-ranges';
+import { percentWithin, resolveThresholds } from '@/lib/ops-stats';
+import { LiveOperationsOverview, type ModeOverviewRow } from '@/components/live-operations-overview';
+import { LOG_RANGES, logRangeStart, type LogRange } from '@/lib/log-range';
 import { getTaxRate } from '@/lib/tax';
 import { signOut } from 'firebase/auth';
 import { 
@@ -306,7 +313,9 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [pauseConfirmMode, setPauseConfirmMode] = useState<string | null>(null);
+  const [itemToDelete, setItemToDelete] = useState<MenuItem | null>(null);
   const [orderSearchTerm, setOrderSearchTerm] = useState('');
+  const [logRange, setLogRange] = useState<LogRange>('today');
   const [activeModeTab, setActiveModeTab] = useState('');
   const [isStaffFormOpen, setIsStaffFormOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
@@ -319,6 +328,8 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
   // Sales Report filters: one service mode (or all) and a date range, defaulting to this month.
   const [salesMode, setSalesMode] = useState<string>('All');
+  const [salesView, setSalesView] = useState<'summary' | 'orders'>('summary');
+  const [salesPayment, setSalesPayment] = useState<SalesPaymentFilter>('All');
   const [salesFrom, setSalesFrom] = useState<string>(() => format(startOfMonth(new Date()), 'yyyy-MM-dd'));
   const [salesTo, setSalesTo] = useState<string>(() => format(new Date(), 'yyyy-MM-dd'));
   const [isConnectingStripe, setIsConnectingStripe] = useState(false);
@@ -411,20 +422,34 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       const modeOrdersToday = orders.filter(o => o.menuType === mode && o.createdAt && isToday(o.createdAt.toDate()));
       const deliveredToday = modeOrdersToday.filter(o => o.status === 'Delivered');
       
-      const thresholds = seller.orderThresholds?.[mode] || solutionConfig?.orderThresholds?.[mode] || { maxOrderAcknowledgeSeconds: 120, warningOrderProcessingMinutes: 15, maxOrderProcessingMinutes: 25 };
+      // Each limit falls back on its own, so a venue that only overrode one of them still
+      // gets Koop's default for the others.
+      const thresholds = resolveThresholds(seller.orderThresholds?.[mode], solutionConfig?.orderThresholds?.[mode]);
       
       const acknowledged = modeOrdersToday.filter(o => o.acknowledgedAt);
-      const avgAck = acknowledged.length > 0 ? acknowledged.reduce((sum, o) => sum + differenceInSeconds(o.acknowledgedAt!.toDate(), o.createdAt.toDate()), 0) / acknowledged.length : 0;
-      const exceedMaxAckCount = acknowledged.filter(o => differenceInSeconds(o.acknowledgedAt!.toDate(), o.createdAt.toDate()) > thresholds.maxOrderAcknowledgeSeconds).length;
+      const ackSeconds = acknowledged.map(o => differenceInSeconds(o.acknowledgedAt!.toDate(), o.createdAt.toDate()));
+      const avgAck = ackSeconds.length > 0 ? ackSeconds.reduce((sum, v) => sum + v, 0) / ackSeconds.length : 0;
+      const exceedMaxAckCount = ackSeconds.filter(v => v > thresholds.maxOrderAcknowledgeSeconds).length;
 
       const fulfilled = deliveredToday.filter(o => o.deliveredAt);
-      const avgDuration = fulfilled.length > 0 ? fulfilled.reduce((sum, o) => sum + differenceInMinutes(o.deliveredAt!.toDate(), o.createdAt.toDate()), 0) / fulfilled.length : 0;
-      const exceedWarnCount = fulfilled.filter(o => differenceInMinutes(o.deliveredAt!.toDate(), o.createdAt.toDate()) > thresholds.warningOrderProcessingMinutes).length;
-      const exceedMaxCount = fulfilled.filter(o => differenceInMinutes(o.deliveredAt!.toDate(), o.createdAt.toDate()) > thresholds.maxOrderProcessingMinutes).length;
+      const durMinutes = fulfilled.map(o => differenceInMinutes(o.deliveredAt!.toDate(), o.createdAt.toDate()));
+      const avgDuration = durMinutes.length > 0 ? durMinutes.reduce((sum, v) => sum + v, 0) / durMinutes.length : 0;
+      const exceedWarnCount = durMinutes.filter(v => v > thresholds.warningOrderProcessingMinutes).length;
+      const exceedMaxCount = durMinutes.filter(v => v > thresholds.maxOrderProcessingMinutes).length;
 
       realTimeOperations[mode] = {
         avgAck: Math.round(avgAck),
         exceedMaxAckCount,
+        // Share of today's orders inside the max setting, and that setting, for the card
+        ackWithinPct: percentWithin(ackSeconds, thresholds.maxOrderAcknowledgeSeconds),
+        ackMaxSeconds: thresholds.maxOrderAcknowledgeSeconds,
+        durWithinPct: percentWithin(durMinutes, thresholds.maxOrderProcessingMinutes),
+        durMaxMinutes: thresholds.maxOrderProcessingMinutes,
+        // Counts behind the percentages, so the all-modes figure is weighted by orders
+        ackTotal: ackSeconds.length,
+        ackWithinCount: ackSeconds.length - exceedMaxAckCount,
+        durTotal: durMinutes.length,
+        durWithinCount: durMinutes.length - exceedMaxCount,
         avgDuration: parseFloat(avgDuration.toFixed(1)),
         exceedWarnCount,
         exceedMaxCount,
@@ -672,6 +697,17 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     });
   }, [firestore, sellerId, dailySalesReport.pendingLocks]);
 
+  // NOTE: hooks must stay above the loading early return further down this component.
+  // Fulfillment Log rows: the chosen date range, then the search, newest first.
+  const fulfillmentLogOrders = useMemo(() => {
+    const start = logRangeStart(logRange).getTime();
+    const term = orderSearchTerm.toLowerCase();
+    return (orders || [])
+      .filter(o => o.createdAt && o.createdAt.toMillis() >= start)
+      .filter(o => o.customerName.toLowerCase().includes(term) || getNumericOrderId(o.id).includes(orderSearchTerm))
+      .sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
+  }, [orders, logRange, orderSearchTerm]);
+
   // The report as the venue has filtered it: chosen service mode and date range, with a
   // total for each dollar column. Dates are 'yyyy-MM-dd', so plain string comparison
   // orders them correctly.
@@ -680,34 +716,65 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     return { rows, totals: totalSalesRows(rows) };
   }, [dailySalesReport.rows, salesMode, salesFrom, salesTo]);
 
-  const setSalesPreset = (preset: 'today' | '7d' | 'month' | 'lastMonth' | 'year') => {
-    const today = new Date();
-    const fmt = (d: Date) => format(d, 'yyyy-MM-dd');
-    if (preset === 'today') { setSalesFrom(fmt(today)); setSalesTo(fmt(today)); }
-    if (preset === '7d') { setSalesFrom(fmt(subDays(today, 6))); setSalesTo(fmt(today)); }
-    if (preset === 'month') { setSalesFrom(fmt(startOfMonth(today))); setSalesTo(fmt(today)); }
-    if (preset === 'lastMonth') {
-      const firstOfThisMonth = startOfMonth(today);
-      setSalesFrom(fmt(startOfMonth(subDays(firstOfThisMonth, 1)))); setSalesTo(fmt(subDays(firstOfThisMonth, 1)));
-    }
-    if (preset === 'year') { setSalesFrom(fmt(startOfYear(today))); setSalesTo(fmt(today)); }
+  // One line per delivered order, for matching card deposits and for audit. Net payout is
+  // worked out the same way as the daily rows (from the venue's current fee setting).
+  const salesOrderRows = useMemo<SalesOrderRow[]>(() => {
+    return (orders || [])
+      .filter(o => o.status === 'Delivered' && o.createdAt)
+      .sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis())
+      .map(o => {
+        const placed = o.createdAt.toDate();
+        return {
+          orderNumber: getNumericOrderId(o.id),
+          orderId: o.id,
+          date: format(placed, 'yyyy-MM-dd'),
+          time: format(placed, 'h:mm a'),
+          menuType: o.menuType,
+          paymentMethod: o.paymentMethod || '',
+          stripePaymentIntentId: o.stripePaymentIntentId || '',
+          subtotal: o.subtotal || 0,
+          tax: o.tax || 0,
+          tip: o.tip || 0,
+          convenienceFee: o.serviceFee || 0,
+          netPayout: computeOrderNetPayout(o),
+          totalCollected: o.total || 0,
+        };
+      });
+  }, [orders, venue]);
+
+  const salesOrderView = useMemo(() => {
+    const rows = filterSalesOrderRows(salesOrderRows, salesMode, salesFrom, salesTo, salesPayment);
+    return { rows, totals: totalSalesOrderRows(rows) };
+  }, [salesOrderRows, salesMode, salesFrom, salesTo, salesPayment]);
+
+  const setSalesPreset = (preset: ReportPreset) => {
+    const { from, to } = reportRange(preset);
+    setSalesFrom(from);
+    setSalesTo(to);
   };
 
   const handleDownloadSalesReport = () => {
-    const { rows, totals } = salesReportView;
-    const csv = buildSalesReportCsv(rows, totals, salesMode);
+    const isOrders = salesView === 'orders';
+    const csv = isOrders
+      ? buildOrderDetailCsv(salesOrderView.rows, salesOrderView.totals, salesMode)
+      : buildSalesReportCsv(salesReportView.rows, salesReportView.totals, salesMode);
+    const count = isOrders ? salesOrderView.rows.length : salesReportView.rows.length;
     const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' });
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     const venueName = (seller?.courseName || 'Venue').replace(/[^a-z0-9]+/gi, '_');
     const modePart = salesMode === 'All' ? 'All_Modes' : salesMode.replace(/\s+/g, '_');
+    const paymentPart = isOrders && salesPayment !== 'All' ? `_${salesPayment.replace(/\s+/g, '_')}` : '';
     link.href = url;
-    link.download = `${venueName}_Sales_Report_${modePart}_${salesFrom || 'start'}_to_${salesTo || 'today'}.csv`;
+    link.download = `${venueName}_${isOrders ? 'Order_Detail' : 'Sales_Report'}_${modePart}${paymentPart}_${salesFrom || 'start'}_to_${salesTo || 'today'}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     window.URL.revokeObjectURL(url);
-    toast({ title: 'Sales Report Downloaded', description: `${rows.length} day${rows.length === 1 ? '' : 's'} included.` });
+    toast({
+      title: isOrders ? 'Order Detail Downloaded' : 'Sales Report Downloaded',
+      description: isOrders ? `${count} order${count === 1 ? '' : 's'} included.` : `${count} day${count === 1 ? '' : 's'} included.`,
+    });
   };
 
   const sensors = useSensors(
@@ -843,6 +910,19 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       handleUpdateField(getPausedFieldForMode(pauseConfirmMode), true);
     }
     setPauseConfirmMode(null);
+  };
+
+  // Deleting a menu item always goes through the confirmation popup first.
+  const confirmDeleteItem = () => {
+    const item = itemToDelete;
+    setItemToDelete(null);
+    if (!item || !firestore) return;
+    const docRef = doc(firestore, 'sellers', sellerId, 'menuItems', item.id);
+    deleteDoc(docRef)
+      .then(() => toast({ title: 'Menu Item Deleted', description: `${item.name} was removed from your menu.` }))
+      .catch(async () => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: docRef.path, operation: 'delete' } satisfies SecurityRuleContext));
+      });
   };
 
   const handleConnectStripe = async () => {
@@ -1006,13 +1086,13 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   const NAV_ITEMS = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "analytics", label: "Analytics", icon: BarChart3 },
-    { id: "marketing", label: "Marketing", icon: Megaphone },
     { id: "orders", label: "Fulfillment Log", icon: ClipboardCheck },
-    { id: "sales-report", label: "Sales Report", icon: Receipt },
     { id: "modes", label: "Service Modes", icon: Zap },
     { id: "menu", label: "Menu Items", icon: UtensilsCrossed },
-    { id: "staff", label: "Staff", icon: Users },
     { id: "modifiers", label: "Modifiers", icon: SlidersHorizontal },
+    { id: "staff", label: "Staff", icon: Users },
+    { id: "sales-report", label: "Sales Report", icon: Receipt },
+    { id: "marketing", label: "Marketing", icon: Megaphone },
     { id: "settings", label: "Settings", icon: SettingsIcon }
   ];
 
@@ -1132,69 +1212,31 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                         </div>
                      </div>
                      <ActiveOrdersPanel orders={orders || []} seller={seller} solutionConfig={solutionConfig} />
-                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        {analyticsData.modes.map(mode => {
-                           const stats = analyticsData.realTimeOperations[mode];
+                     <LiveOperationsOverview
+                        goal={ackTargetPercent}
+                        rows={analyticsData.modes.map((mode): ModeOverviewRow => {
                            const field = mode === 'Beverage Cart' ? 'bevcartActive' : mode === 'Clubhouse' ? 'clubhouseActive' : 'lanedeliveryActive';
-                           const isActive = !!seller?.[field as keyof Seller];
                            const pausedField = mode === 'Beverage Cart' ? 'bevcartPausedByStaff' : mode === 'Clubhouse' ? 'clubhousePausedByStaff' : 'lanedeliveryPausedByStaff';
                            const throttledField = mode === 'Beverage Cart' ? 'bevcartAutoThrottled' : mode === 'Clubhouse' ? 'clubhouseAutoThrottled' : 'lanedeliveryAutoThrottled';
-                           const isPausedByStaff = !!seller?.[pausedField as keyof Seller];
-                           const isAutoThrottled = !!seller?.[throttledField as keyof Seller];
-                           const ModeIcon = getModeIcon(mode);
-
-                           return (
-                              <Card key={mode} className={cn("border-2 shadow-sm overflow-hidden", isActive ? "border-slate-100" : "opacity-60 border-dashed")}>
-                                 <CardHeader className={cn("py-4 flex flex-row items-center justify-between", isActive ? "bg-slate-50" : "bg-muted/30")}>
-                                    <div className="flex items-center gap-2">
-                                       <div className={cn("w-2 h-2 rounded-full", isActive ? "bg-green-500 animate-pulse" : "bg-slate-300")} />
-                                       <ModeIcon className="h-3.5 w-3.5 text-[#213147]/40" />
-                                       <CardTitle className="text-[10px] font-black uppercase tracking-widest text-[#213147]">{mode}</CardTitle>
-                                    </div>
-                                    <ModeStatusSwitches
-                                       isActive={isActive}
-                                       isPaused={isPausedByStaff || isAutoThrottled}
-                                       onActiveChange={(val) => handleUpdateField(field, val)}
-                                       onPausedChange={(paused) => {
-                                          if (paused) {
-                                             setPauseConfirmMode(mode);
-                                          } else {
-                                             handleUpdateField(pausedField, false);
-                                             handleUpdateField(throttledField, false);
-                                          }
-                                       }}
-                                    />
-                                 </CardHeader>
-                                 <CardContent className="p-6 space-y-6">
-                                    {isAutoThrottled && !isPausedByStaff && (
-                                       <div className="flex items-center gap-1.5 p-3 rounded-xl bg-amber-50 border-2 border-amber-100">
-                                          <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-                                          <p className="text-[8px] font-black uppercase text-amber-700 leading-tight">Auto-paused - queue full</p>
-                                       </div>
-                                    )}
-                                    <div className="grid grid-cols-2 gap-4 border-b pb-6">
-                                       <div className="space-y-1"><p className="text-[8px] font-black uppercase text-muted-foreground">Order Count</p><p className="text-xl font-black text-[#213147]">{stats?.orderCount || 0}</p></div>
-                                       <div className="space-y-1 text-right"><p className="text-[8px] font-black uppercase text-muted-foreground">Net Today</p><p className="text-xl font-black text-primary font-mono">${(stats?.totalNetRevenue || 0).toFixed(2)}</p></div>
-                                    </div>
-                                    <div className="space-y-4">
-                                       <div className="flex justify-between items-start">
-                                          <div className="space-y-1"><p className="text-[8px] font-black uppercase text-muted-foreground flex items-center gap-1"><Timer className="h-2 w-2" /> Acknowledge</p><div className="flex items-baseline gap-1"><span className="text-sm font-black">{stats?.avgAck || 0}s</span><span className="text-[8px] font-bold text-muted-foreground uppercase">Avg</span></div></div>
-                                          {stats?.exceedMaxAckCount > 0 && <Badge variant="destructive" className="h-4 px-1 text-[7px] font-black uppercase">Exceed: {stats.exceedMaxAckCount}</Badge>}
-                                       </div>
-                                       <div className="flex justify-between items-start">
-                                          <div className="space-y-1"><p className="text-[8px] font-black uppercase text-muted-foreground flex items-center gap-1"><Clock className="h-2 w-2" /> Duration</p><div className="flex items-baseline gap-1"><span className="text-sm font-black">{stats?.avgDuration || 0}m</span><span className="text-[8px] font-bold text-muted-foreground uppercase">Avg</span></div></div>
-                                          <div className="flex flex-col items-end gap-1">{stats?.exceedWarnCount > 0 && <Badge className="bg-amber-500 text-white h-4 px-1 text-[7px] font-black uppercase">Warn: {stats.exceedWarnCount}</Badge>}{stats?.exceedMaxCount > 0 && <Badge variant="destructive" className="h-4 px-1 text-[7px] font-black uppercase">Late: {stats.exceedMaxCount}</Badge>}</div>
-                                       </div>
-                                    </div>
-                                    <div className="pt-4 border-t-2 border-dashed">
-                                       <p className="text-[8px] font-black uppercase text-muted-foreground mb-2 flex items-center gap-1"><Users className="h-2 w-2" /> Active Staff</p>
-                                       {stats?.activeStaff.length > 0 ? (<div className="flex flex-wrap gap-1">{stats.activeStaff.map((name: string) => (<Badge key={name} variant="outline" className="text-[7px] font-black uppercase bg-slate-50 border-slate-200">{name}</Badge>))}</div>) : (<p className="text-[8px] font-bold text-muted-foreground uppercase italic">No staff on-shift</p>)}
-                                    </div>
-                                 </CardContent>
-                              </Card>
-                           );
+                           return {
+                              mode,
+                              Icon: getModeIcon(mode),
+                              isActive: !!seller?.[field as keyof Seller],
+                              isPausedByStaff: !!seller?.[pausedField as keyof Seller],
+                              isAutoThrottled: !!seller?.[throttledField as keyof Seller],
+                              stats: analyticsData.realTimeOperations[mode],
+                              onActiveChange: (val) => handleUpdateField(field, val),
+                              onPausedChange: (paused) => {
+                                 if (paused) {
+                                    setPauseConfirmMode(mode);
+                                 } else {
+                                    handleUpdateField(pausedField, false);
+                                    handleUpdateField(throttledField, false);
+                                 }
+                              },
+                           };
                         })}
-                     </div>
+                     />
                   </div>
                   <div className="space-y-6">
                     <div className="flex items-center gap-3"><div className="p-2 bg-indigo-50 rounded-lg text-indigo-600"><BarChart3 className="h-6 w-6" /></div><div className="text-left"><h2 className="text-xl font-black uppercase text-[#213147]">Revenue Overview</h2><p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">7-Day Stacked Performance</p></div></div>
@@ -1295,8 +1337,8 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
               {activeNav === 'orders' && (
                 <div className="space-y-6 animate-in fade-in duration-500">
-                  <div className="flex items-center justify-between"><h2 className="text-xl font-black uppercase text-[#213147]">Fulfillment Log</h2><div className="relative w-64"><Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" /><Input placeholder="Search ticket or name..." value={orderSearchTerm} onChange={(e) => setOrderSearchTerm(e.target.value)} className="pl-10 h-10 border-2 rounded-xl" /></div></div>
-                  <Card className="border-2 rounded-[2rem] overflow-hidden shadow-sm bg-white"><Table><TableHeader className="bg-slate-50"><TableRow><TableHead className="px-8 py-5 text-[10px] font-black uppercase tracking-widest">Ticket</TableHead><TableHead className="text-[10px] font-black uppercase tracking-widest">Customer</TableHead><TableHead className="text-[10px] font-black uppercase tracking-widest">Mode</TableHead><TableHead className="text-[10px] font-black uppercase tracking-widest">Status</TableHead><TableHead className="text-[10px] font-black uppercase tracking-widest text-right px-8">Net Total</TableHead></TableRow></TableHeader><TableBody>{(orders || []).filter(o => o.customerName.toLowerCase().includes(orderSearchTerm.toLowerCase()) || getNumericOrderId(o.id).includes(orderSearchTerm)).sort((a, b) => (b.updatedAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0)).map(o => (<TableRow key={o.id} className="group hover:bg-slate-50/50 transition-colors"><TableCell className="px-8 font-mono font-black text-primary text-xs">#{getNumericOrderId(o.id)}</TableCell><TableCell><div className="flex flex-col text-left"><span className="font-bold text-sm uppercase">{o.customerName}</span><span className="text-[9px] uppercase text-muted-foreground">{o.createdAt ? format(o.createdAt.toDate(), 'MMM d, h:mm a') : ''}</span></div></TableCell><TableCell><Badge variant="outline" className="text-[8px] font-black uppercase bg-slate-100 border-slate-200">{o.menuType}</Badge></TableCell><TableCell><Badge className={cn("text-[8px] font-black uppercase border-0", o.status === 'Delivered' ? "bg-green-500" : o.status === 'Cancelled' ? "bg-red-500" : "bg-primary animate-pulse")}>{o.status}</Badge></TableCell><TableCell className="text-right px-8 font-mono font-black text-sm">${(o.total - (o.serviceFee || 0)).toFixed(2)}</TableCell></TableRow>))}</TableBody></Table></Card>
+                  <div className="flex flex-wrap items-center justify-between gap-3"><div className="text-left"><h2 className="text-xl font-black uppercase text-[#213147]">Fulfillment Log</h2><p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">{fulfillmentLogOrders.length} order{fulfillmentLogOrders.length === 1 ? '' : 's'}</p></div><div className="flex flex-wrap items-center gap-3"><div className="flex gap-1 bg-slate-100 p-1 rounded-xl">{LOG_RANGES.map(r => (<Button key={r.id} type="button" variant={logRange === r.id ? 'default' : 'ghost'} size="sm" onClick={() => setLogRange(r.id)} className={cn("h-8 px-3 text-[9px] font-black uppercase tracking-widest rounded-lg", logRange === r.id ? "bg-[#213147] text-white" : "text-slate-500")}>{r.label}</Button>))}</div><div className="relative w-64"><Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" /><Input placeholder="Search ticket or name..." value={orderSearchTerm} onChange={(e) => setOrderSearchTerm(e.target.value)} className="pl-10 h-10 border-2 rounded-xl" /></div></div></div>
+                  <Card className="border-2 rounded-[2rem] overflow-hidden shadow-sm bg-white"><Table><TableHeader className="bg-slate-50"><TableRow><TableHead className="px-8 py-5 text-[10px] font-black uppercase tracking-widest">Ticket</TableHead><TableHead className="text-[10px] font-black uppercase tracking-widest">Customer</TableHead><TableHead className="text-[10px] font-black uppercase tracking-widest">Mode</TableHead><TableHead className="text-[10px] font-black uppercase tracking-widest">Status</TableHead><TableHead className="text-[10px] font-black uppercase tracking-widest text-right px-8">Net Total</TableHead></TableRow></TableHeader><TableBody>{fulfillmentLogOrders.length === 0 ? (<TableRow><TableCell colSpan={5} className="py-16 text-center text-[10px] font-black uppercase text-muted-foreground">No orders for this selection</TableCell></TableRow>) : fulfillmentLogOrders.map(o => (<TableRow key={o.id} className="group hover:bg-slate-50/50 transition-colors"><TableCell className="px-8 font-mono font-black text-primary text-xs">#{getNumericOrderId(o.id)}</TableCell><TableCell><div className="flex flex-col text-left"><span className="font-bold text-sm uppercase">{o.customerName}</span><span className="text-[9px] uppercase text-muted-foreground">{o.createdAt ? format(o.createdAt.toDate(), 'MMM d, h:mm a') : ''}</span></div></TableCell><TableCell><Badge variant="outline" className="text-[8px] font-black uppercase bg-slate-100 border-slate-200">{o.menuType}</Badge></TableCell><TableCell><Badge className={cn("text-[8px] font-black uppercase border-0", o.status === 'Delivered' ? "bg-green-500" : o.status === 'Cancelled' ? "bg-red-500" : "bg-primary animate-pulse")}>{o.status}</Badge></TableCell><TableCell className="text-right px-8 font-mono font-black text-sm">${(o.total - (o.serviceFee || 0)).toFixed(2)}</TableCell></TableRow>))}</TableBody></Table></Card>
                 </div>
               )}
 
@@ -1304,6 +1346,11 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                 <div className="space-y-6 animate-in fade-in duration-500">
                   <div className="flex items-center gap-3"><div className="p-2 bg-primary/10 rounded-lg"><Receipt className="h-6 w-6 text-primary" /></div><div className="text-left"><h2 className="text-xl font-black uppercase text-[#213147]">Sales Report</h2><p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">One line per day per service mode &mdash; net of Koop's fees, for your own bookkeeping</p></div></div>
                   <Card className="border-2 shadow-sm bg-white p-4">
+                    <div className="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit mb-4">
+                      {([['summary', 'Daily Summary'], ['orders', 'Order Detail']] as const).map(([id, label]) => (
+                        <Button key={id} type="button" variant={salesView === id ? 'default' : 'ghost'} size="sm" onClick={() => setSalesView(id)} className={cn("h-8 px-4 text-[9px] font-black uppercase tracking-widest rounded-lg", salesView === id ? "bg-[#213147] text-white" : "text-slate-500")}>{label}</Button>
+                      ))}
+                    </div>
                     <div className="flex flex-wrap items-end gap-4">
                       <div className="space-y-1.5">
                         <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Service Mode</Label>
@@ -1325,16 +1372,30 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                         <Label htmlFor="sales-to" className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">To</Label>
                         <Input id="sales-to" type="date" value={salesTo} min={salesFrom || undefined} onChange={(e) => setSalesTo(e.target.value)} className="h-10 w-40 border-2 font-bold" />
                       </div>
-                      <Button onClick={handleDownloadSalesReport} disabled={salesReportView.rows.length === 0} className="h-10 ml-auto font-black uppercase text-[10px] tracking-widest gap-2">
+                      {salesView === 'orders' && (
+                        <div className="space-y-1.5">
+                          <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Payment</Label>
+                          <Select value={salesPayment} onValueChange={(v) => setSalesPayment(v as SalesPaymentFilter)}>
+                            <SelectTrigger className="h-10 w-44 border-2 font-black uppercase text-[10px] tracking-widest bg-white"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {(['All', 'Card', 'Pay at Delivery', 'Member Account'] as const).map(p => (
+                                <SelectItem key={p} value={p} className="text-[10px] font-black uppercase">{p === 'All' ? 'All Payments' : p}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+                      <Button onClick={handleDownloadSalesReport} disabled={(salesView === 'orders' ? salesOrderView.rows.length : salesReportView.rows.length) === 0} className="h-10 ml-auto font-black uppercase text-[10px] tracking-widest gap-2">
                         <Download className="h-4 w-4" /> Download CSV
                       </Button>
                     </div>
                     <div className="flex flex-wrap gap-1.5 mt-3">
-                      {([['today', 'Today'], ['7d', 'Last 7 Days'], ['month', 'This Month'], ['lastMonth', 'Last Month'], ['year', 'Year to Date']] as const).map(([key, label]) => (
-                        <Button key={key} type="button" variant="outline" size="sm" onClick={() => setSalesPreset(key)} className="h-7 rounded-full border-2 text-[9px] font-black uppercase tracking-widest">{label}</Button>
+                      {REPORT_PRESETS.map(({ id, label }) => (
+                        <Button key={id} type="button" variant="outline" size="sm" onClick={() => setSalesPreset(id)} className="h-7 rounded-full border-2 text-[9px] font-black uppercase tracking-widest">{label}</Button>
                       ))}
                     </div>
                   </Card>
+                  {salesView === 'summary' ? (
                   <Card className="border-2 rounded-[2rem] overflow-hidden shadow-sm bg-white">
                     <Table>
                       <TableHeader className="bg-slate-50">
@@ -1384,6 +1445,54 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                       )}
                     </Table>
                   </Card>
+                  ) : (
+                  <Card className="border-2 rounded-[2rem] overflow-hidden shadow-sm bg-white">
+                    <Table>
+                      <TableHeader className="bg-slate-50">
+                        <TableRow>
+                          <TableHead className="px-6 py-5 text-[10px] font-black uppercase tracking-widest">Order #</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase tracking-widest">Placed</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase tracking-widest">Service Mode</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase tracking-widest">Payment</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Net Payout</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Tax</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Tips</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase tracking-widest text-right px-6">Total Collected</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {salesOrderView.rows.length === 0 ? (
+                          <TableRow><TableCell colSpan={8} className="py-16 text-center text-[10px] font-black uppercase text-muted-foreground">No completed orders for this selection</TableCell></TableRow>
+                        ) : salesOrderView.rows.map(row => (
+                          <TableRow key={row.orderId} className="group hover:bg-slate-50/50 transition-colors">
+                            <TableCell className="px-6 font-mono font-black text-primary text-xs">#{row.orderNumber}</TableCell>
+                            <TableCell className="text-sm font-bold whitespace-nowrap">{format(new Date(`${row.date}T00:00:00`), 'MMM d, yyyy')} <span className="text-[10px] text-muted-foreground">{row.time}</span></TableCell>
+                            <TableCell><Badge variant="outline" className="text-[8px] font-black uppercase bg-slate-100 border-slate-200">{row.menuType}</Badge></TableCell>
+                            <TableCell className="text-[10px] font-black uppercase text-muted-foreground whitespace-nowrap">{paymentLabel(row.paymentMethod)}</TableCell>
+                            <TableCell className="text-right font-mono font-black text-sm">${row.netPayout.toFixed(2)}</TableCell>
+                            <TableCell className="text-right font-mono font-bold text-sm text-muted-foreground">${row.tax.toFixed(2)}</TableCell>
+                            <TableCell className="text-right font-mono font-bold text-sm text-muted-foreground">${row.tip.toFixed(2)}</TableCell>
+                            <TableCell className="text-right px-6 font-mono font-black text-sm">${row.totalCollected.toFixed(2)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                      {salesOrderView.rows.length > 0 && (
+                        <TableFooter className="bg-slate-50">
+                          <TableRow>
+                            <TableCell className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-[#213147]">Total</TableCell>
+                            <TableCell className="text-[9px] font-black uppercase text-muted-foreground">{salesOrderView.totals.orderCount} orders</TableCell>
+                            <TableCell className="text-[9px] font-black uppercase text-muted-foreground">{salesMode === 'All' ? 'All modes' : salesMode}</TableCell>
+                            <TableCell className="text-[9px] font-black uppercase text-muted-foreground">{salesPayment === 'All' ? 'All payments' : salesPayment}</TableCell>
+                            <TableCell className="text-right font-mono font-black text-sm text-[#213147]">${salesOrderView.totals.netPayout.toFixed(2)}</TableCell>
+                            <TableCell className="text-right font-mono font-black text-sm text-[#213147]">${salesOrderView.totals.tax.toFixed(2)}</TableCell>
+                            <TableCell className="text-right font-mono font-black text-sm text-[#213147]">${salesOrderView.totals.tip.toFixed(2)}</TableCell>
+                            <TableCell className="text-right px-6 font-mono font-black text-sm text-[#213147]">${salesOrderView.totals.totalCollected.toFixed(2)}</TableCell>
+                          </TableRow>
+                        </TableFooter>
+                      )}
+                    </Table>
+                  </Card>
+                  )}
                 </div>
               )}
 
@@ -1566,7 +1675,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                                 <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-primary" onClick={() => { setEditingItem(item); itemForm.reset({ name: item.name, description: item.description || '', price: item.price, category: item.category, isAvailable: item.isAvailable !== false, imageUrl: item.imageUrl || '', availableOn: item.availableOn || [], featuredOn: item.featuredOn || [], modifierGroupIds: item.modifierGroupIds || [] }); setIsItemFormOpen(true); }}>
                                   <Edit className="h-4 w-4" />
                                 </Button>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-destructive" onClick={() => { const docRef = doc(firestore!, 'sellers', sellerId, 'menuItems', item.id); deleteDoc(docRef).catch(async (e) => { errorEmitter.emit('permission-error', new FirestorePermissionError({ path: docRef.path, operation: 'delete' } satisfies SecurityRuleContext)); }); }}>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-destructive" onClick={() => setItemToDelete(item)} aria-label={`Delete ${item.name}`}>
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
                               </div>
@@ -2135,6 +2244,26 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
           </div>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
+        <AlertDialogContent className="rounded-[2rem] border-2 shadow-2xl p-8">
+          <AlertDialogHeader className="text-left space-y-4">
+            <div className="bg-destructive/10 p-3 rounded-2xl w-fit"><Trash2 className="h-8 w-8 text-destructive" /></div>
+            <div className="space-y-1">
+              <AlertDialogTitle className="font-headline font-black uppercase text-xl">Delete Menu Item?</AlertDialogTitle>
+              <AlertDialogDescription className="text-sm font-medium leading-relaxed">
+                <strong className="text-foreground">{itemToDelete?.name}</strong> will be removed from your menu and from every service mode. Orders already placed are not affected. This can&apos;t be undone.
+              </AlertDialogDescription>
+            </div>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-8 gap-3">
+            <AlertDialogCancel className="rounded-xl font-black uppercase text-[10px] tracking-widest border-2 h-12">Keep Item</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteItem} className="bg-destructive hover:bg-destructive/90 rounded-xl font-black uppercase text-[10px] tracking-widest h-12 px-8">
+              Delete Item
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={!!pauseConfirmMode} onOpenChange={(open) => !open && setPauseConfirmMode(null)}>
         <AlertDialogContent className="rounded-[2rem] border-2 shadow-2xl p-8">

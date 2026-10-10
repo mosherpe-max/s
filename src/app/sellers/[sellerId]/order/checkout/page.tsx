@@ -1,6 +1,7 @@
 'use client';
 
 import { use, useState, useEffect, useMemo, Suspense } from 'react';
+import { isModePaused } from '@/lib/mode-status';
 import { collection, doc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { signInAnonymously } from 'firebase/auth';
 import { useFirestore, useFirebase, useAuth, useUser, useDoc, useMemoFirebase } from '@/firebase';
@@ -16,7 +17,7 @@ import { PatronIdentifyFields } from '@/components/patron-identify-fields';
 import { StripeActionArea } from '@/components/stripe-action-area';
 import { StripeCheckoutForm } from '@/components/stripe-checkout-form';
 import { CheckoutBrandingBar } from '@/components/checkout-branding-bar';
-import { Loader2, ChevronLeft, CreditCard, Banknote, UserCircle, Check, ShoppingBag, Lock, ArrowLeft } from 'lucide-react';
+import { Loader2, ChevronLeft, CreditCard, Banknote, UserCircle, Check, ShoppingBag, Lock, ArrowLeft, AlertTriangle } from 'lucide-react';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
 import { getFunctions, httpsCallable } from 'firebase/functions';
@@ -332,6 +333,26 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
     return (
       <div className="flex flex-col min-h-screen bg-background items-center justify-center">
         <Loader2 className="animate-spin h-10 w-10 text-primary" />
+      </div>
+    );
+  }
+
+  // New orders were paused (by staff or the venue admin) after this patron started
+  // checking out. Don't let them pay for a service that has stopped taking orders;
+  // their cart is kept so they can come back when it resumes.
+  if (isModePaused(seller, menuTypeFromUrl, sellerId) && !orderJustPlaced && !isProcessing) {
+    return (
+      <div className="flex flex-col min-h-screen bg-[#213147] items-center justify-center p-8 text-center text-white">
+        <div className="bg-amber-500/10 p-10 rounded-[3rem] border-2 border-amber-500/20 shadow-2xl mb-8">
+          <AlertTriangle className="h-16 w-16 text-amber-400 mx-auto mb-6" />
+          <h2 className="font-headline font-black text-2xl uppercase tracking-tight mb-3">Very Busy Right Now</h2>
+          <p className="text-white/60 text-sm font-medium leading-relaxed max-w-xs mx-auto">
+            {menuTypeFromUrl || 'This channel'} has paused new orders while it catches up. Your cart is saved. Please check back shortly.
+          </p>
+        </div>
+        <Button variant="ghost" className="text-white/60 hover:text-white uppercase text-[10px] font-black tracking-widest gap-2" onClick={() => router.push(menuUrl)}>
+          <ArrowLeft className="h-3 w-3" /> Back to Menu
+        </Button>
       </div>
     );
   }

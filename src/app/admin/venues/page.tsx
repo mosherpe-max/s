@@ -36,6 +36,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { VenueAdminLinkDialog, VenueAdminLogins, useVenueAdminActions, type VenueAdminLink } from '@/components/venue-admin-logins';
 import { Checkbox } from '@/components/ui/checkbox';
 import { 
   Dialog, 
@@ -140,7 +141,9 @@ const VENUE_NAME_MAX_LENGTH = 30;
 const newVenueSchema = z.object({
   courseName: z.string().min(2, 'Course name required').max(VENUE_NAME_MAX_LENGTH, `Keep it to ${VENUE_NAME_MAX_LENGTH} characters or fewer - use the venue's short name or nickname`),
   type: z.enum(['Golf Course', 'Bowling Center']),
-  ownerUid: z.string().min(10, 'Valid Manager UID required'),
+  // Legacy: a Firebase UID pasted by hand. Optional now that a login can be created from the manager's email.
+  ownerUid: z.string().optional(),
+  createLogin: z.boolean().default(true),
   contactName: z.string().min(2, 'Contact name required'),
   contactEmail: z.string().email('Valid email required'),
   contactPhone: z.string().min(10, 'Valid phone number required'),
@@ -162,6 +165,8 @@ export default function AdminVenueRegistryPage() {
   const { toast } = useToast();
 
   const [isManagementOpen, setIsManagementOpen] = useState(false);
+  const { createLogin } = useVenueAdminActions();
+  const [newLoginResult, setNewLoginResult] = useState<VenueAdminLink | null>(null);
   const [isNewVenueOpen, setIsNewVenueOpen] = useState(false);
   const [venueToDelete, setVenueToDelete] = useState<string | null>(null);
   const [selectedVenue, setSelectedVenue] = useState<Venue | null>(null);
@@ -230,6 +235,7 @@ export default function AdminVenueRegistryPage() {
       courseName: '',
       type: 'Golf Course',
       ownerUid: '',
+      createLogin: true,
       contactName: '',
       contactEmail: '',
       contactPhone: '',
@@ -334,7 +340,7 @@ export default function AdminVenueRegistryPage() {
         id: venueId, courseName: data.courseName, type: data.type, status: 'Active',
         contactName: data.contactName, contactEmail: data.contactEmail, contactPhone: data.contactPhone,
         streetAddress: data.streetAddress, city: data.city, state: data.state, zip: data.zip,
-        menuTypes: data.menuTypes, taxRate: 6.0, serviceFee: 1.50, ownerId: data.ownerUid,
+        menuTypes: data.menuTypes, taxRate: 6.0, serviceFee: 1.50, ownerId: data.ownerUid || '',
         laneCount: data.type === 'Bowling Center' ? data.laneCount : 0,
         ...(data.type === 'Golf Course' ? { holeCount: data.holeCount, hasDrivingRange: data.hasDrivingRange } : {}),
         latitude: 0,
@@ -346,7 +352,7 @@ export default function AdminVenueRegistryPage() {
 
       const businessRef = doc(firestore, 'venues', venueId);
       const businessData: Venue = {
-        venueId: venueId, name: data.courseName, ownerUid: data.ownerUid,
+        venueId: venueId, name: data.courseName, ownerUid: data.ownerUid || '',
         solutionFeeFixed: 50, solutionFeePercent: 2.9, patronConvenienceFee: 150,
         monthlySolutionFee: 49, isDemo: false, stripeOnboardingComplete: false,
         payoutsEnabled: false, createdAt: serverTimestamp() as any, updatedAt: serverTimestamp() as any,
@@ -354,10 +360,17 @@ export default function AdminVenueRegistryPage() {
 
       batch.set(sellerRef, { ...sellerData, updatedAt: serverTimestamp() });
       batch.set(businessRef, businessData);
-      batch.commit().then(() => {
+      batch.commit().then(async () => {
         toast({ title: "Venue Created" });
         setIsNewVenueOpen(false);
         onboardingForm.reset();
+        if (data.createLogin) {
+          try {
+            setNewLoginResult(await createLogin(venueId, data.contactEmail, data.contactName));
+          } catch (e: any) {
+            toast({ variant: "destructive", title: "Venue Created, Login Not Created", description: `${e?.message || 'Please try again'} You can add the login from Venue Controls.` });
+          }
+        }
       }).catch(async (error) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
           path: sellerRef.path,
@@ -698,8 +711,14 @@ export default function AdminVenueRegistryPage() {
                         <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Manager Phone</FormLabel><FormControl><Input {...field} type="tel" className="h-12 border-2 font-bold" /></FormControl></FormItem>
                       )} />
                     </div>
-                    <FormField control={onboardingForm.control} name="ownerUid" render={({ field }) => (
-                      <FormItem className="text-left"><FormLabel className="text-[10px] font-black uppercase">Owner Firebase UID</FormLabel><FormControl><Input {...field} className="h-12 border-2 font-mono font-bold text-xs" /></FormControl></FormItem>
+                    <FormField control={onboardingForm.control} name="createLogin" render={({ field }) => (
+                      <FormItem className="flex flex-row items-start gap-3 space-y-0 p-4 rounded-xl border-2 bg-slate-50 border-slate-100 text-left">
+                        <FormControl><Checkbox checked={field.value} onCheckedChange={(v) => field.onChange(!!v)} className="mt-0.5" /></FormControl>
+                        <div className="space-y-1">
+                          <FormLabel className="text-[10px] font-black uppercase cursor-pointer">Create a login for this manager</FormLabel>
+                          <p className="text-[9px] font-bold text-muted-foreground uppercase leading-relaxed">Uses the manager name and email above, then gives you a link for them to choose their password.</p>
+                        </div>
+                      </FormItem>
                     )} />
                   </div>
                   <div className="space-y-4 pt-6 border-t border-slate-100">
@@ -728,6 +747,8 @@ export default function AdminVenueRegistryPage() {
           </ScrollArea>
         </DialogContent>
       </Dialog>
+
+      <VenueAdminLinkDialog result={newLoginResult} onClose={() => setNewLoginResult(null)} />
 
       <Dialog open={isManagementOpen} onOpenChange={setIsManagementOpen}>
         <DialogContent closeClassName="text-white hover:text-white/80" className="sm:max-w-[550px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
@@ -897,6 +918,12 @@ export default function AdminVenueRegistryPage() {
                       patronMenuUrl={qrUrl}
                       venueType={currentSeller.type}
                     />
+                 </div>
+               )}
+
+               {selectedVenue && (
+                 <div className="pt-10 border-t-4 border-slate-100">
+                   <VenueAdminLogins venueId={selectedVenue.venueId} courseName={selectedVenue.name} />
                  </div>
                )}
 
