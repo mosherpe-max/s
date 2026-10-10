@@ -139,7 +139,11 @@ import { ImageUploadDropzone } from '@/components/image-upload-dropzone';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { categories } from '@/lib/types';
 import type { MenuItem, Seller, Order, StaffMember, SolutionConfig, Venue, ModifierGroup, DailySalesLock } from '@/lib/types';
-import { buildSalesReportCsv, filterSalesRows, totalSalesRows } from '@/lib/sales-report';
+import {
+  buildOrderDetailCsv, buildSalesReportCsv, filterSalesOrderRows, filterSalesRows, paymentLabel, totalSalesOrderRows, totalSalesRows,
+  type SalesOrderRow, type SalesPaymentFilter,
+} from '@/lib/sales-report';
+import { REPORT_PRESETS, reportRange, type ReportPreset } from '@/lib/report-ranges';
 import { percentWithin, resolveThresholds } from '@/lib/ops-stats';
 import { LOG_RANGES, logRangeStart, type LogRange } from '@/lib/log-range';
 import { signOut } from 'firebase/auth';
@@ -322,6 +326,8 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
   // Sales Report filters: one service mode (or all) and a date range, defaulting to this month.
   const [salesMode, setSalesMode] = useState<string>('All');
+  const [salesView, setSalesView] = useState<'summary' | 'orders'>('summary');
+  const [salesPayment, setSalesPayment] = useState<SalesPaymentFilter>('All');
   const [salesFrom, setSalesFrom] = useState<string>(() => format(startOfMonth(new Date()), 'yyyy-MM-dd'));
   const [salesTo, setSalesTo] = useState<string>(() => format(new Date(), 'yyyy-MM-dd'));
   const [isConnectingStripe, setIsConnectingStripe] = useState(false);
@@ -692,34 +698,65 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     return { rows, totals: totalSalesRows(rows) };
   }, [dailySalesReport.rows, salesMode, salesFrom, salesTo]);
 
-  const setSalesPreset = (preset: 'today' | '7d' | 'month' | 'lastMonth' | 'year') => {
-    const today = new Date();
-    const fmt = (d: Date) => format(d, 'yyyy-MM-dd');
-    if (preset === 'today') { setSalesFrom(fmt(today)); setSalesTo(fmt(today)); }
-    if (preset === '7d') { setSalesFrom(fmt(subDays(today, 6))); setSalesTo(fmt(today)); }
-    if (preset === 'month') { setSalesFrom(fmt(startOfMonth(today))); setSalesTo(fmt(today)); }
-    if (preset === 'lastMonth') {
-      const firstOfThisMonth = startOfMonth(today);
-      setSalesFrom(fmt(startOfMonth(subDays(firstOfThisMonth, 1)))); setSalesTo(fmt(subDays(firstOfThisMonth, 1)));
-    }
-    if (preset === 'year') { setSalesFrom(fmt(startOfYear(today))); setSalesTo(fmt(today)); }
+  // One line per delivered order, for matching card deposits and for audit. Net payout is
+  // worked out the same way as the daily rows (from the venue's current fee setting).
+  const salesOrderRows = useMemo<SalesOrderRow[]>(() => {
+    return (orders || [])
+      .filter(o => o.status === 'Delivered' && o.createdAt)
+      .sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis())
+      .map(o => {
+        const placed = o.createdAt.toDate();
+        return {
+          orderNumber: getNumericOrderId(o.id),
+          orderId: o.id,
+          date: format(placed, 'yyyy-MM-dd'),
+          time: format(placed, 'h:mm a'),
+          menuType: o.menuType,
+          paymentMethod: o.paymentMethod || '',
+          stripePaymentIntentId: o.stripePaymentIntentId || '',
+          subtotal: o.subtotal || 0,
+          tax: o.tax || 0,
+          tip: o.tip || 0,
+          convenienceFee: o.serviceFee || 0,
+          netPayout: computeOrderNetPayout(o),
+          totalCollected: o.total || 0,
+        };
+      });
+  }, [orders, venue]);
+
+  const salesOrderView = useMemo(() => {
+    const rows = filterSalesOrderRows(salesOrderRows, salesMode, salesFrom, salesTo, salesPayment);
+    return { rows, totals: totalSalesOrderRows(rows) };
+  }, [salesOrderRows, salesMode, salesFrom, salesTo, salesPayment]);
+
+  const setSalesPreset = (preset: ReportPreset) => {
+    const { from, to } = reportRange(preset);
+    setSalesFrom(from);
+    setSalesTo(to);
   };
 
   const handleDownloadSalesReport = () => {
-    const { rows, totals } = salesReportView;
-    const csv = buildSalesReportCsv(rows, totals, salesMode);
+    const isOrders = salesView === 'orders';
+    const csv = isOrders
+      ? buildOrderDetailCsv(salesOrderView.rows, salesOrderView.totals, salesMode)
+      : buildSalesReportCsv(salesReportView.rows, salesReportView.totals, salesMode);
+    const count = isOrders ? salesOrderView.rows.length : salesReportView.rows.length;
     const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' });
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     const venueName = (seller?.courseName || 'Venue').replace(/[^a-z0-9]+/gi, '_');
     const modePart = salesMode === 'All' ? 'All_Modes' : salesMode.replace(/\s+/g, '_');
+    const paymentPart = isOrders && salesPayment !== 'All' ? `_${salesPayment.replace(/\s+/g, '_')}` : '';
     link.href = url;
-    link.download = `${venueName}_Sales_Report_${modePart}_${salesFrom || 'start'}_to_${salesTo || 'today'}.csv`;
+    link.download = `${venueName}_${isOrders ? 'Order_Detail' : 'Sales_Report'}_${modePart}${paymentPart}_${salesFrom || 'start'}_to_${salesTo || 'today'}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     window.URL.revokeObjectURL(url);
-    toast({ title: 'Sales Report Downloaded', description: `${rows.length} day${rows.length === 1 ? '' : 's'} included.` });
+    toast({
+      title: isOrders ? 'Order Detail Downloaded' : 'Sales Report Downloaded',
+      description: isOrders ? `${count} order${count === 1 ? '' : 's'} included.` : `${count} day${count === 1 ? '' : 's'} included.`,
+    });
   };
 
   const sensors = useSensors(
@@ -1322,6 +1359,11 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                 <div className="space-y-6 animate-in fade-in duration-500">
                   <div className="flex items-center gap-3"><div className="p-2 bg-primary/10 rounded-lg"><Receipt className="h-6 w-6 text-primary" /></div><div className="text-left"><h2 className="text-xl font-black uppercase text-[#213147]">Sales Report</h2><p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">One line per day per service mode &mdash; net of Koop's fees, for your own bookkeeping</p></div></div>
                   <Card className="border-2 shadow-sm bg-white p-4">
+                    <div className="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit mb-4">
+                      {([['summary', 'Daily Summary'], ['orders', 'Order Detail']] as const).map(([id, label]) => (
+                        <Button key={id} type="button" variant={salesView === id ? 'default' : 'ghost'} size="sm" onClick={() => setSalesView(id)} className={cn("h-8 px-4 text-[9px] font-black uppercase tracking-widest rounded-lg", salesView === id ? "bg-[#213147] text-white" : "text-slate-500")}>{label}</Button>
+                      ))}
+                    </div>
                     <div className="flex flex-wrap items-end gap-4">
                       <div className="space-y-1.5">
                         <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Service Mode</Label>
@@ -1343,16 +1385,30 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                         <Label htmlFor="sales-to" className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">To</Label>
                         <Input id="sales-to" type="date" value={salesTo} min={salesFrom || undefined} onChange={(e) => setSalesTo(e.target.value)} className="h-10 w-40 border-2 font-bold" />
                       </div>
-                      <Button onClick={handleDownloadSalesReport} disabled={salesReportView.rows.length === 0} className="h-10 ml-auto font-black uppercase text-[10px] tracking-widest gap-2">
+                      {salesView === 'orders' && (
+                        <div className="space-y-1.5">
+                          <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Payment</Label>
+                          <Select value={salesPayment} onValueChange={(v) => setSalesPayment(v as SalesPaymentFilter)}>
+                            <SelectTrigger className="h-10 w-44 border-2 font-black uppercase text-[10px] tracking-widest bg-white"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {(['All', 'Card', 'Pay at Delivery', 'Member Account'] as const).map(p => (
+                                <SelectItem key={p} value={p} className="text-[10px] font-black uppercase">{p === 'All' ? 'All Payments' : p}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+                      <Button onClick={handleDownloadSalesReport} disabled={(salesView === 'orders' ? salesOrderView.rows.length : salesReportView.rows.length) === 0} className="h-10 ml-auto font-black uppercase text-[10px] tracking-widest gap-2">
                         <Download className="h-4 w-4" /> Download CSV
                       </Button>
                     </div>
                     <div className="flex flex-wrap gap-1.5 mt-3">
-                      {([['today', 'Today'], ['7d', 'Last 7 Days'], ['month', 'This Month'], ['lastMonth', 'Last Month'], ['year', 'Year to Date']] as const).map(([key, label]) => (
-                        <Button key={key} type="button" variant="outline" size="sm" onClick={() => setSalesPreset(key)} className="h-7 rounded-full border-2 text-[9px] font-black uppercase tracking-widest">{label}</Button>
+                      {REPORT_PRESETS.map(({ id, label }) => (
+                        <Button key={id} type="button" variant="outline" size="sm" onClick={() => setSalesPreset(id)} className="h-7 rounded-full border-2 text-[9px] font-black uppercase tracking-widest">{label}</Button>
                       ))}
                     </div>
                   </Card>
+                  {salesView === 'summary' ? (
                   <Card className="border-2 rounded-[2rem] overflow-hidden shadow-sm bg-white">
                     <Table>
                       <TableHeader className="bg-slate-50">
@@ -1402,6 +1458,54 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                       )}
                     </Table>
                   </Card>
+                  ) : (
+                  <Card className="border-2 rounded-[2rem] overflow-hidden shadow-sm bg-white">
+                    <Table>
+                      <TableHeader className="bg-slate-50">
+                        <TableRow>
+                          <TableHead className="px-6 py-5 text-[10px] font-black uppercase tracking-widest">Order #</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase tracking-widest">Placed</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase tracking-widest">Service Mode</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase tracking-widest">Payment</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Net Payout</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Tax</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Tips</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase tracking-widest text-right px-6">Total Collected</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {salesOrderView.rows.length === 0 ? (
+                          <TableRow><TableCell colSpan={8} className="py-16 text-center text-[10px] font-black uppercase text-muted-foreground">No completed orders for this selection</TableCell></TableRow>
+                        ) : salesOrderView.rows.map(row => (
+                          <TableRow key={row.orderId} className="group hover:bg-slate-50/50 transition-colors">
+                            <TableCell className="px-6 font-mono font-black text-primary text-xs">#{row.orderNumber}</TableCell>
+                            <TableCell className="text-sm font-bold whitespace-nowrap">{format(new Date(`${row.date}T00:00:00`), 'MMM d, yyyy')} <span className="text-[10px] text-muted-foreground">{row.time}</span></TableCell>
+                            <TableCell><Badge variant="outline" className="text-[8px] font-black uppercase bg-slate-100 border-slate-200">{row.menuType}</Badge></TableCell>
+                            <TableCell className="text-[10px] font-black uppercase text-muted-foreground whitespace-nowrap">{paymentLabel(row.paymentMethod)}</TableCell>
+                            <TableCell className="text-right font-mono font-black text-sm">${row.netPayout.toFixed(2)}</TableCell>
+                            <TableCell className="text-right font-mono font-bold text-sm text-muted-foreground">${row.tax.toFixed(2)}</TableCell>
+                            <TableCell className="text-right font-mono font-bold text-sm text-muted-foreground">${row.tip.toFixed(2)}</TableCell>
+                            <TableCell className="text-right px-6 font-mono font-black text-sm">${row.totalCollected.toFixed(2)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                      {salesOrderView.rows.length > 0 && (
+                        <TableFooter className="bg-slate-50">
+                          <TableRow>
+                            <TableCell className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-[#213147]">Total</TableCell>
+                            <TableCell className="text-[9px] font-black uppercase text-muted-foreground">{salesOrderView.totals.orderCount} orders</TableCell>
+                            <TableCell className="text-[9px] font-black uppercase text-muted-foreground">{salesMode === 'All' ? 'All modes' : salesMode}</TableCell>
+                            <TableCell className="text-[9px] font-black uppercase text-muted-foreground">{salesPayment === 'All' ? 'All payments' : salesPayment}</TableCell>
+                            <TableCell className="text-right font-mono font-black text-sm text-[#213147]">${salesOrderView.totals.netPayout.toFixed(2)}</TableCell>
+                            <TableCell className="text-right font-mono font-black text-sm text-[#213147]">${salesOrderView.totals.tax.toFixed(2)}</TableCell>
+                            <TableCell className="text-right font-mono font-black text-sm text-[#213147]">${salesOrderView.totals.tip.toFixed(2)}</TableCell>
+                            <TableCell className="text-right px-6 font-mono font-black text-sm text-[#213147]">${salesOrderView.totals.totalCollected.toFixed(2)}</TableCell>
+                          </TableRow>
+                        </TableFooter>
+                      )}
+                    </Table>
+                  </Card>
+                  )}
                 </div>
               )}
 
