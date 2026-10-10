@@ -148,6 +148,7 @@ import { percentWithin, resolveThresholds } from '@/lib/ops-stats';
 import { LiveOperationsOverview, type ModeOverviewRow } from '@/components/live-operations-overview';
 import { LOG_RANGES, logRangeStart, type LogRange } from '@/lib/log-range';
 import { getTaxRate } from '@/lib/tax';
+import { PatronList } from '@/components/patron-list';
 import { nextCategoryList } from '@/lib/category-visibility';
 import { signOut } from 'firebase/auth';
 import { 
@@ -1103,6 +1104,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     { id: "modifiers", label: "Modifiers", icon: SlidersHorizontal },
     { id: "staff", label: "Staff", icon: Users },
     { id: "sales-report", label: "Sales Report", icon: Receipt },
+    { id: "patrons", label: "Patrons", icon: Users },
     { id: "marketing", label: "Marketing", icon: Megaphone },
     { id: "settings", label: "Settings", icon: SettingsIcon }
   ];
@@ -1352,6 +1354,8 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                   <Card className="border-2 rounded-[2rem] overflow-hidden shadow-sm bg-white"><Table><TableHeader className="bg-slate-50"><TableRow><TableHead className="px-8 py-5 text-[10px] font-black uppercase tracking-widest">Ticket</TableHead><TableHead className="text-[10px] font-black uppercase tracking-widest">Customer</TableHead><TableHead className="text-[10px] font-black uppercase tracking-widest">Mode</TableHead><TableHead className="text-[10px] font-black uppercase tracking-widest">Status</TableHead><TableHead className="text-[10px] font-black uppercase tracking-widest text-right px-8">Net Total</TableHead></TableRow></TableHeader><TableBody>{fulfillmentLogOrders.length === 0 ? (<TableRow><TableCell colSpan={5} className="py-16 text-center text-[10px] font-black uppercase text-muted-foreground">No orders for this selection</TableCell></TableRow>) : fulfillmentLogOrders.map(o => (<TableRow key={o.id} className="group hover:bg-slate-50/50 transition-colors"><TableCell className="px-8 font-mono font-black text-primary text-xs">#{getNumericOrderId(o.id)}</TableCell><TableCell><div className="flex flex-col text-left"><span className="font-bold text-sm uppercase">{o.customerName}</span><span className="text-[9px] uppercase text-muted-foreground">{o.createdAt ? format(o.createdAt.toDate(), 'MMM d, h:mm a') : ''}</span></div></TableCell><TableCell><Badge variant="outline" className="text-[8px] font-black uppercase bg-slate-100 border-slate-200">{o.menuType}</Badge></TableCell><TableCell><Badge className={cn("text-[8px] font-black uppercase border-0", o.status === 'Delivered' ? "bg-green-500" : o.status === 'Cancelled' ? "bg-red-500" : "bg-primary animate-pulse")}>{o.status}</Badge></TableCell><TableCell className="text-right px-8 font-mono font-black text-sm">${(o.total - (o.serviceFee || 0)).toFixed(2)}</TableCell></TableRow>))}</TableBody></Table></Card>
                 </div>
               )}
+
+              {activeNav === 'patrons' && <PatronList orders={orders} courseName={seller?.courseName} />}
 
               {activeNav === 'sales-report' && (
                 <div className="space-y-6 animate-in fade-in duration-500">
