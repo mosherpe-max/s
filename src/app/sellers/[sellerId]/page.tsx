@@ -141,6 +141,7 @@ import { categories } from '@/lib/types';
 import type { MenuItem, Seller, Order, StaffMember, SolutionConfig, Venue, ModifierGroup, DailySalesLock } from '@/lib/types';
 import { buildSalesReportCsv, filterSalesRows, totalSalesRows } from '@/lib/sales-report';
 import { percentWithin, resolveThresholds } from '@/lib/ops-stats';
+import { LiveOperationsOverview, type ModeOverviewRow } from '@/components/live-operations-overview';
 import { signOut } from 'firebase/auth';
 import { 
   BarChart, 
@@ -435,6 +436,11 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
         ackMaxSeconds: thresholds.maxOrderAcknowledgeSeconds,
         durWithinPct: percentWithin(durMinutes, thresholds.maxOrderProcessingMinutes),
         durMaxMinutes: thresholds.maxOrderProcessingMinutes,
+        // Counts behind the percentages, so the all-modes figure is weighted by orders
+        ackTotal: ackSeconds.length,
+        ackWithinCount: ackSeconds.length - exceedMaxAckCount,
+        durTotal: durMinutes.length,
+        durWithinCount: durMinutes.length - exceedMaxCount,
         avgDuration: parseFloat(avgDuration.toFixed(1)),
         exceedWarnCount,
         exceedMaxCount,
@@ -1138,69 +1144,31 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                         </div>
                      </div>
                      <ActiveOrdersPanel orders={orders || []} seller={seller} solutionConfig={solutionConfig} />
-                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        {analyticsData.modes.map(mode => {
-                           const stats = analyticsData.realTimeOperations[mode];
+                     <LiveOperationsOverview
+                        goal={ackTargetPercent}
+                        rows={analyticsData.modes.map((mode): ModeOverviewRow => {
                            const field = mode === 'Beverage Cart' ? 'bevcartActive' : mode === 'Clubhouse' ? 'clubhouseActive' : 'lanedeliveryActive';
-                           const isActive = !!seller?.[field as keyof Seller];
                            const pausedField = mode === 'Beverage Cart' ? 'bevcartPausedByStaff' : mode === 'Clubhouse' ? 'clubhousePausedByStaff' : 'lanedeliveryPausedByStaff';
                            const throttledField = mode === 'Beverage Cart' ? 'bevcartAutoThrottled' : mode === 'Clubhouse' ? 'clubhouseAutoThrottled' : 'lanedeliveryAutoThrottled';
-                           const isPausedByStaff = !!seller?.[pausedField as keyof Seller];
-                           const isAutoThrottled = !!seller?.[throttledField as keyof Seller];
-                           const ModeIcon = getModeIcon(mode);
-
-                           return (
-                              <Card key={mode} className={cn("border-2 shadow-sm overflow-hidden", isActive ? "border-slate-100" : "opacity-60 border-dashed")}>
-                                 <CardHeader className={cn("py-4 flex flex-row items-center justify-between", isActive ? "bg-slate-50" : "bg-muted/30")}>
-                                    <div className="flex items-center gap-2">
-                                       <div className={cn("w-2 h-2 rounded-full", isActive ? "bg-green-500 animate-pulse" : "bg-slate-300")} />
-                                       <ModeIcon className="h-3.5 w-3.5 text-[#213147]/40" />
-                                       <CardTitle className="text-[10px] font-black uppercase tracking-widest text-[#213147]">{mode}</CardTitle>
-                                    </div>
-                                    <ModeStatusSwitches
-                                       isActive={isActive}
-                                       isPaused={isPausedByStaff || isAutoThrottled}
-                                       onActiveChange={(val) => handleUpdateField(field, val)}
-                                       onPausedChange={(paused) => {
-                                          if (paused) {
-                                             setPauseConfirmMode(mode);
-                                          } else {
-                                             handleUpdateField(pausedField, false);
-                                             handleUpdateField(throttledField, false);
-                                          }
-                                       }}
-                                    />
-                                 </CardHeader>
-                                 <CardContent className="p-6 space-y-6">
-                                    {isAutoThrottled && !isPausedByStaff && (
-                                       <div className="flex items-center gap-1.5 p-3 rounded-xl bg-amber-50 border-2 border-amber-100">
-                                          <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-                                          <p className="text-[8px] font-black uppercase text-amber-700 leading-tight">Auto-paused - queue full</p>
-                                       </div>
-                                    )}
-                                    <div className="grid grid-cols-2 gap-4 border-b pb-6">
-                                       <div className="space-y-1"><p className="text-[8px] font-black uppercase text-muted-foreground">Order Count</p><p className="text-xl font-black text-[#213147]">{stats?.orderCount || 0}</p></div>
-                                       <div className="space-y-1 text-right"><p className="text-[8px] font-black uppercase text-muted-foreground">Net Today</p><p className="text-xl font-black text-primary font-mono">${(stats?.totalNetRevenue || 0).toFixed(2)}</p></div>
-                                    </div>
-                                    <div className="space-y-4">
-                                       <div className="flex justify-between items-start">
-                                          <div className="space-y-1"><p className="text-[8px] font-black uppercase text-muted-foreground flex items-center gap-1"><Timer className="h-2 w-2" /> Acknowledge</p><div className="flex items-baseline gap-1"><span className="text-sm font-black">{stats?.avgAck || 0}s</span><span className="text-[8px] font-bold text-muted-foreground uppercase">Avg</span></div><p className={cn("text-[8px] font-black uppercase", stats?.ackWithinPct == null ? "text-muted-foreground" : stats.ackWithinPct >= ackTargetPercent ? "text-green-600" : "text-red-600")}>{stats?.ackWithinPct == null ? '-' : `${stats.ackWithinPct}%`} within {stats?.ackMaxSeconds}s</p></div>
-                                          {stats?.exceedMaxAckCount > 0 && <Badge variant="destructive" className="h-4 px-1 text-[7px] font-black uppercase">Exceed: {stats.exceedMaxAckCount}</Badge>}
-                                       </div>
-                                       <div className="flex justify-between items-start">
-                                          <div className="space-y-1"><p className="text-[8px] font-black uppercase text-muted-foreground flex items-center gap-1"><Clock className="h-2 w-2" /> Duration</p><div className="flex items-baseline gap-1"><span className="text-sm font-black">{stats?.avgDuration || 0}m</span><span className="text-[8px] font-bold text-muted-foreground uppercase">Avg</span></div><p className={cn("text-[8px] font-black uppercase", stats?.durWithinPct == null ? "text-muted-foreground" : stats.durWithinPct >= ackTargetPercent ? "text-green-600" : "text-red-600")}>{stats?.durWithinPct == null ? '-' : `${stats.durWithinPct}%`} within {stats?.durMaxMinutes}m</p></div>
-                                          <div className="flex flex-col items-end gap-1">{stats?.exceedWarnCount > 0 && <Badge className="bg-amber-500 text-white h-4 px-1 text-[7px] font-black uppercase">Warn: {stats.exceedWarnCount}</Badge>}{stats?.exceedMaxCount > 0 && <Badge variant="destructive" className="h-4 px-1 text-[7px] font-black uppercase">Late: {stats.exceedMaxCount}</Badge>}</div>
-                                       </div>
-                                    </div>
-                                    <div className="pt-4 border-t-2 border-dashed">
-                                       <p className="text-[8px] font-black uppercase text-muted-foreground mb-2 flex items-center gap-1"><Users className="h-2 w-2" /> Active Staff</p>
-                                       {stats?.activeStaff.length > 0 ? (<div className="flex flex-wrap gap-1">{stats.activeStaff.map((name: string) => (<Badge key={name} variant="outline" className="text-[7px] font-black uppercase bg-slate-50 border-slate-200">{name}</Badge>))}</div>) : (<p className="text-[8px] font-bold text-muted-foreground uppercase italic">No staff on-shift</p>)}
-                                    </div>
-                                 </CardContent>
-                              </Card>
-                           );
+                           return {
+                              mode,
+                              Icon: getModeIcon(mode),
+                              isActive: !!seller?.[field as keyof Seller],
+                              isPausedByStaff: !!seller?.[pausedField as keyof Seller],
+                              isAutoThrottled: !!seller?.[throttledField as keyof Seller],
+                              stats: analyticsData.realTimeOperations[mode],
+                              onActiveChange: (val) => handleUpdateField(field, val),
+                              onPausedChange: (paused) => {
+                                 if (paused) {
+                                    setPauseConfirmMode(mode);
+                                 } else {
+                                    handleUpdateField(pausedField, false);
+                                    handleUpdateField(throttledField, false);
+                                 }
+                              },
+                           };
                         })}
-                     </div>
+                     />
                   </div>
                   <div className="space-y-6">
                     <div className="flex items-center gap-3"><div className="p-2 bg-indigo-50 rounded-lg text-indigo-600"><BarChart3 className="h-6 w-6" /></div><div className="text-left"><h2 className="text-xl font-black uppercase text-[#213147]">Revenue Overview</h2><p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">7-Day Stacked Performance</p></div></div>
