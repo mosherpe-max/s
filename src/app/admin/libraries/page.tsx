@@ -49,6 +49,16 @@ import {
 } from "@/components/ui/select";
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 const SERVICE_MODE_LABELS: Record<string, string> = {
   'beverageCart': 'Beverage Cart',
@@ -66,6 +76,8 @@ export default function GlobalLibrariesPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [editingItem, setEditingItem] = useState<StarterMenuItem | null>(null);
   const [editingMod, setEditingMod] = useState<StarterModifierGroup | null>(null);
+  // What the Koop admin has asked to delete; nothing is removed until they confirm.
+  const [pendingDelete, setPendingDelete] = useState<{ kind: 'item' | 'modifier'; id: string; name: string } | null>(null);
   // The option rows (label + price add-on) being edited in the Modifier Template dialog.
   // Price is kept as text so a half-typed number like "1." isn't mangled while typing.
   const [modOptions, setModOptions] = useState<{ label: string; price: string }[]>([{ label: '', price: '' }]);
@@ -185,6 +197,16 @@ export default function GlobalLibrariesPage() {
       .finally(() => setIsProcessing(false));
   };
 
+  const confirmPendingDelete = () => {
+    const target = pendingDelete;
+    setPendingDelete(null);
+    if (!target || !firestore) return;
+    const collectionName = target.kind === 'item' ? 'starter_menu_item_library' : 'starter_modifier_library';
+    deleteDoc(doc(firestore, collectionName, target.id))
+      .then(() => toast({ title: target.kind === 'item' ? 'Product Template Deleted' : 'Modifier Template Deleted', description: `${target.name} was removed from the library.` }))
+      .catch(() => toast({ variant: 'destructive', title: 'Delete Failed', description: 'The template could not be deleted.' }));
+  };
+
   const handleLoadStarterKit = async () => {
     if (!firestore) return;
     setIsSeedingKit(true);
@@ -280,7 +302,7 @@ export default function GlobalLibrariesPage() {
                       <TableCell className="text-right px-8">
                         <div className="flex justify-end gap-1">
                           <Button variant="ghost" size="icon" onClick={() => { setEditingItem(item); setIsItemDialogOpen(true); }} className="h-8 w-8 hover:text-primary"><Edit className="h-4 w-4" /></Button>
-                          <Button variant="ghost" size="icon" onClick={() => deleteDoc(doc(firestore!, 'starter_menu_item_library', item.id))} className="h-8 w-8 hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                          <Button variant="ghost" size="icon" onClick={() => setPendingDelete({ kind: 'item', id: item.id!, name: item.name })} aria-label={`Delete ${item.name}`} className="h-8 w-8 hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -326,7 +348,7 @@ export default function GlobalLibrariesPage() {
                       <TableCell className="text-right px-8">
                         <div className="flex justify-end gap-1">
                           <Button variant="ghost" size="icon" onClick={() => { setEditingMod(mod); setIsModDialogOpen(true); }} className="h-8 w-8 hover:text-primary"><Edit className="h-4 w-4" /></Button>
-                          <Button variant="ghost" size="icon" onClick={() => deleteDoc(doc(firestore!, 'starter_modifier_library', mod.id))} className="h-8 w-8 hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                          <Button variant="ghost" size="icon" onClick={() => setPendingDelete({ kind: 'modifier', id: mod.id!, name: mod.name })} aria-label={`Delete ${mod.name}`} className="h-8 w-8 hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -419,6 +441,28 @@ export default function GlobalLibrariesPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!pendingDelete} onOpenChange={(open) => !open && setPendingDelete(null)}>
+        <AlertDialogContent className="rounded-[2rem] border-2 shadow-2xl p-8">
+          <AlertDialogHeader className="text-left space-y-4">
+            <div className="bg-destructive/10 p-3 rounded-2xl w-fit"><Trash2 className="h-8 w-8 text-destructive" /></div>
+            <div className="space-y-1">
+              <AlertDialogTitle className="font-headline font-black uppercase text-xl">
+                {pendingDelete?.kind === 'modifier' ? 'Delete Modifier Template?' : 'Delete Product Template?'}
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-sm font-medium leading-relaxed">
+                <strong className="text-foreground">{pendingDelete?.name}</strong> will be removed from the global library, so it can no longer be imported into venues. Copies already imported into venues are not affected. This can&apos;t be undone.
+              </AlertDialogDescription>
+            </div>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-8 gap-3">
+            <AlertDialogCancel className="rounded-xl font-black uppercase text-[10px] tracking-widest border-2 h-12">Keep It</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmPendingDelete} className="bg-destructive hover:bg-destructive/90 rounded-xl font-black uppercase text-[10px] tracking-widest h-12 px-8">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* MOD DIALOG */}
       <Dialog open={isModDialogOpen} onOpenChange={(o) => { setIsModDialogOpen(o); if (!o) setEditingMod(null); }}>
