@@ -690,6 +690,17 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     });
   }, [firestore, sellerId, dailySalesReport.pendingLocks]);
 
+  // NOTE: hooks must stay above the loading early return further down this component.
+  // Fulfillment Log rows: the chosen date range, then the search, newest first.
+  const fulfillmentLogOrders = useMemo(() => {
+    const start = logRangeStart(logRange).getTime();
+    const term = orderSearchTerm.toLowerCase();
+    return (orders || [])
+      .filter(o => o.createdAt && o.createdAt.toMillis() >= start)
+      .filter(o => o.customerName.toLowerCase().includes(term) || getNumericOrderId(o.id).includes(orderSearchTerm))
+      .sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
+  }, [orders, logRange, orderSearchTerm]);
+
   // The report as the venue has filtered it: chosen service mode and date range, with a
   // total for each dollar column. Dates are 'yyyy-MM-dd', so plain string comparison
   // orders them correctly.
@@ -1047,16 +1058,6 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   };
 
   if (isUserLoading || isSellerLoading || isVenueLoading) return <div className="flex flex-col items-center justify-center h-screen bg-[#213147] text-white"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
-
-  // Fulfillment Log rows: the chosen date range, then the search, newest first.
-  const fulfillmentLogOrders = useMemo(() => {
-    const start = logRangeStart(logRange).getTime();
-    const term = orderSearchTerm.toLowerCase();
-    return (orders || [])
-      .filter(o => o.createdAt && o.createdAt.toMillis() >= start)
-      .filter(o => o.customerName.toLowerCase().includes(term) || getNumericOrderId(o.id).includes(orderSearchTerm))
-      .sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
-  }, [orders, logRange, orderSearchTerm]);
 
   const NAV_ITEMS = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
