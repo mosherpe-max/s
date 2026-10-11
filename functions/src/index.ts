@@ -125,6 +125,63 @@ const SUPER_ADMIN_UID = 'o9vAQy0aFRPSNPoG0ETvjiGt9If1';
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
+ * staffLogin
+ * A staff member enters their 4-digit PIN on the venue's staff login screen. The PIN is
+ * checked here, on the server, and a sign-in token is returned that carries which venue
+ * (and which staff member) the device is signed in for. Security rules can then tell a
+ * staff device from a patron's. Wrong PINs are limited per venue and device so the
+ * 10,000 possible PINs can't be tried one after another.
+ */
+const STAFF_LOGIN_MAX_FAILURES = 8;
+const STAFF_LOGIN_WINDOW_MS = 15 * 60 * 1000;
+
+export const staffLogin = onCall({ region: 'us-central1' }, async (request) => {
+  try {
+    const sellerId = typeof request.data?.sellerId === 'string' ? request.data.sellerId.trim() : '';
+    const pin = typeof request.data?.pin === 'string' ? request.data.pin.trim() : '';
+    if (!sellerId || sellerId.includes('/')) throw new HttpsError('invalid-argument', 'Missing venue.');
+    if (!/^\d{4}$/.test(pin)) throw new HttpsError('invalid-argument', 'Enter your 4-digit PIN.');
+
+    const ip = String(request.rawRequest?.ip || 'unknown').replace(/[^a-zA-Z0-9:.]/g, '_');
+    const attemptsRef = db.collection('staffLoginAttempts').doc(`${sellerId}_${ip}`);
+    const attemptsSnap = await attemptsRef.get();
+    const attempts = attemptsSnap.data() as { count?: number; windowStart?: number } | undefined;
+    const windowOpen = !!attempts?.windowStart && Date.now() - attempts.windowStart < STAFF_LOGIN_WINDOW_MS;
+    if (windowOpen && (attempts?.count || 0) >= STAFF_LOGIN_MAX_FAILURES) {
+      throw new HttpsError('resource-exhausted', 'Too many wrong PINs. Wait a few minutes and try again.');
+    }
+
+    const staffSnap = await db.collection('sellers').doc(sellerId).collection('staff')
+      .where('pin', '==', pin)
+      .where('isActive', '==', true)
+      .limit(1)
+      .get();
+
+    if (staffSnap.empty) {
+      await attemptsRef.set({
+        count: windowOpen ? (attempts?.count || 0) + 1 : 1,
+        windowStart: windowOpen ? attempts!.windowStart : Date.now(),
+      });
+      throw new HttpsError('permission-denied', 'Invalid PIN.');
+    }
+
+    if (attemptsSnap.exists) await attemptsRef.delete();
+
+    const staffDoc = staffSnap.docs[0];
+    const staff = staffDoc.data();
+    const token = await getAuth().createCustomToken(`staff_${sellerId}_${staffDoc.id}`, {
+      staffSellerId: sellerId,
+      staffId: staffDoc.id,
+    });
+    return { token, staff: { id: staffDoc.id, name: String(staff.name || '') } };
+  } catch (err: any) {
+    if (err instanceof HttpsError) throw err;
+    logger.error("staffLogin Error", err);
+    throw new HttpsError('internal', 'Could not sign in. Please try again.');
+  }
+});
+
+/**
  * createVenueAdminLogin
  * Koop admin sets up a login for a venue's manager: creates the Firebase sign-in
  * (or reuses one that exists), maps their email to the venue so the login page

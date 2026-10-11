@@ -149,6 +149,7 @@ import { LiveOperationsOverview, type ModeOverviewRow } from '@/components/live-
 import { LOG_RANGES, logRangeStart, type LogRange } from '@/lib/log-range';
 import { getTaxRate } from '@/lib/tax';
 import { PatronList } from '@/components/patron-list';
+import { isStaffUid } from '@/lib/staff-session';
 import { nextCategoryList } from '@/lib/category-visibility';
 import { signOut } from 'firebase/auth';
 import { 
@@ -308,7 +309,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   // instead of an empty dashboard they can't use. A patron's anonymous session
   // counts as signed out here: it exists, but can't read any of this.
   useEffect(() => {
-    if (!isUserLoading && (!user || user.isAnonymous)) router.replace('/login');
+    if (!isUserLoading && (!user || user.isAnonymous || isStaffUid(user.uid))) router.replace('/login');
   }, [isUserLoading, user, router]);
 
   const [activeNav, setActiveNav] = useState('dashboard');

@@ -4,8 +4,9 @@
 import React, { useState, useEffect, use } from 'react';
 import { unlockStaffAlertSound } from '@/lib/staff-alert-sound';
 import { collection, query, where, getDocs, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { signInAnonymously } from 'firebase/auth';
-import { useFirestore, useDoc, useMemoFirebase, useAuth } from '@/firebase';
+import { signInAnonymously, signInWithCustomToken } from 'firebase/auth';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { useFirestore, useDoc, useMemoFirebase, useAuth, useFirebaseApp } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -32,12 +33,13 @@ export default function StaffLoginPage({ params }: { params: Promise<{ sellerId:
   const { sellerId } = use(params);
   const firestore = useFirestore();
   const auth = useAuth();
+  const firebaseApp = useFirebaseApp();
   const router = useRouter();
   const { toast } = useToast();
 
   const [pin, setPin] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
-  const [authenticatedStaff, setAuthenticatedStaff] = useState<StaffMember | null>(null);
+  const [authenticatedStaff, setAuthenticatedStaff] = useState<Pick<StaffMember, 'id' | 'name'> | null>(null);
   const [venueName, setVenueName] = useState('This Venue');
   const [activeTerminal, setActiveTerminal] = useState<string | null>(null);
 
@@ -121,28 +123,45 @@ export default function StaffLoginPage({ params }: { params: Promise<{ sellerId:
     if (!firestore || !auth) return;
     setIsVerifying(true);
     try {
-      const staffQuery = query(
-        collection(firestore, 'sellers', sellerId, 'staff'),
-        where('pin', '==', code),
-        where('isActive', '==', true)
-      );
-      
-      const snapshot = await getDocs(staffQuery);
-      
-      if (snapshot.empty) {
-        toast({ 
-          variant: "destructive", 
-          title: "Invalid PIN", 
-          description: "Please check your access code and try again." 
-        });
-        setPin('');
-      } else {
+      // The server checks the PIN and signs this device in as staff for this venue.
+      let staffData: Pick<StaffMember, 'id' | 'name'> | null = null;
+      try {
+        const functions = getFunctions(firebaseApp!, 'us-central1');
+        const result = await httpsCallable(functions, 'staffLogin')({ sellerId, pin: code });
+        const data = result.data as { token: string; staff: { id: string; name: string } };
+        await signInWithCustomToken(auth, data.token);
+        staffData = data.staff;
+      } catch (err: any) {
+        if (err?.code === 'functions/permission-denied') {
+          toast({ variant: "destructive", title: "Invalid PIN", description: "Please check your access code and try again." });
+          setPin('');
+          return;
+        }
+        if (err?.code === 'functions/resource-exhausted') {
+          toast({ variant: "destructive", title: "Too Many Attempts", description: err.message });
+          setPin('');
+          return;
+        }
+        // TEMPORARY: until the staffLogin function is deployed, fall back to the old check so
+        // staff aren't locked out mid-rollout. Remove this once it is live.
+        if (err?.code !== 'functions/not-found') throw err;
+        const snapshot = await getDocs(query(
+          collection(firestore, 'sellers', sellerId, 'staff'),
+          where('pin', '==', code),
+          where('isActive', '==', true)
+        ));
+        if (snapshot.empty) {
+          toast({ variant: "destructive", title: "Invalid PIN", description: "Please check your access code and try again." });
+          setPin('');
+          return;
+        }
         await signInAnonymously(auth);
-        const staffData = snapshot.docs[0].data() as StaffMember;
-        setAuthenticatedStaff(staffData);
-
-        toast({ title: `Identity Verified`, description: `Hello, ${staffData.name}. Please select your shift role.` });
+        const legacy = snapshot.docs[0].data() as StaffMember;
+        staffData = { id: legacy.id, name: legacy.name };
       }
+
+      setAuthenticatedStaff(staffData);
+      toast({ title: `Identity Verified`, description: `Hello, ${staffData.name}. Please select your shift role.` });
     } catch (error: any) {
       toast({ variant: "destructive", title: "Verification Error", description: error.message });
       setPin('');
