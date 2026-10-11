@@ -943,6 +943,31 @@ export const notifyStaffOnNewOrder = onDocumentWritten({
 });
 
 /**
+ * syncOrderQueue
+ * Keeps orderQueue/{orderId}: a copy of every in-progress order with only venue, service
+ * mode, status and placed time. Patrons read this to see their place in line, so they never
+ * need to read other patrons' orders (which hold names, phones and emails).
+ */
+export const syncOrderQueue = onDocumentWritten({
+  document: "orders/{orderId}",
+  region: 'us-central1'
+}, async (event) => {
+  const ref = db.collection('orderQueue').doc(event.params.orderId);
+  const order = event.data?.after?.exists ? event.data.after.data() : null;
+  const inProgress = order && ['Placed', 'Preparing', 'Out for Delivery'].includes(order.status);
+  if (!inProgress) {
+    await ref.delete().catch(() => {});
+    return;
+  }
+  await ref.set({
+    sellerId: order.sellerId,
+    menuType: order.menuType,
+    status: order.status,
+    createdAt: order.createdAt || FieldValue.serverTimestamp(),
+  });
+});
+
+/**
  * checkLateOrders
  * Scheduled sweep for orders that have exceeded their venue's configured
  * max processing time. Unlike notifyStaffOnNewOrder (a per-write trigger),

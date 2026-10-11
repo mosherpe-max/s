@@ -22,6 +22,12 @@ service cloud.firestore {
       );
     }
 
+    // A staff device signed in through the staffLogin function: its token carries the venue
+    // it belongs to. (.get so a token without the claim is simply "no", never an error.)
+    function isStaffOf(venueId) {
+      return isSignedIn() && request.auth.token.get('staffSellerId', null) == venueId;
+    }
+
     // User profiles - patrons can read/write their own identity
     match /users/{userId} {
       allow read, write: if isSignedIn() && request.auth.uid == userId;
@@ -153,7 +159,25 @@ service cloud.firestore {
     }
 
     match /orders/{orderId} {
-      allow read, write: if true;
+      // One order by its id stays open: order ids are long and random, and the tracking link
+      // texted to a patron has to work on a phone that isn't the one that placed the order.
+      allow get: if true;
+      // Lists/queries are limited to the people who need them: the patron's own orders, the
+      // venue's signed-in staff, the venue admin, and the Koop admin. Nobody else can pull
+      // down every order (with names, phones and emails) in one go.
+      allow list: if (isSignedIn() && resource.data.buyerProfileId == request.auth.uid) ||
+                     isStaffOf(resource.data.sellerId) ||
+                     isVenueOwner(resource.data.sellerId) ||
+                     isSuperAdmin();
+      allow write: if true;
+    }
+
+    // A copy of each in-progress order with no personal details (venue, service mode, status,
+    // placed time), kept by the syncOrderQueue function. It lets a patron see their place in
+    // line without being able to read other people's orders.
+    match /orderQueue/{orderId} {
+      allow read: if true;
+      allow write: if false;
     }
 
     // Sales CRM access

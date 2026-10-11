@@ -3,6 +3,7 @@
 
 import { collection, query, where, doc, updateDoc, serverTimestamp, setDoc, deleteDoc, deleteField } from 'firebase/firestore';
 import { playStaffAlertSound, useStaffAlertSound } from '@/lib/staff-alert-sound';
+import { useStaffSessionGuard } from '@/lib/use-staff-session-guard';
 import { useCollection, useFirestore, useMemoFirebase, useDoc, useUser } from '@/firebase';
 import { useEffect, useState, useMemo, useRef, use } from 'react';
 import { Switch } from '@/components/ui/switch';
@@ -56,6 +57,7 @@ const DEFAULT_HISTORY_THRESHOLDS: OrderFulfillmentThresholds = { maxOrderAcknowl
 export default function ClubhouseDriverDashboardPage({ params }: { params: Promise<{ sellerId: string }> }) {
   const { sellerId } = use(params);
   const firestore = useFirestore();
+  useStaffSessionGuard(sellerId);
   const { user } = useUser();
   const { toast } = useToast();
   const router = useRouter();
