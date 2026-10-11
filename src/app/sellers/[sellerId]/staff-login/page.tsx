@@ -3,8 +3,8 @@
 
 import React, { useState, useEffect, use } from 'react';
 import { unlockStaffAlertSound } from '@/lib/staff-alert-sound';
-import { collection, query, where, getDocs, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { signInAnonymously, signInWithCustomToken } from 'firebase/auth';
+import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { signInWithCustomToken } from 'firebase/auth';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { useFirestore, useDoc, useMemoFirebase, useAuth, useFirebaseApp } from '@/firebase';
 import { useRouter } from 'next/navigation';
@@ -142,22 +142,7 @@ export default function StaffLoginPage({ params }: { params: Promise<{ sellerId:
           setPin('');
           return;
         }
-        // TEMPORARY: until the staffLogin function is deployed, fall back to the old check so
-        // staff aren't locked out mid-rollout. Remove this once it is live.
-        if (err?.code !== 'functions/not-found') throw err;
-        const snapshot = await getDocs(query(
-          collection(firestore, 'sellers', sellerId, 'staff'),
-          where('pin', '==', code),
-          where('isActive', '==', true)
-        ));
-        if (snapshot.empty) {
-          toast({ variant: "destructive", title: "Invalid PIN", description: "Please check your access code and try again." });
-          setPin('');
-          return;
-        }
-        await signInAnonymously(auth);
-        const legacy = snapshot.docs[0].data() as StaffMember;
-        staffData = { id: legacy.id, name: legacy.name };
+        throw err;
       }
 
       setAuthenticatedStaff(staffData);

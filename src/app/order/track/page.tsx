@@ -66,8 +66,10 @@ function OrderTrackingContent() {
 
   const activeOrdersQuery = useMemoFirebase(() => {
     if (!firestore || !order?.sellerId || !order?.menuType) return null;
+    // orderQueue holds just venue/mode/status/time for each in-progress order, so a patron can
+    // see their place in line without reading other patrons' orders.
     return query(
-      collection(firestore, 'orders'),
+      collection(firestore, 'orderQueue'),
       where('sellerId', '==', order.sellerId),
       where('menuType', '==', order.menuType),
       where('status', 'in', ['Placed', 'Preparing', 'Out for Delivery'])
