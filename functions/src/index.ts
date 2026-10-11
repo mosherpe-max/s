@@ -151,13 +151,25 @@ export const staffLogin = onCall({ region: 'us-central1' }, async (request) => {
       throw new HttpsError('resource-exhausted', 'Too many wrong PINs. Wait a few minutes and try again.');
     }
 
-    const staffSnap = await db.collection('sellers').doc(sellerId).collection('staff')
-      .where('pin', '==', pin)
-      .where('isActive', '==', true)
-      .limit(1)
-      .get();
+    // PINs live in staffSecrets (readable only by the venue admin); an active staff record
+    // with that PIN is the match. Records not yet moved still carry the PIN themselves.
+    const sellerRef = db.collection('sellers').doc(sellerId);
+    let staffDoc: FirebaseFirestore.DocumentSnapshot | null = null;
+    const secretSnap = await sellerRef.collection('staffSecrets').where('pin', '==', pin).get();
+    for (const secret of secretSnap.docs) {
+      const candidate = await sellerRef.collection('staff').doc(secret.id).get();
+      if (candidate.exists && candidate.data()?.isActive === true) { staffDoc = candidate; break; }
+    }
+    if (!staffDoc) {
+      const legacySnap = await sellerRef.collection('staff')
+        .where('pin', '==', pin)
+        .where('isActive', '==', true)
+        .limit(1)
+        .get();
+      if (!legacySnap.empty) staffDoc = legacySnap.docs[0];
+    }
 
-    if (staffSnap.empty) {
+    if (!staffDoc) {
       await attemptsRef.set({
         count: windowOpen ? (attempts?.count || 0) + 1 : 1,
         windowStart: windowOpen ? attempts!.windowStart : Date.now(),
@@ -167,8 +179,7 @@ export const staffLogin = onCall({ region: 'us-central1' }, async (request) => {
 
     if (attemptsSnap.exists) await attemptsRef.delete();
 
-    const staffDoc = staffSnap.docs[0];
-    const staff = staffDoc.data();
+    const staff = staffDoc.data() || {};
     const token = await getAuth().createCustomToken(`staff_${sellerId}_${staffDoc.id}`, {
       staffSellerId: sellerId,
       staffId: staffDoc.id,
@@ -178,6 +189,65 @@ export const staffLogin = onCall({ region: 'us-central1' }, async (request) => {
     if (err instanceof HttpsError) throw err;
     logger.error("staffLogin Error", err);
     throw new HttpsError('internal', 'Could not sign in. Please try again.');
+  }
+});
+
+/**
+ * Staff PINs are kept out of the staff records (which patrons can read) in
+ * sellers/{id}/staffSecrets/{staffId}, readable only by the venue admin and Koop admin.
+ * movePinToSecrets copies a PIN across and removes it from the staff record.
+ */
+async function movePinToSecrets(staffRef: FirebaseFirestore.DocumentReference, pin: string) {
+  const secretRef = staffRef.parent.parent!.collection('staffSecrets').doc(staffRef.id);
+  await secretRef.set({ pin, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+  await staffRef.update({ pin: FieldValue.delete() });
+}
+
+/**
+ * syncStaffPin
+ * Any time a staff record is written with a PIN on it (an old browser tab, or a record
+ * not yet migrated), move the PIN to the private place straight away.
+ */
+export const syncStaffPin = onDocumentWritten({
+  document: "sellers/{sellerId}/staff/{staffId}",
+  region: 'us-central1'
+}, async (event) => {
+  const after = event.data?.after;
+  if (!after?.exists) {
+    // The staff member was removed, so remove their PIN too.
+    await db.doc(`sellers/${event.params.sellerId}/staffSecrets/${event.params.staffId}`).delete().catch(() => {});
+    return;
+  }
+  const pin = after.data()?.pin;
+  if (typeof pin !== 'string' || !pin) return;
+  await movePinToSecrets(after.ref, pin);
+});
+
+/**
+ * migrateStaffPins
+ * Koop admin runs this once to move every existing staff PIN into staffSecrets. Safe to
+ * run again: it only touches records that still carry a PIN.
+ */
+export const migrateStaffPins = onCall({ region: 'us-central1', timeoutSeconds: 300 }, async (request) => {
+  try {
+    assertSuperAdmin(request);
+    let moved = 0;
+    const sellers = await db.collection('sellers').get();
+    for (const seller of sellers.docs) {
+      const staff = await seller.ref.collection('staff').get();
+      for (const doc of staff.docs) {
+        const pin = doc.data().pin;
+        if (typeof pin === 'string' && pin) {
+          await movePinToSecrets(doc.ref, pin);
+          moved++;
+        }
+      }
+    }
+    return { moved };
+  } catch (err: any) {
+    logger.error("migrateStaffPins Error", err);
+    if (err instanceof HttpsError) throw err;
+    throw new HttpsError('internal', err.message || 'Could not move the staff PINs.');
   }
 });
 

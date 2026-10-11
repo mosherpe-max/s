@@ -88,7 +88,8 @@ export interface StaffMember {
   id: string;
   name: string;
   role: 'Staff' | 'Manager';
-  pin: string;
+  /** Legacy: PINs now live in sellers/{id}/staffSecrets (venue admin only); old records may still carry one until moved. */
+  pin?: string;
   isActive: boolean;
   activeMode?: string; // Current shift assignment (Bevcart, Clubhouse, etc)
   activeSessionId?: string; // Set fresh on every shift login; a mismatch on a driver device means another device has since signed in with this PIN, so that device signs itself out

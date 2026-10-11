@@ -29,6 +29,7 @@ import type { SolutionConfig } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { AUTHORIZED_SERVICE_MODES } from '@/lib/utils';
 import { PatronTermsManager } from '@/components/patron-terms-manager';
+import { StaffPinMigration } from '@/components/staff-pin-migration';
 
 export default function AdminSystemConfigPage() {
   const firebaseApp = useFirebaseApp();
@@ -438,6 +439,8 @@ export default function AdminSystemConfigPage() {
         </Card>
 
         <PatronTermsManager />
+
+        <StaffPinMigration />
 
         <div className="bg-amber-50 border-2 border-amber-200 p-6 rounded-[2rem] flex items-start gap-4">
            <AlertTriangle className="h-6 w-6 text-amber-600 shrink-0" />
