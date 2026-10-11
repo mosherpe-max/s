@@ -361,6 +361,16 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
   const staffListQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'sellers', sellerId, 'staff') : null), [firestore, sellerId]);
   const { data: staffList } = useCollection<StaffMember>(staffListQuery);
+  // Login PINs are kept apart from the staff records (patrons can read those); only the
+  // venue admin can read this.
+  const staffSecretsQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'sellers', sellerId, 'staffSecrets') : null), [firestore, sellerId]);
+  const { data: staffSecrets } = useCollection<{ id: string; pin: string }>(staffSecretsQuery);
+  const staffPins = useMemo(() => {
+    const pins: Record<string, string> = {};
+    (staffList || []).forEach(s => { if (s.pin) pins[s.id] = s.pin; });
+    (staffSecrets || []).forEach(s => { pins[s.id] = s.pin; });
+    return pins;
+  }, [staffList, staffSecrets]);
 
   const menuItemsQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'sellers', sellerId, 'menuItems') : null), [firestore, sellerId]);
   const { data: menuItems } = useCollection<MenuItem>(menuItemsQuery);
@@ -794,12 +804,25 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
   const onSaveStaff = async (data: StaffFormData) => {
     if (!firestore || !sellerId) return;
-    setIsProcessingSave(true);
     const id = editingStaff?.id || Math.random().toString(36).substr(2, 9);
+    // Two people with the same PIN couldn't be told apart at login.
+    const pinTaken = Object.entries(staffPins).some(([staffId, pin]) => staffId !== id && pin === data.pin);
+    if (pinTaken) {
+      staffForm.setError('pin', { message: 'Another staff member already uses this PIN' });
+      toast({ variant: 'destructive', title: 'PIN Already In Use', description: 'Pick a different 4-digit PIN.' });
+      return;
+    }
+    setIsProcessingSave(true);
     const docRef = doc(firestore, 'sellers', sellerId, 'staff', id);
-    const payload = { ...data, id, createdAt: editingStaff?.createdAt || serverTimestamp() };
-    
-    setDoc(docRef, payload, { merge: true })
+    const secretRef = doc(firestore, 'sellers', sellerId, 'staffSecrets', id);
+    const { pin, ...staffFields } = data;
+    // The PIN goes to the private staffSecrets record; any PIN still on the staff record is cleared.
+    const payload = { ...staffFields, id, createdAt: editingStaff?.createdAt || serverTimestamp(), pin: deleteField() };
+
+    const batch = writeBatch(firestore);
+    batch.set(docRef, payload, { merge: true });
+    batch.set(secretRef, { pin, updatedAt: serverTimestamp() }, { merge: true });
+    batch.commit()
       .then(() => { 
         setIsStaffFormOpen(false); 
         setIsProcessingSave(false); 
@@ -809,7 +832,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
         errorEmitter.emit('permission-error', new FirestorePermissionError({
           path: docRef.path,
           operation: editingStaff ? 'update' : 'create',
-          requestResourceData: payload,
+          requestResourceData: staffFields,
         } satisfies SecurityRuleContext));
         setIsProcessingSave(false);
       });
@@ -1800,7 +1823,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                           <TableRow key={staff.id} className="group hover:bg-slate-50/50 transition-colors">
                             <TableCell className="px-8 font-bold text-sm uppercase">{staff.name}</TableCell>
                             <TableCell><Badge variant="outline" className={cn("text-[8px] font-black uppercase border-0", staff.role === 'Manager' ? "bg-[#213147] text-white" : "bg-slate-100 text-slate-600")}>{staff.role}</Badge></TableCell>
-                            <TableCell><code className="bg-slate-100 px-2 py-1 rounded text-xs font-black tracking-widest">{staff.pin}</code></TableCell>
+                            <TableCell><code className="bg-slate-100 px-2 py-1 rounded text-xs font-black tracking-widest">{staffPins[staff.id] || '----'}</code></TableCell>
                             <TableCell>
                               <div className="flex items-center gap-2">
                                 {staff.activeMode ? (<Badge className="bg-green-500 border-0 h-2 w-2 rounded-full p-0 animate-pulse" />) : (<Badge className="bg-slate-300 border-0 h-2 w-2 rounded-full p-0" />)}
@@ -1833,10 +1856,10 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                                     <LogOut className="h-4 w-4" />
                                   </Button>
                                 )}
-                                <Button variant="ghost" size="icon" onClick={() => { setEditingStaff(staff); staffForm.reset(staff); setIsStaffFormOpen(true); }} className="h-8 w-8 hover:text-primary">
+                                <Button variant="ghost" size="icon" onClick={() => { setEditingStaff(staff); staffForm.reset({ ...staff, pin: staffPins[staff.id] || '' }); setIsStaffFormOpen(true); }} className="h-8 w-8 hover:text-primary">
                                   <Edit className="h-4 w-4" />
                                 </Button>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-destructive" onClick={() => { const docRef = doc(firestore!, 'sellers', sellerId, 'staff', staff.id); deleteDoc(docRef).catch(async (e) => { errorEmitter.emit('permission-error', new FirestorePermissionError({ path: docRef.path, operation: 'delete' } satisfies SecurityRuleContext)); }); }}>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-destructive" onClick={() => { const docRef = doc(firestore!, 'sellers', sellerId, 'staff', staff.id); deleteDoc(doc(firestore!, 'sellers', sellerId, 'staffSecrets', staff.id)).catch(() => {}); deleteDoc(docRef).catch(async (e) => { errorEmitter.emit('permission-error', new FirestorePermissionError({ path: docRef.path, operation: 'delete' } satisfies SecurityRuleContext)); }); }}>
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
                               </div>

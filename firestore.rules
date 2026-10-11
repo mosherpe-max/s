@@ -124,6 +124,13 @@ service cloud.firestore {
                       .hasOnly(['activeMode', 'activeSessionId', 'lastActive', 'isAvailable', 'latitude', 'longitude', 'currentDeviceId']);
       }
 
+      // Staff login PINs. Kept apart from the staff records because those are readable by
+      // patrons' browsers; only the venue admin and Koop admin can read or set a PIN, and
+      // staff sign in through the staffLogin function, which checks them on the server.
+      match /staffSecrets/{staffId} {
+        allow read, write: if isSuperAdmin() || isVenueOwner(sellerId);
+      }
+
       // A browser/device's Web Push subscription (see PushDevice type) -
       // written once from Safari before the PWA is added to the Home
       // Screen. Not staff-specific; a shared terminal's subscription
