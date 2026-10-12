@@ -52,11 +52,6 @@ export function buildVenueChecklist({ seller, venue, staffCount, menuItemCount, 
       detail: 'Set the Koop fees for this venue. New venues start with the standard fees.',
     },
     {
-      label: 'Operational Status',
-      done: seller?.status === 'Active',
-      detail: 'Switch the venue to Active when everything is ready for it to go live. New venues start Inactive.',
-    },
-    {
       label: 'Map Location',
       done: !!(seller?.latitude && seller?.longitude),
       detail: 'Set latitude/longitude so patrons see the venue correctly on the map.',
@@ -100,6 +95,11 @@ export function buildVenueChecklist({ seller, venue, staffCount, menuItemCount, 
       label: 'Print Marketing Kit',
       done: !!(seller?.printAssets?.cartSticker && seller?.printAssets?.yardSign),
       detail: 'Generate the cart sticker and yard sign (needs the QR code above).',
+    },
+    {
+      label: 'Operational Status',
+      done: seller?.status === 'Active',
+      detail: 'Switch the venue to Active when everything is ready for it to go live. New venues start Inactive.',
     },
   ];
 }
