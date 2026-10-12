@@ -29,7 +29,10 @@ import {
   Download,
   Library,
   Tags,
-  Printer
+  Printer,
+  CreditCard,
+  Wallet,
+  Users
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -424,6 +427,25 @@ export default function AdminVenueRegistryPage() {
     });
   };
 
+  const handleTogglePaymentMethod = (method: 'Digital Payment' | 'Pay at Delivery', enabled: boolean) => {
+    if (!firestore || !currentSeller) return;
+    const current = effectivePaymentMethods;
+    const next = enabled ? Array.from(new Set([...current, method])) : current.filter(m => m !== method);
+    // Patrons need at least one way to pay.
+    if (!next.some(m => m === 'Digital Payment' || m === 'Pay at Delivery')) {
+      toast({ variant: 'destructive', title: 'Keep One On', description: 'Patrons need at least one way to pay.' });
+      return;
+    }
+    const sellerRef = doc(firestore, 'sellers', currentSeller.id);
+    updateDoc(sellerRef, { enabledPaymentMethods: next, updatedAt: serverTimestamp() }).catch(async () => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: sellerRef.path,
+        operation: 'update',
+        requestResourceData: { enabledPaymentMethods: next },
+      } satisfies SecurityRuleContext));
+    });
+  };
+
   const handleRecreateAsset = async (kind: 'cartSticker' | 'yardSign') => {
     if (!firestore || !storage || !selectedVenue || !currentSeller) return;
     if (!qrUrl) {
@@ -495,6 +517,8 @@ export default function AdminVenueRegistryPage() {
     : '';
   const currentVenueType: 'golf' | 'bowling' = currentSeller?.type === 'Golf Course' ? 'golf' : 'bowling';
   const currentSellerModes = (currentSeller?.menuTypes || []).filter(m => AUTHORIZED_SERVICE_MODES.includes(m));
+  // Checkout offers both when a venue has never chosen, so the switches and the checklist read it the same way.
+  const effectivePaymentMethods: string[] = currentSeller?.enabledPaymentMethods ?? ['Digital Payment', 'Pay at Delivery'];
 
   // Launch readiness - everything a Koop admin needs to have set up before a
   // venue is ready to take real orders. Recomputed live as fields are edited
@@ -543,7 +567,7 @@ export default function AdminVenueRegistryPage() {
       },
       {
         label: 'Payment Methods Enabled',
-        done: (seller?.enabledPaymentMethods?.length || 0) > 0,
+        done: (seller?.enabledPaymentMethods ?? ['Digital Payment', 'Pay at Delivery']).length > 0,
         detail: 'Enable at least one patron payment method.'
       },
       {
@@ -645,7 +669,7 @@ export default function AdminVenueRegistryPage() {
           <DialogHeader className="p-8 bg-[#213147] text-white">
             <DialogTitle className="font-headline font-black uppercase text-xl">Venue Onboarding</DialogTitle>
           </DialogHeader>
-          <ScrollArea className="max-h-[80vh]">
+          <ScrollArea className="max-h-[68vh]">
             <div className="p-8">
               <Form {...onboardingForm}>
                 <form onSubmit={onboardingForm.handleSubmit(handleCreateVenue)} className="space-y-8">
@@ -768,7 +792,7 @@ export default function AdminVenueRegistryPage() {
                     <CheckCircle2 className="h-4 w-4" /> Launch Checklist
                   </Label>
                   <div className="grid gap-2">
-                    {launchChecklist.map((item) => (
+                    {launchChecklist.map((item, index) => (
                       <div key={item.label} className={cn("flex items-start gap-3 p-3 rounded-xl border-2", item.done ? "bg-green-50 border-green-100" : "bg-amber-50 border-amber-100")}>
                         {item.done ? (
                           <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
@@ -776,7 +800,7 @@ export default function AdminVenueRegistryPage() {
                           <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
                         )}
                         <div className="text-left">
-                          <p className={cn("text-[10px] font-black uppercase tracking-widest leading-none", item.done ? "text-green-700" : "text-amber-700")}>{item.label}</p>
+                          <p className={cn("text-[10px] font-black uppercase tracking-widest leading-none", item.done ? "text-green-700" : "text-amber-700")}>{index + 1}. {item.label}</p>
                           {!item.done && <p className="text-[8px] font-bold text-amber-600/80 uppercase mt-1 leading-relaxed">{item.detail}</p>}
                         </div>
                       </div>
@@ -784,10 +808,170 @@ export default function AdminVenueRegistryPage() {
                   </div>
                </div>
 
+               <Form {...registryForm}>
+               <div className="space-y-10">
+
+                    <div className="space-y-4 pt-8 border-t-4 border-slate-100">
+                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><User className="h-3 w-3" /> 1. Manager Contact</Label>
+                       <div className="grid grid-cols-2 gap-4">
+                          <FormField control={registryForm.control} name="contactName" render={({ field }) => (
+                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Name</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                          )} />
+                          <FormField control={registryForm.control} name="contactPhone" render={({ field }) => (
+                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Phone</FormLabel><FormControl><Input {...field} type="tel" className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                          )} />
+                       </div>
+                       <FormField control={registryForm.control} name="contactEmail" render={({ field }) => (
+                         <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Email</FormLabel><FormControl><Input {...field} type="email" className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                       )} />
+                    </div>
+
+                    <div className="space-y-4 pt-8 border-t-4 border-slate-100">
+                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><MapPin className="h-3 w-3" /> 2. Venue Address</Label>
+                       <FormField control={registryForm.control} name="streetAddress" render={({ field }) => (
+                         <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Street Address</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                       )} />
+                       <div className="grid grid-cols-3 gap-4">
+                          <FormField control={registryForm.control} name="city" render={({ field }) => (
+                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">City</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                          )} />
+                          <FormField control={registryForm.control} name="state" render={({ field }) => (
+                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">State</FormLabel><FormControl><Input {...field} maxLength={2} className="h-11 border-2 font-bold uppercase" /></FormControl></FormItem>
+                          )} />
+                          <FormField control={registryForm.control} name="zip" render={({ field }) => (
+                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Zip</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                          )} />
+                       </div>
+                    </div>
+
+                    <div className="space-y-4 pt-8 border-t-4 border-slate-100">
+                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><MapPin className="h-3 w-3" /> 3. Map Location</Label>
+                       <div className="grid grid-cols-2 gap-4">
+                          <FormField control={registryForm.control} name="latitude" render={({ field }) => (
+                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Latitude</FormLabel><FormControl><Input {...field} type="number" step="0.000001" className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                          )} />
+                          <FormField control={registryForm.control} name="longitude" render={({ field }) => (
+                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Longitude</FormLabel><FormControl><Input {...field} type="number" step="0.000001" className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                          )} />
+                       </div>
+                       <p className="text-[8px] font-medium text-muted-foreground uppercase px-1">Coordinates used as default center for patrons.</p>
+                    </div>
+
+                    <div className="space-y-4 pt-8 border-t-4 border-slate-100">
+                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><Zap className="h-3 w-3" /> 4. Service Mode Selected</Label>
+                       <div className="grid gap-3">
+                        {SERVICE_MODES.map((mode) => (
+                          <FormField key={mode.id} control={registryForm.control} name="menuTypes" render={({ field }) => (
+                            <FormItem className="flex flex-row items-center space-x-3 space-y-0 p-4 rounded-xl border-2 bg-slate-50 border-slate-100">
+                              <FormControl><Checkbox checked={field.value?.includes(mode.id)} onCheckedChange={(checked) => checked ? field.onChange([...field.value, mode.id]) : field.onChange(field.value?.filter((value) => value !== mode.id))} /></FormControl>
+                              <FormLabel className="text-[10px] font-black uppercase cursor-pointer">{mode.label}</FormLabel>
+                            </FormItem>
+                          )} />
+                        ))}
+                       </div>
+                    </div>
+
+                    <div className="space-y-4 pt-8 border-t-4 border-slate-100">
+                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><Power className="h-3 w-3" /> 5. A Service Mode Is Open</Label>
+                       {currentSellerModes.length === 0 ? (
+                         <p className="text-[9px] font-bold text-muted-foreground uppercase">Select a service mode above first</p>
+                       ) : (
+                         <div className="grid gap-2">
+                           {currentSellerModes.map(mode => {
+                             const isOpen = mode === 'Beverage Cart' ? !!currentSeller?.bevcartActive : mode === 'Clubhouse' ? !!currentSeller?.clubhouseActive : !!currentSeller?.lanedeliveryActive;
+                             return (
+                               <div key={mode} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border-2 border-slate-100">
+                                 <span className="text-[10px] font-black uppercase text-[#213147]">{mode}</span>
+                                 <Badge className={cn("border-0 text-[8px] font-black uppercase", isOpen ? "bg-green-500" : "bg-slate-400")}>{isOpen ? 'Open' : 'Closed'}</Badge>
+                               </div>
+                             );
+                           })}
+                         </div>
+                       )}
+                       <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest px-1">The venue admin opens each service mode from their dashboard.</p>
+                    </div>
+
+                    <div className="space-y-4 pt-8 border-t-4 border-slate-100">
+                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><CreditCard className="h-3 w-3" /> 6. Stripe Connected</Label>
+                       <div className="grid gap-3">
+                         <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border-2 border-slate-100">
+                           <span className="text-[10px] font-black uppercase text-[#213147]">Stripe Account</span>
+                           <Badge className={cn("border-0 text-[8px] font-black uppercase", selectedVenue?.stripeAccountId ? "bg-green-500" : "bg-slate-400")}>{selectedVenue?.stripeAccountId ? 'Connected' : 'Not Connected'}</Badge>
+                         </div>
+                         <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border-2 border-slate-100">
+                           <span className="text-[10px] font-black uppercase text-[#213147]">Payouts</span>
+                           <Badge className={cn("border-0 text-[8px] font-black uppercase", selectedVenue?.payoutsEnabled ? "bg-green-500" : "bg-slate-400")}>{selectedVenue?.payoutsEnabled ? 'Enabled' : 'Not Enabled'}</Badge>
+                         </div>
+                          <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border-2 border-slate-100">
+                             <span className="text-[10px] font-black uppercase text-[#213147]">Stripe Verified</span>
+                             <FormField control={registryForm.control} name="stripeOnboardingComplete" render={({ field }) => (<Switch checked={field.value} onCheckedChange={field.onChange} className="data-[state=checked]:bg-green-500" />)} />
+                          </div>
+                       </div>
+                       <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest px-1">The venue admin connects Stripe from their Settings page.</p>
+                    </div>
+
+                    <div className="space-y-4 pt-8 border-t-4 border-slate-100">
+                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><Wallet className="h-3 w-3" /> 7. Payment Methods Enabled</Label>
+                       <div className="grid gap-3">
+                         {(['Digital Payment', 'Pay at Delivery'] as const).map(method => (
+                           <div key={method} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border-2 border-slate-100">
+                             <span className="text-[10px] font-black uppercase text-[#213147]">{method === 'Digital Payment' ? 'Pay by Card' : 'Pay at Delivery'}</span>
+                             <Switch checked={effectivePaymentMethods.includes(method)} onCheckedChange={(checked) => handleTogglePaymentMethod(method, checked)} disabled={!currentSeller} className="data-[state=checked]:bg-green-500" />
+                           </div>
+                         ))}
+                       </div>
+                       <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest px-1">What patrons can choose at checkout. At least one stays on.</p>
+                    </div>
+
+                    <div className="space-y-4 pt-8 border-t-4 border-slate-100">
+                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><Users className="h-3 w-3" /> 8. Staff Added</Label>
+                       <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border-2 border-slate-100">
+                         <span className="text-[10px] font-black uppercase text-[#213147]">Staff Members</span>
+                         <Badge className={cn("border-0 text-[8px] font-black uppercase", (venueStaff?.length || 0) > 0 ? "bg-green-500" : "bg-slate-400")}>{venueStaff?.length || 0}</Badge>
+                       </div>
+                       <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest px-1">The venue admin adds staff from their Staff page.</p>
+                    </div>
+
+               <div className="space-y-6 pt-8 border-t-4 border-slate-100">
+                  <Label className="text-[11px] font-black uppercase tracking-[0.3em] text-primary flex items-center gap-2"><Library className="h-4 w-4" /> 9. Menu Items Added <span className="text-muted-foreground tracking-widest">· {venueMenuItems?.length || 0} on the menu</span></Label>
+                  <p className="text-[10px] font-medium text-muted-foreground leading-relaxed uppercase">Pick specific items and modifiers to add to this venue &mdash; nothing is bulk-loaded.</p>
+                  {selectedVenue && (
+                    <div className="space-y-3">
+                      <StarterModifierPicker
+                        sellerId={selectedVenue.venueId}
+                        venueType={currentVenueType}
+                        trigger={
+                          <Button variant="outline" className="w-full h-14 gap-2 border-2 rounded-2xl border-indigo-100 text-indigo-600 hover:bg-indigo-50">
+                            <Tags className="h-4 w-4" />
+                            <span className="text-[10px] font-black uppercase tracking-widest">Import Modifiers</span>
+                          </Button>
+                        }
+                      />
+                      {currentSellerModes.length === 0 ? (
+                        <p className="text-[9px] font-bold text-muted-foreground uppercase text-center py-4">Select at least one service mode above first</p>
+                      ) : currentSellerModes.map(modeLabel => (
+                        <StarterItemPicker
+                          key={modeLabel}
+                          sellerId={selectedVenue.venueId}
+                          venueType={currentVenueType}
+                          mode={MODE_KEY_BY_LABEL[modeLabel]}
+                          modeLabel={modeLabel}
+                          trigger={
+                            <Button variant="outline" className="w-full h-14 gap-2 border-2 rounded-2xl border-primary/10 text-primary hover:bg-primary/5">
+                              <Library className="h-4 w-4" />
+                              <span className="text-[10px] font-black uppercase tracking-widest">Import Items &mdash; {modeLabel}</span>
+                            </Button>
+                          }
+                        />
+                      ))}
+                    </div>
+                  )}
+               </div>
+
                {/* QR LOGISTICS SECTION */}
-               <div className="space-y-6">
+               <div className="space-y-6 pt-8 border-t-4 border-slate-100">
                   <Label className="text-[11px] font-black uppercase tracking-[0.3em] text-primary flex items-center gap-2">
-                    <QrCode className="h-4 w-4" /> QR Access Logistics
+                    <QrCode className="h-4 w-4" /> 10. QR Access Active
                   </Label>
                   
                   <Card className="border-2 border-slate-100 bg-slate-50 overflow-hidden rounded-2xl">
@@ -849,9 +1033,87 @@ export default function AdminVenueRegistryPage() {
                   </Card>
                </div>
 
+                    <div className="pt-8 border-t-4 border-primary/20">
+                      <p className="text-[11px] font-black uppercase tracking-[0.3em] text-[#213147]">Additional Settings</p>
+                      <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mt-1">Not part of the launch checklist</p>
+                    </div>
+
+                    <div className="space-y-4 pt-8 border-t-4 border-slate-100">
+                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><DollarSign className="h-3 w-3" /> Transaction Model</Label>
+                       <div className="grid grid-cols-2 gap-4">
+                          <FormField control={registryForm.control} name="solutionFeeFixed" render={({ field }) => (
+                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Koop Stripe Fee Coverage (Cents)</FormLabel><FormControl><Input {...field} type="number" className="h-11 border-2 font-bold" /></FormControl><FormDescription className="text-[9px]">Cents of the Stripe fee Koop covers; venue absorbs the rest</FormDescription></FormItem>
+                          )} />
+                          <FormField control={registryForm.control} name="solutionFeePercent" render={({ field }) => (
+                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Koop % Fee</FormLabel><FormControl><Input {...field} type="number" step="0.1" className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                          )} />
+                       </div>
+                       <div className="grid grid-cols-2 gap-4">
+                          <FormField control={registryForm.control} name="patronConvenienceFee" render={({ field }) => (
+                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Patron Conv. Fee (Cents)</FormLabel><FormControl><Input {...field} type="number" className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                          )} />
+                          <FormField control={registryForm.control} name="monthlySolutionFee" render={({ field }) => (
+                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Monthly Fee ($)</FormLabel><FormControl><Input {...field} type="number" className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                          )} />
+                       </div>
+                    </div>
+
+                    <div className="space-y-4 pt-8 border-t-4 border-slate-100">
+                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><ShieldCheck className="h-3 w-3" /> Operational Status</Label>
+                       <div className="grid gap-3">
+                          <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border-2 border-slate-100">
+                             <div className="flex flex-col text-left">
+                               <span className="text-[10px] font-black uppercase text-[#213147]">Operational Activation</span>
+                               <span className="text-[8px] font-bold text-muted-foreground uppercase">Enable global solution access</span>
+                             </div>
+                             <FormField control={registryForm.control} name="status" render={({ field }) => (
+                               <Switch 
+                                 checked={field.value === 'Active'} 
+                                 onCheckedChange={(checked) => field.onChange(checked ? 'Active' : 'Inactive')} 
+                                 className="data-[state=checked]:bg-green-600" 
+                               />
+                             )} />
+                          </div>
+                          {sellers?.find(s => s.id === selectedVenue?.venueId)?.type === 'Golf Course' && (
+                            <>
+                              <FormField control={registryForm.control} name="holeCount" render={({ field }) => (
+                                <FormItem className="text-left p-3 rounded-xl border-2 bg-slate-50 border-slate-100">
+                                  <FormLabel className="text-[10px] font-black uppercase">Number of Holes</FormLabel>
+                                  <FormControl><Input {...field} type="number" min={1} max={36} className="h-10 border-2 font-bold bg-white" /></FormControl>
+                                  <p className="text-[8px] font-bold text-muted-foreground uppercase mt-1">Patrons pick their hole from this list if they won&apos;t share location</p>
+                                  <FormMessage />
+                                </FormItem>
+                              )} />
+                              <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border-2 border-slate-100">
+                                <div className="flex flex-col text-left"><span className="text-[10px] font-black uppercase text-[#213147]">Driving Range</span><span className="text-[8px] font-bold text-muted-foreground uppercase">Offer it as a delivery location</span></div>
+                                <FormField control={registryForm.control} name="hasDrivingRange" render={({ field }) => (<Switch checked={field.value} onCheckedChange={field.onChange} className="data-[state=checked]:bg-green-600" />)} />
+                              </div>
+                            </>
+                          )}
+                          {sellers?.find(s => s.id === selectedVenue?.venueId)?.type === 'Bowling Center' && (
+                            <FormField control={registryForm.control} name="laneCount" render={({ field }) => (
+                              <FormItem className="text-left p-3 rounded-xl border-2 bg-slate-50 border-slate-100">
+                                <FormLabel className="text-[10px] font-black uppercase">Lane Inventory</FormLabel>
+                                <FormControl><Input {...field} type="number" className="h-10 border-2 font-bold bg-white" /></FormControl>
+                              </FormItem>
+                            )} />
+                          )}
+                          <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border-2 border-slate-100">
+                             <div className="flex flex-col text-left"><span className="text-[10px] font-black uppercase text-[#213147]">Demo Instance</span><span className="text-[8px] font-bold text-muted-foreground uppercase">Exclude from Global Results</span></div>
+                             <FormField control={registryForm.control} name="isDemo" render={({ field }) => (<Switch checked={field.value} onCheckedChange={field.onChange} className="data-[state=checked]:bg-amber-500" />)} />
+                          </div>
+                       </div>
+                    </div>
+
+               {selectedVenue && (
+                 <div className="pt-8 border-t-4 border-slate-100">
+                   <VenueAdminLogins venueId={selectedVenue.venueId} courseName={selectedVenue.name} />
+                 </div>
+               )}
+
                {/* PRINT MARKETING SECTION */}
                {currentSeller && (
-                 <div className="space-y-6">
+                 <div className="space-y-6 pt-8 border-t-4 border-slate-100">
                     <Label className="text-[11px] font-black uppercase tracking-[0.3em] text-primary flex items-center gap-2">
                       <Printer className="h-4 w-4" /> Print Marketing Kit
                     </Label>
@@ -921,188 +1183,15 @@ export default function AdminVenueRegistryPage() {
                  </div>
                )}
 
-               {selectedVenue && (
-                 <div className="pt-10 border-t-4 border-slate-100">
-                   <VenueAdminLogins venueId={selectedVenue.venueId} courseName={selectedVenue.name} />
-                 </div>
-               )}
-
-               <Form {...registryForm}>
-                 <form onSubmit={registryForm.handleSubmit(onSaveVenueRegistry)} className="space-y-8 pt-10 border-t-4 border-slate-100">
-                    <div className="space-y-6">
-                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><Zap className="h-3 w-3" /> Authorized Modes</Label>
-                       <div className="grid gap-3">
-                        {SERVICE_MODES.map((mode) => (
-                          <FormField key={mode.id} control={registryForm.control} name="menuTypes" render={({ field }) => (
-                            <FormItem className="flex flex-row items-center space-x-3 space-y-0 p-4 rounded-xl border-2 bg-slate-50 border-slate-100">
-                              <FormControl><Checkbox checked={field.value?.includes(mode.id)} onCheckedChange={(checked) => checked ? field.onChange([...field.value, mode.id]) : field.onChange(field.value?.filter((value) => value !== mode.id))} /></FormControl>
-                              <FormLabel className="text-[10px] font-black uppercase cursor-pointer">{mode.label}</FormLabel>
-                            </FormItem>
-                          )} />
-                        ))}
-                       </div>
-                    </div>
-
-                    <div className="space-y-4 pt-6 border-t border-slate-100">
-                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><DollarSign className="h-3 w-3" /> Transaction Model</Label>
-                       <div className="grid grid-cols-2 gap-4">
-                          <FormField control={registryForm.control} name="solutionFeeFixed" render={({ field }) => (
-                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Koop Stripe Fee Coverage (Cents)</FormLabel><FormControl><Input {...field} type="number" className="h-11 border-2 font-bold" /></FormControl><FormDescription className="text-[9px]">Cents of the Stripe fee Koop covers; venue absorbs the rest</FormDescription></FormItem>
-                          )} />
-                          <FormField control={registryForm.control} name="solutionFeePercent" render={({ field }) => (
-                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Koop % Fee</FormLabel><FormControl><Input {...field} type="number" step="0.1" className="h-11 border-2 font-bold" /></FormControl></FormItem>
-                          )} />
-                       </div>
-                       <div className="grid grid-cols-2 gap-4">
-                          <FormField control={registryForm.control} name="patronConvenienceFee" render={({ field }) => (
-                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Patron Conv. Fee (Cents)</FormLabel><FormControl><Input {...field} type="number" className="h-11 border-2 font-bold" /></FormControl></FormItem>
-                          )} />
-                          <FormField control={registryForm.control} name="monthlySolutionFee" render={({ field }) => (
-                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Monthly Fee ($)</FormLabel><FormControl><Input {...field} type="number" className="h-11 border-2 font-bold" /></FormControl></FormItem>
-                          )} />
-                       </div>
-                    </div>
-
-                    <div className="space-y-4 pt-6 border-t border-slate-100">
-                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><User className="h-3 w-3" /> Manager Contact</Label>
-                       <div className="grid grid-cols-2 gap-4">
-                          <FormField control={registryForm.control} name="contactName" render={({ field }) => (
-                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Name</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
-                          )} />
-                          <FormField control={registryForm.control} name="contactPhone" render={({ field }) => (
-                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Phone</FormLabel><FormControl><Input {...field} type="tel" className="h-11 border-2 font-bold" /></FormControl></FormItem>
-                          )} />
-                       </div>
-                       <FormField control={registryForm.control} name="contactEmail" render={({ field }) => (
-                         <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Email</FormLabel><FormControl><Input {...field} type="email" className="h-11 border-2 font-bold" /></FormControl></FormItem>
-                       )} />
-                    </div>
-
-                    <div className="space-y-4 pt-6 border-t border-slate-100">
-                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><MapPin className="h-3 w-3" /> Venue Address</Label>
-                       <FormField control={registryForm.control} name="streetAddress" render={({ field }) => (
-                         <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Street Address</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
-                       )} />
-                       <div className="grid grid-cols-3 gap-4">
-                          <FormField control={registryForm.control} name="city" render={({ field }) => (
-                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">City</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
-                          )} />
-                          <FormField control={registryForm.control} name="state" render={({ field }) => (
-                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">State</FormLabel><FormControl><Input {...field} maxLength={2} className="h-11 border-2 font-bold uppercase" /></FormControl></FormItem>
-                          )} />
-                          <FormField control={registryForm.control} name="zip" render={({ field }) => (
-                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Zip</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
-                          )} />
-                       </div>
-                    </div>
-
-                    <div className="space-y-4 pt-6 border-t border-slate-100">
-                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><MapPin className="h-3 w-3" /> Static Map Anchors</Label>
-                       <div className="grid grid-cols-2 gap-4">
-                          <FormField control={registryForm.control} name="latitude" render={({ field }) => (
-                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Latitude</FormLabel><FormControl><Input {...field} type="number" step="0.000001" className="h-11 border-2 font-bold" /></FormControl></FormItem>
-                          )} />
-                          <FormField control={registryForm.control} name="longitude" render={({ field }) => (
-                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Longitude</FormLabel><FormControl><Input {...field} type="number" step="0.000001" className="h-11 border-2 font-bold" /></FormControl></FormItem>
-                          )} />
-                       </div>
-                       <p className="text-[8px] font-medium text-muted-foreground uppercase px-1">Coordinates used as default center for patrons.</p>
-                    </div>
-
-                    <div className="space-y-4 pt-6 border-t border-slate-100">
-                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><ShieldCheck className="h-3 w-3" /> Status & Verification</Label>
-                       <div className="grid gap-3">
-                          <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border-2 border-slate-100">
-                             <div className="flex flex-col text-left">
-                               <span className="text-[10px] font-black uppercase text-[#213147]">Operational Activation</span>
-                               <span className="text-[8px] font-bold text-muted-foreground uppercase">Enable global solution access</span>
-                             </div>
-                             <FormField control={registryForm.control} name="status" render={({ field }) => (
-                               <Switch 
-                                 checked={field.value === 'Active'} 
-                                 onCheckedChange={(checked) => field.onChange(checked ? 'Active' : 'Inactive')} 
-                                 className="data-[state=checked]:bg-green-600" 
-                               />
-                             )} />
-                          </div>
-                          {sellers?.find(s => s.id === selectedVenue?.venueId)?.type === 'Golf Course' && (
-                            <>
-                              <FormField control={registryForm.control} name="holeCount" render={({ field }) => (
-                                <FormItem className="text-left p-3 rounded-xl border-2 bg-slate-50 border-slate-100">
-                                  <FormLabel className="text-[10px] font-black uppercase">Number of Holes</FormLabel>
-                                  <FormControl><Input {...field} type="number" min={1} max={36} className="h-10 border-2 font-bold bg-white" /></FormControl>
-                                  <p className="text-[8px] font-bold text-muted-foreground uppercase mt-1">Patrons pick their hole from this list if they won&apos;t share location</p>
-                                  <FormMessage />
-                                </FormItem>
-                              )} />
-                              <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border-2 border-slate-100">
-                                <div className="flex flex-col text-left"><span className="text-[10px] font-black uppercase text-[#213147]">Driving Range</span><span className="text-[8px] font-bold text-muted-foreground uppercase">Offer it as a delivery location</span></div>
-                                <FormField control={registryForm.control} name="hasDrivingRange" render={({ field }) => (<Switch checked={field.value} onCheckedChange={field.onChange} className="data-[state=checked]:bg-green-600" />)} />
-                              </div>
-                            </>
-                          )}
-                          {sellers?.find(s => s.id === selectedVenue?.venueId)?.type === 'Bowling Center' && (
-                            <FormField control={registryForm.control} name="laneCount" render={({ field }) => (
-                              <FormItem className="text-left p-3 rounded-xl border-2 bg-slate-50 border-slate-100">
-                                <FormLabel className="text-[10px] font-black uppercase">Lane Inventory</FormLabel>
-                                <FormControl><Input {...field} type="number" className="h-10 border-2 font-bold bg-white" /></FormControl>
-                              </FormItem>
-                            )} />
-                          )}
-                          <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border-2 border-slate-100">
-                             <div className="flex flex-col text-left"><span className="text-[10px] font-black uppercase text-[#213147]">Demo Instance</span><span className="text-[8px] font-bold text-muted-foreground uppercase">Exclude from Global Results</span></div>
-                             <FormField control={registryForm.control} name="isDemo" render={({ field }) => (<Switch checked={field.value} onCheckedChange={field.onChange} className="data-[state=checked]:bg-amber-500" />)} />
-                          </div>
-                          <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border-2 border-slate-100">
-                             <span className="text-[10px] font-black uppercase text-[#213147]">Stripe Verified</span>
-                             <FormField control={registryForm.control} name="stripeOnboardingComplete" render={({ field }) => (<Switch checked={field.value} onCheckedChange={field.onChange} className="data-[state=checked]:bg-green-500" />)} />
-                          </div>
-                       </div>
-                    </div>
-
-                    <Button type="submit" disabled={isProcessing} className="w-full h-14 bg-[#213147] font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl rounded-2xl">
-                      {isProcessing ? <Loader2 className="animate-spin" /> : <Save className="h-4 w-4" />} Synchronize Registry
-                    </Button>
-                 </form>
-               </Form>
-
-               <div className="space-y-6 pt-10 border-t-4 border-primary/10">
-                  <Label className="text-[11px] font-black uppercase tracking-[0.3em] text-primary flex items-center gap-2"><Library className="h-4 w-4" /> Build Menu From Library</Label>
-                  <p className="text-[10px] font-medium text-muted-foreground leading-relaxed uppercase">Pick specific items and modifiers to add to this venue &mdash; nothing is bulk-loaded.</p>
-                  {selectedVenue && (
-                    <div className="space-y-3">
-                      <StarterModifierPicker
-                        sellerId={selectedVenue.venueId}
-                        venueType={currentVenueType}
-                        trigger={
-                          <Button variant="outline" className="w-full h-14 gap-2 border-2 rounded-2xl border-indigo-100 text-indigo-600 hover:bg-indigo-50">
-                            <Tags className="h-4 w-4" />
-                            <span className="text-[10px] font-black uppercase tracking-widest">Import Modifiers</span>
-                          </Button>
-                        }
-                      />
-                      {currentSellerModes.length === 0 ? (
-                        <p className="text-[9px] font-bold text-muted-foreground uppercase text-center py-4">Select at least one service mode above first</p>
-                      ) : currentSellerModes.map(modeLabel => (
-                        <StarterItemPicker
-                          key={modeLabel}
-                          sellerId={selectedVenue.venueId}
-                          venueType={currentVenueType}
-                          mode={MODE_KEY_BY_LABEL[modeLabel]}
-                          modeLabel={modeLabel}
-                          trigger={
-                            <Button variant="outline" className="w-full h-14 gap-2 border-2 rounded-2xl border-primary/10 text-primary hover:bg-primary/5">
-                              <Library className="h-4 w-4" />
-                              <span className="text-[10px] font-black uppercase tracking-widest">Import Items &mdash; {modeLabel}</span>
-                            </Button>
-                          }
-                        />
-                      ))}
-                    </div>
-                  )}
                </div>
+               </Form>
             </div>
           </ScrollArea>
+          <div className="p-4 border-t-2 border-slate-100 bg-white">
+            <Button type="button" onClick={registryForm.handleSubmit(onSaveVenueRegistry)} disabled={isProcessing} className="w-full h-14 bg-[#213147] font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl rounded-2xl">
+              {isProcessing ? <Loader2 className="animate-spin" /> : <Save className="h-4 w-4" />} Synchronize Registry
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
 
