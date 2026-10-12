@@ -74,7 +74,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useFirestore, useCollection, useMemoFirebase, useStorage, useDoc } from '@/firebase';
-import { collection, doc, updateDoc, setDoc, deleteDoc, serverTimestamp, writeBatch, getDoc, deleteField } from 'firebase/firestore';
+import { collection, doc, updateDoc, setDoc, deleteDoc, serverTimestamp, writeBatch, getDoc, deleteField, query, where } from 'firebase/firestore';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
@@ -202,6 +202,11 @@ export default function AdminVenueRegistryPage() {
     firestore && selectedVenue ? collection(firestore, 'sellers', selectedVenue.venueId, 'menuItems') : null
   ), [firestore, selectedVenue]);
   const { data: venueMenuItems } = useCollection(menuItemsQuery);
+
+  const adminLoginsQuery = useMemoFirebase(() => (
+    firestore && selectedVenue ? query(collection(firestore, 'roles_seller_admin'), where('sellerId', '==', selectedVenue.venueId)) : null
+  ), [firestore, selectedVenue]);
+  const { data: venueAdminLogins } = useCollection(adminLoginsQuery);
 
   const registryForm = useForm<VenueRegistryData>({
     resolver: zodResolver(venueRegistrySchema),
@@ -536,6 +541,21 @@ export default function AdminVenueRegistryPage() {
 
     return [
       {
+        label: 'Transaction Model',
+        done: !!(venue && venue.monthlySolutionFee != null && venue.solutionFeePercent != null && venue.patronConvenienceFee != null),
+        detail: 'Set the Koop fees for this venue. New venues start with the standard fees.'
+      },
+      {
+        label: 'Operational Status',
+        done: seller?.status === 'Active',
+        detail: 'Switch the venue to Active (and set holes or lanes) so it can go live.'
+      },
+      {
+        label: 'Venue Admin Logins',
+        done: (venueAdminLogins?.length || 0) > 0,
+        detail: 'Create a login for the venue admin so they can set up their own menu and staff.'
+      },
+      {
         label: 'Manager Contact',
         done: !!(seller?.contactName && seller?.contactEmail && seller?.contactPhone),
         detail: 'Add the manager\'s name, email, and phone number.'
@@ -585,8 +605,13 @@ export default function AdminVenueRegistryPage() {
         done: !!(seller?.qrActive && seller?.qrSecret),
         detail: 'Generate a QR code so patrons can reach the ordering page.'
       },
+      {
+        label: 'Print Marketing Kit',
+        done: !!(seller?.printAssets?.cartSticker && seller?.printAssets?.yardSign),
+        detail: 'Generate the cart sticker and yard sign (needs the QR code above).'
+      },
     ];
-  }, [currentSeller, selectedVenue, venueStaff, venueMenuItems]);
+  }, [currentSeller, selectedVenue, venueStaff, venueMenuItems, venueAdminLogins]);
 
   const launchReadyCount = launchChecklist.filter(i => i.done).length;
 
@@ -810,13 +835,9 @@ export default function AdminVenueRegistryPage() {
 
                <Form {...registryForm}>
                <div className="space-y-10">
-                    <div className="pt-8 border-t-4 border-primary/20">
-                      <p className="text-[11px] font-black uppercase tracking-[0.3em] text-[#213147]">Baseline Setup</p>
-                      <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mt-1">Start here: set these up first, then work down the checklist steps</p>
-                    </div>
 
                     <div className="space-y-4 pt-8 border-t-4 border-slate-100">
-                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><DollarSign className="h-3 w-3" /> Transaction Model</Label>
+                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><DollarSign className="h-3 w-3" /> 1. Transaction Model</Label>
                        <div className="grid grid-cols-2 gap-4">
                           <FormField control={registryForm.control} name="solutionFeeFixed" render={({ field }) => (
                             <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Koop Stripe Fee Coverage (Cents)</FormLabel><FormControl><Input {...field} type="number" className="h-11 border-2 font-bold" /></FormControl><FormDescription className="text-[9px]">Cents of the Stripe fee Koop covers; venue absorbs the rest</FormDescription></FormItem>
@@ -836,7 +857,7 @@ export default function AdminVenueRegistryPage() {
                     </div>
 
                     <div className="space-y-4 pt-8 border-t-4 border-slate-100">
-                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><ShieldCheck className="h-3 w-3" /> Operational Status</Label>
+                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><ShieldCheck className="h-3 w-3" /> 2. Operational Status</Label>
                        <div className="grid gap-3">
                           <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border-2 border-slate-100">
                              <div className="flex flex-col text-left">
@@ -884,15 +905,237 @@ export default function AdminVenueRegistryPage() {
 
                {selectedVenue && (
                  <div className="pt-8 border-t-4 border-slate-100">
-                   <VenueAdminLogins venueId={selectedVenue.venueId} courseName={selectedVenue.name} />
+                   <VenueAdminLogins venueId={selectedVenue.venueId} courseName={selectedVenue.name} step={3} />
                  </div>
                )}
+
+                    <div className="space-y-4 pt-8 border-t-4 border-slate-100">
+                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><User className="h-3 w-3" /> 4. Manager Contact</Label>
+                       <div className="grid grid-cols-2 gap-4">
+                          <FormField control={registryForm.control} name="contactName" render={({ field }) => (
+                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Name</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                          )} />
+                          <FormField control={registryForm.control} name="contactPhone" render={({ field }) => (
+                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Phone</FormLabel><FormControl><Input {...field} type="tel" className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                          )} />
+                       </div>
+                       <FormField control={registryForm.control} name="contactEmail" render={({ field }) => (
+                         <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Email</FormLabel><FormControl><Input {...field} type="email" className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                       )} />
+                    </div>
+
+                    <div className="space-y-4 pt-8 border-t-4 border-slate-100">
+                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><MapPin className="h-3 w-3" /> 5. Venue Address</Label>
+                       <FormField control={registryForm.control} name="streetAddress" render={({ field }) => (
+                         <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Street Address</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                       )} />
+                       <div className="grid grid-cols-3 gap-4">
+                          <FormField control={registryForm.control} name="city" render={({ field }) => (
+                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">City</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                          )} />
+                          <FormField control={registryForm.control} name="state" render={({ field }) => (
+                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">State</FormLabel><FormControl><Input {...field} maxLength={2} className="h-11 border-2 font-bold uppercase" /></FormControl></FormItem>
+                          )} />
+                          <FormField control={registryForm.control} name="zip" render={({ field }) => (
+                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Zip</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                          )} />
+                       </div>
+                    </div>
+
+                    <div className="space-y-4 pt-8 border-t-4 border-slate-100">
+                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><MapPin className="h-3 w-3" /> 6. Map Location</Label>
+                       <div className="grid grid-cols-2 gap-4">
+                          <FormField control={registryForm.control} name="latitude" render={({ field }) => (
+                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Latitude</FormLabel><FormControl><Input {...field} type="number" step="0.000001" className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                          )} />
+                          <FormField control={registryForm.control} name="longitude" render={({ field }) => (
+                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Longitude</FormLabel><FormControl><Input {...field} type="number" step="0.000001" className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                          )} />
+                       </div>
+                       <p className="text-[8px] font-medium text-muted-foreground uppercase px-1">Coordinates used as default center for patrons.</p>
+                    </div>
+
+                    <div className="space-y-4 pt-8 border-t-4 border-slate-100">
+                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><Zap className="h-3 w-3" /> 7. Service Mode Selected</Label>
+                       <div className="grid gap-3">
+                        {SERVICE_MODES.map((mode) => (
+                          <FormField key={mode.id} control={registryForm.control} name="menuTypes" render={({ field }) => (
+                            <FormItem className="flex flex-row items-center space-x-3 space-y-0 p-4 rounded-xl border-2 bg-slate-50 border-slate-100">
+                              <FormControl><Checkbox checked={field.value?.includes(mode.id)} onCheckedChange={(checked) => checked ? field.onChange([...field.value, mode.id]) : field.onChange(field.value?.filter((value) => value !== mode.id))} /></FormControl>
+                              <FormLabel className="text-[10px] font-black uppercase cursor-pointer">{mode.label}</FormLabel>
+                            </FormItem>
+                          )} />
+                        ))}
+                       </div>
+                    </div>
+
+                    <div className="space-y-4 pt-8 border-t-4 border-slate-100">
+                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><Power className="h-3 w-3" /> 8. A Service Mode Is Open</Label>
+                       {currentSellerModes.length === 0 ? (
+                         <p className="text-[9px] font-bold text-muted-foreground uppercase">Select a service mode above first</p>
+                       ) : (
+                         <div className="grid gap-2">
+                           {currentSellerModes.map(mode => {
+                             const isOpen = mode === 'Beverage Cart' ? !!currentSeller?.bevcartActive : mode === 'Clubhouse' ? !!currentSeller?.clubhouseActive : !!currentSeller?.lanedeliveryActive;
+                             return (
+                               <div key={mode} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border-2 border-slate-100">
+                                 <span className="text-[10px] font-black uppercase text-[#213147]">{mode}</span>
+                                 <Badge className={cn("border-0 text-[8px] font-black uppercase", isOpen ? "bg-green-500" : "bg-slate-400")}>{isOpen ? 'Open' : 'Closed'}</Badge>
+                               </div>
+                             );
+                           })}
+                         </div>
+                       )}
+                       <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest px-1">The venue admin opens each service mode from their dashboard.</p>
+                    </div>
+
+                    <div className="space-y-4 pt-8 border-t-4 border-slate-100">
+                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><CreditCard className="h-3 w-3" /> 9. Stripe Connected</Label>
+                       <div className="grid gap-3">
+                         <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border-2 border-slate-100">
+                           <span className="text-[10px] font-black uppercase text-[#213147]">Stripe Account</span>
+                           <Badge className={cn("border-0 text-[8px] font-black uppercase", selectedVenue?.stripeAccountId ? "bg-green-500" : "bg-slate-400")}>{selectedVenue?.stripeAccountId ? 'Connected' : 'Not Connected'}</Badge>
+                         </div>
+                         <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border-2 border-slate-100">
+                           <span className="text-[10px] font-black uppercase text-[#213147]">Payouts</span>
+                           <Badge className={cn("border-0 text-[8px] font-black uppercase", selectedVenue?.payoutsEnabled ? "bg-green-500" : "bg-slate-400")}>{selectedVenue?.payoutsEnabled ? 'Enabled' : 'Not Enabled'}</Badge>
+                         </div>
+                          <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border-2 border-slate-100">
+                             <span className="text-[10px] font-black uppercase text-[#213147]">Stripe Verified</span>
+                             <FormField control={registryForm.control} name="stripeOnboardingComplete" render={({ field }) => (<Switch checked={field.value} onCheckedChange={field.onChange} className="data-[state=checked]:bg-green-500" />)} />
+                          </div>
+                       </div>
+                       <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest px-1">The venue admin connects Stripe from their Settings page.</p>
+                    </div>
+
+                    <div className="space-y-4 pt-8 border-t-4 border-slate-100">
+                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><Wallet className="h-3 w-3" /> 10. Payment Methods Enabled</Label>
+                       <div className="grid gap-3">
+                         {(['Digital Payment', 'Pay at Delivery'] as const).map(method => (
+                           <div key={method} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border-2 border-slate-100">
+                             <span className="text-[10px] font-black uppercase text-[#213147]">{method === 'Digital Payment' ? 'Pay by Card' : 'Pay at Delivery'}</span>
+                             <Switch checked={effectivePaymentMethods.includes(method)} onCheckedChange={(checked) => handleTogglePaymentMethod(method, checked)} disabled={!currentSeller} className="data-[state=checked]:bg-green-500" />
+                           </div>
+                         ))}
+                       </div>
+                       <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest px-1">What patrons can choose at checkout. At least one stays on.</p>
+                    </div>
+
+                    <div className="space-y-4 pt-8 border-t-4 border-slate-100">
+                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><Users className="h-3 w-3" /> 11. Staff Added</Label>
+                       <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border-2 border-slate-100">
+                         <span className="text-[10px] font-black uppercase text-[#213147]">Staff Members</span>
+                         <Badge className={cn("border-0 text-[8px] font-black uppercase", (venueStaff?.length || 0) > 0 ? "bg-green-500" : "bg-slate-400")}>{venueStaff?.length || 0}</Badge>
+                       </div>
+                       <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest px-1">The venue admin adds staff from their Staff page.</p>
+                    </div>
+
+               <div className="space-y-6 pt-8 border-t-4 border-slate-100">
+                  <Label className="text-[11px] font-black uppercase tracking-[0.3em] text-primary flex items-center gap-2"><Library className="h-4 w-4" /> 12. Menu Items Added <span className="text-muted-foreground tracking-widest">· {venueMenuItems?.length || 0} on the menu</span></Label>
+                  <p className="text-[10px] font-medium text-muted-foreground leading-relaxed uppercase">Pick specific items and modifiers to add to this venue &mdash; nothing is bulk-loaded.</p>
+                  {selectedVenue && (
+                    <div className="space-y-3">
+                      <StarterModifierPicker
+                        sellerId={selectedVenue.venueId}
+                        venueType={currentVenueType}
+                        trigger={
+                          <Button variant="outline" className="w-full h-14 gap-2 border-2 rounded-2xl border-indigo-100 text-indigo-600 hover:bg-indigo-50">
+                            <Tags className="h-4 w-4" />
+                            <span className="text-[10px] font-black uppercase tracking-widest">Import Modifiers</span>
+                          </Button>
+                        }
+                      />
+                      {currentSellerModes.length === 0 ? (
+                        <p className="text-[9px] font-bold text-muted-foreground uppercase text-center py-4">Select at least one service mode above first</p>
+                      ) : currentSellerModes.map(modeLabel => (
+                        <StarterItemPicker
+                          key={modeLabel}
+                          sellerId={selectedVenue.venueId}
+                          venueType={currentVenueType}
+                          mode={MODE_KEY_BY_LABEL[modeLabel]}
+                          modeLabel={modeLabel}
+                          trigger={
+                            <Button variant="outline" className="w-full h-14 gap-2 border-2 rounded-2xl border-primary/10 text-primary hover:bg-primary/5">
+                              <Library className="h-4 w-4" />
+                              <span className="text-[10px] font-black uppercase tracking-widest">Import Items &mdash; {modeLabel}</span>
+                            </Button>
+                          }
+                        />
+                      ))}
+                    </div>
+                  )}
+               </div>
+
+               {/* QR LOGISTICS SECTION */}
+               <div className="space-y-6 pt-8 border-t-4 border-slate-100">
+                  <Label className="text-[11px] font-black uppercase tracking-[0.3em] text-primary flex items-center gap-2">
+                    <QrCode className="h-4 w-4" /> 13. QR Access Active
+                  </Label>
+                  
+                  <Card className="border-2 border-slate-100 bg-slate-50 overflow-hidden rounded-2xl">
+                    <CardContent className="p-6 flex flex-col items-center text-center gap-6">
+                      {qrUrl ? (
+                        <div className="space-y-6 w-full">
+                          <div className="bg-white p-4 rounded-[2rem] shadow-xl border-4 border-white inline-block">
+                             <img 
+                               src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrUrl)}`}
+                               alt="Venue Menu QR"
+                               className="w-48 h-48 rounded-2xl"
+                             />
+                          </div>
+                          
+                          <div className="space-y-3">
+                            <div className="flex items-center gap-2 bg-white p-3 rounded-xl border-2 border-slate-100">
+                               <Input value={qrUrl} readOnly className="h-8 border-0 bg-transparent font-mono text-[9px] font-bold text-muted-foreground" />
+                               <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => { navigator.clipboard.writeText(qrUrl); toast({ title: "Link Copied" }); }}>
+                                  <Copy className="h-3.5 w-3.5" />
+                               </Button>
+                            </div>
+                            <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest px-2">
+                              This link contains a unique security secret. Revoking it will immediately disable all printed codes.
+                            </p>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3 pt-2">
+                             <Button 
+                               variant="outline" 
+                               size="sm" 
+                               onClick={() => handleQrAction('regenerate')}
+                               className="h-10 text-[9px] font-black uppercase tracking-widest border-2 gap-1.5 hover:bg-primary/5 hover:text-primary transition-all"
+                             >
+                               <RefreshCcw className="h-3 w-3" /> Regenerate
+                             </Button>
+                             <Button 
+                               variant="outline" 
+                               size="sm" 
+                               onClick={() => handleQrAction('revoke')}
+                               className="h-10 text-[9px] font-black uppercase tracking-widest border-2 gap-1.5 text-destructive hover:bg-destructive/5"
+                             >
+                               <XCircle className="h-3 w-3" /> Revoke Access
+                             </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="py-8 space-y-4">
+                           <AlertTriangle className="h-12 w-12 text-amber-500 mx-auto" />
+                           <div className="space-y-1">
+                              <p className="text-sm font-black uppercase tracking-tight text-[#213147]">QR Access Inactive</p>
+                              <p className="text-[9px] font-bold text-muted-foreground uppercase max-w-[200px]">This venue currently has no secure access channel initialized.</p>
+                           </div>
+                           <Button onClick={() => handleQrAction('regenerate')} className="bg-primary font-black uppercase text-[10px] tracking-widest h-10 px-6 rounded-xl gap-2">
+                              <Plus className="h-4 w-4" /> Create New QR Code
+                           </Button>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+               </div>
 
                {/* PRINT MARKETING SECTION */}
                {currentSeller && (
                  <div className="space-y-6 pt-8 border-t-4 border-slate-100">
                     <Label className="text-[11px] font-black uppercase tracking-[0.3em] text-primary flex items-center gap-2">
-                      <Printer className="h-4 w-4" /> Print Marketing Kit
+                      <Printer className="h-4 w-4" /> 14. Print Marketing Kit
                     </Label>
                     <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">
                       Generate print-ready PDFs to send to a printer before launch.
@@ -960,229 +1203,6 @@ export default function AdminVenueRegistryPage() {
                  </div>
                )}
 
-
-
-                    <div className="space-y-4 pt-8 border-t-4 border-slate-100">
-                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><User className="h-3 w-3" /> 1. Manager Contact</Label>
-                       <div className="grid grid-cols-2 gap-4">
-                          <FormField control={registryForm.control} name="contactName" render={({ field }) => (
-                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Name</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
-                          )} />
-                          <FormField control={registryForm.control} name="contactPhone" render={({ field }) => (
-                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Phone</FormLabel><FormControl><Input {...field} type="tel" className="h-11 border-2 font-bold" /></FormControl></FormItem>
-                          )} />
-                       </div>
-                       <FormField control={registryForm.control} name="contactEmail" render={({ field }) => (
-                         <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Email</FormLabel><FormControl><Input {...field} type="email" className="h-11 border-2 font-bold" /></FormControl></FormItem>
-                       )} />
-                    </div>
-
-                    <div className="space-y-4 pt-8 border-t-4 border-slate-100">
-                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><MapPin className="h-3 w-3" /> 2. Venue Address</Label>
-                       <FormField control={registryForm.control} name="streetAddress" render={({ field }) => (
-                         <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Street Address</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
-                       )} />
-                       <div className="grid grid-cols-3 gap-4">
-                          <FormField control={registryForm.control} name="city" render={({ field }) => (
-                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">City</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
-                          )} />
-                          <FormField control={registryForm.control} name="state" render={({ field }) => (
-                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">State</FormLabel><FormControl><Input {...field} maxLength={2} className="h-11 border-2 font-bold uppercase" /></FormControl></FormItem>
-                          )} />
-                          <FormField control={registryForm.control} name="zip" render={({ field }) => (
-                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Zip</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
-                          )} />
-                       </div>
-                    </div>
-
-                    <div className="space-y-4 pt-8 border-t-4 border-slate-100">
-                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><MapPin className="h-3 w-3" /> 3. Map Location</Label>
-                       <div className="grid grid-cols-2 gap-4">
-                          <FormField control={registryForm.control} name="latitude" render={({ field }) => (
-                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Latitude</FormLabel><FormControl><Input {...field} type="number" step="0.000001" className="h-11 border-2 font-bold" /></FormControl></FormItem>
-                          )} />
-                          <FormField control={registryForm.control} name="longitude" render={({ field }) => (
-                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Longitude</FormLabel><FormControl><Input {...field} type="number" step="0.000001" className="h-11 border-2 font-bold" /></FormControl></FormItem>
-                          )} />
-                       </div>
-                       <p className="text-[8px] font-medium text-muted-foreground uppercase px-1">Coordinates used as default center for patrons.</p>
-                    </div>
-
-                    <div className="space-y-4 pt-8 border-t-4 border-slate-100">
-                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><Zap className="h-3 w-3" /> 4. Service Mode Selected</Label>
-                       <div className="grid gap-3">
-                        {SERVICE_MODES.map((mode) => (
-                          <FormField key={mode.id} control={registryForm.control} name="menuTypes" render={({ field }) => (
-                            <FormItem className="flex flex-row items-center space-x-3 space-y-0 p-4 rounded-xl border-2 bg-slate-50 border-slate-100">
-                              <FormControl><Checkbox checked={field.value?.includes(mode.id)} onCheckedChange={(checked) => checked ? field.onChange([...field.value, mode.id]) : field.onChange(field.value?.filter((value) => value !== mode.id))} /></FormControl>
-                              <FormLabel className="text-[10px] font-black uppercase cursor-pointer">{mode.label}</FormLabel>
-                            </FormItem>
-                          )} />
-                        ))}
-                       </div>
-                    </div>
-
-                    <div className="space-y-4 pt-8 border-t-4 border-slate-100">
-                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><Power className="h-3 w-3" /> 5. A Service Mode Is Open</Label>
-                       {currentSellerModes.length === 0 ? (
-                         <p className="text-[9px] font-bold text-muted-foreground uppercase">Select a service mode above first</p>
-                       ) : (
-                         <div className="grid gap-2">
-                           {currentSellerModes.map(mode => {
-                             const isOpen = mode === 'Beverage Cart' ? !!currentSeller?.bevcartActive : mode === 'Clubhouse' ? !!currentSeller?.clubhouseActive : !!currentSeller?.lanedeliveryActive;
-                             return (
-                               <div key={mode} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border-2 border-slate-100">
-                                 <span className="text-[10px] font-black uppercase text-[#213147]">{mode}</span>
-                                 <Badge className={cn("border-0 text-[8px] font-black uppercase", isOpen ? "bg-green-500" : "bg-slate-400")}>{isOpen ? 'Open' : 'Closed'}</Badge>
-                               </div>
-                             );
-                           })}
-                         </div>
-                       )}
-                       <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest px-1">The venue admin opens each service mode from their dashboard.</p>
-                    </div>
-
-                    <div className="space-y-4 pt-8 border-t-4 border-slate-100">
-                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><CreditCard className="h-3 w-3" /> 6. Stripe Connected</Label>
-                       <div className="grid gap-3">
-                         <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border-2 border-slate-100">
-                           <span className="text-[10px] font-black uppercase text-[#213147]">Stripe Account</span>
-                           <Badge className={cn("border-0 text-[8px] font-black uppercase", selectedVenue?.stripeAccountId ? "bg-green-500" : "bg-slate-400")}>{selectedVenue?.stripeAccountId ? 'Connected' : 'Not Connected'}</Badge>
-                         </div>
-                         <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border-2 border-slate-100">
-                           <span className="text-[10px] font-black uppercase text-[#213147]">Payouts</span>
-                           <Badge className={cn("border-0 text-[8px] font-black uppercase", selectedVenue?.payoutsEnabled ? "bg-green-500" : "bg-slate-400")}>{selectedVenue?.payoutsEnabled ? 'Enabled' : 'Not Enabled'}</Badge>
-                         </div>
-                          <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border-2 border-slate-100">
-                             <span className="text-[10px] font-black uppercase text-[#213147]">Stripe Verified</span>
-                             <FormField control={registryForm.control} name="stripeOnboardingComplete" render={({ field }) => (<Switch checked={field.value} onCheckedChange={field.onChange} className="data-[state=checked]:bg-green-500" />)} />
-                          </div>
-                       </div>
-                       <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest px-1">The venue admin connects Stripe from their Settings page.</p>
-                    </div>
-
-                    <div className="space-y-4 pt-8 border-t-4 border-slate-100">
-                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><Wallet className="h-3 w-3" /> 7. Payment Methods Enabled</Label>
-                       <div className="grid gap-3">
-                         {(['Digital Payment', 'Pay at Delivery'] as const).map(method => (
-                           <div key={method} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border-2 border-slate-100">
-                             <span className="text-[10px] font-black uppercase text-[#213147]">{method === 'Digital Payment' ? 'Pay by Card' : 'Pay at Delivery'}</span>
-                             <Switch checked={effectivePaymentMethods.includes(method)} onCheckedChange={(checked) => handleTogglePaymentMethod(method, checked)} disabled={!currentSeller} className="data-[state=checked]:bg-green-500" />
-                           </div>
-                         ))}
-                       </div>
-                       <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest px-1">What patrons can choose at checkout. At least one stays on.</p>
-                    </div>
-
-                    <div className="space-y-4 pt-8 border-t-4 border-slate-100">
-                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><Users className="h-3 w-3" /> 8. Staff Added</Label>
-                       <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border-2 border-slate-100">
-                         <span className="text-[10px] font-black uppercase text-[#213147]">Staff Members</span>
-                         <Badge className={cn("border-0 text-[8px] font-black uppercase", (venueStaff?.length || 0) > 0 ? "bg-green-500" : "bg-slate-400")}>{venueStaff?.length || 0}</Badge>
-                       </div>
-                       <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest px-1">The venue admin adds staff from their Staff page.</p>
-                    </div>
-
-               <div className="space-y-6 pt-8 border-t-4 border-slate-100">
-                  <Label className="text-[11px] font-black uppercase tracking-[0.3em] text-primary flex items-center gap-2"><Library className="h-4 w-4" /> 9. Menu Items Added <span className="text-muted-foreground tracking-widest">· {venueMenuItems?.length || 0} on the menu</span></Label>
-                  <p className="text-[10px] font-medium text-muted-foreground leading-relaxed uppercase">Pick specific items and modifiers to add to this venue &mdash; nothing is bulk-loaded.</p>
-                  {selectedVenue && (
-                    <div className="space-y-3">
-                      <StarterModifierPicker
-                        sellerId={selectedVenue.venueId}
-                        venueType={currentVenueType}
-                        trigger={
-                          <Button variant="outline" className="w-full h-14 gap-2 border-2 rounded-2xl border-indigo-100 text-indigo-600 hover:bg-indigo-50">
-                            <Tags className="h-4 w-4" />
-                            <span className="text-[10px] font-black uppercase tracking-widest">Import Modifiers</span>
-                          </Button>
-                        }
-                      />
-                      {currentSellerModes.length === 0 ? (
-                        <p className="text-[9px] font-bold text-muted-foreground uppercase text-center py-4">Select at least one service mode above first</p>
-                      ) : currentSellerModes.map(modeLabel => (
-                        <StarterItemPicker
-                          key={modeLabel}
-                          sellerId={selectedVenue.venueId}
-                          venueType={currentVenueType}
-                          mode={MODE_KEY_BY_LABEL[modeLabel]}
-                          modeLabel={modeLabel}
-                          trigger={
-                            <Button variant="outline" className="w-full h-14 gap-2 border-2 rounded-2xl border-primary/10 text-primary hover:bg-primary/5">
-                              <Library className="h-4 w-4" />
-                              <span className="text-[10px] font-black uppercase tracking-widest">Import Items &mdash; {modeLabel}</span>
-                            </Button>
-                          }
-                        />
-                      ))}
-                    </div>
-                  )}
-               </div>
-
-               {/* QR LOGISTICS SECTION */}
-               <div className="space-y-6 pt-8 border-t-4 border-slate-100">
-                  <Label className="text-[11px] font-black uppercase tracking-[0.3em] text-primary flex items-center gap-2">
-                    <QrCode className="h-4 w-4" /> 10. QR Access Active
-                  </Label>
-                  
-                  <Card className="border-2 border-slate-100 bg-slate-50 overflow-hidden rounded-2xl">
-                    <CardContent className="p-6 flex flex-col items-center text-center gap-6">
-                      {qrUrl ? (
-                        <div className="space-y-6 w-full">
-                          <div className="bg-white p-4 rounded-[2rem] shadow-xl border-4 border-white inline-block">
-                             <img 
-                               src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrUrl)}`}
-                               alt="Venue Menu QR"
-                               className="w-48 h-48 rounded-2xl"
-                             />
-                          </div>
-                          
-                          <div className="space-y-3">
-                            <div className="flex items-center gap-2 bg-white p-3 rounded-xl border-2 border-slate-100">
-                               <Input value={qrUrl} readOnly className="h-8 border-0 bg-transparent font-mono text-[9px] font-bold text-muted-foreground" />
-                               <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => { navigator.clipboard.writeText(qrUrl); toast({ title: "Link Copied" }); }}>
-                                  <Copy className="h-3.5 w-3.5" />
-                               </Button>
-                            </div>
-                            <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest px-2">
-                              This link contains a unique security secret. Revoking it will immediately disable all printed codes.
-                            </p>
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-3 pt-2">
-                             <Button 
-                               variant="outline" 
-                               size="sm" 
-                               onClick={() => handleQrAction('regenerate')}
-                               className="h-10 text-[9px] font-black uppercase tracking-widest border-2 gap-1.5 hover:bg-primary/5 hover:text-primary transition-all"
-                             >
-                               <RefreshCcw className="h-3 w-3" /> Regenerate
-                             </Button>
-                             <Button 
-                               variant="outline" 
-                               size="sm" 
-                               onClick={() => handleQrAction('revoke')}
-                               className="h-10 text-[9px] font-black uppercase tracking-widest border-2 gap-1.5 text-destructive hover:bg-destructive/5"
-                             >
-                               <XCircle className="h-3 w-3" /> Revoke Access
-                             </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="py-8 space-y-4">
-                           <AlertTriangle className="h-12 w-12 text-amber-500 mx-auto" />
-                           <div className="space-y-1">
-                              <p className="text-sm font-black uppercase tracking-tight text-[#213147]">QR Access Inactive</p>
-                              <p className="text-[9px] font-bold text-muted-foreground uppercase max-w-[200px]">This venue currently has no secure access channel initialized.</p>
-                           </div>
-                           <Button onClick={() => handleQrAction('regenerate')} className="bg-primary font-black uppercase text-[10px] tracking-widest h-10 px-6 rounded-xl gap-2">
-                              <Plus className="h-4 w-4" /> Create New QR Code
-                           </Button>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-               </div>
                </div>
                </Form>
             </div>
