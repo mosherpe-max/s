@@ -197,23 +197,23 @@ export default function AdminVenueRegistryPage() {
   // Launch-readiness checks only for the venue currently open in the Manage dialog
   const staffQuery = useMemoFirebase(() => (
     firestore && selectedVenue ? collection(firestore, 'sellers', selectedVenue.venueId, 'staff') : null
-  ), [firestore, selectedVenue]);
+  ), [firestore, selectedVenue?.venueId]);
   const { data: venueStaff } = useCollection(staffQuery);
 
   const menuItemsQuery = useMemoFirebase(() => (
     firestore && selectedVenue ? collection(firestore, 'sellers', selectedVenue.venueId, 'menuItems') : null
-  ), [firestore, selectedVenue]);
+  ), [firestore, selectedVenue?.venueId]);
   const { data: venueMenuItems } = useCollection(menuItemsQuery);
 
   const adminLoginsQuery = useMemoFirebase(() => (
     firestore && selectedVenue ? query(collection(firestore, 'roles_seller_admin'), where('sellerId', '==', selectedVenue.venueId)) : null
-  ), [firestore, selectedVenue]);
+  ), [firestore, selectedVenue?.venueId]);
   const { data: venueAdminLogins } = useCollection(adminLoginsQuery);
 
   // Whether the selected venue has any orders (to decide if its type is still changeable).
   const venueOrdersQuery = useMemoFirebase(() => (
     firestore && selectedVenue ? query(collection(firestore, 'orders'), where('sellerId', '==', selectedVenue.venueId), limit(1)) : null
-  ), [firestore, selectedVenue]);
+  ), [firestore, selectedVenue?.venueId]);
   const { data: venueOrderSample, isLoading: isOrderSampleLoading } = useCollection(venueOrdersQuery);
   const typeLockReason = (isOrderSampleLoading || venueMenuItems == null)
     ? 'Checking this venue\'s menu and orders...'
@@ -380,8 +380,9 @@ export default function AdminVenueRegistryPage() {
 
     batch.commit()
       .then(() => {
-        toast({ title: "Registry Synchronized" });
-        setIsManagementOpen(false);
+        // Stay in this venue's controls so the next step can be done straight away.
+        toast({ title: "Registry Synchronized", description: "Your changes are saved." });
+        registryForm.reset(data);
       })
       .catch(async (error) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
@@ -577,6 +578,8 @@ export default function AdminVenueRegistryPage() {
   };
 
   const currentSeller = sellers?.find(s => s.id === selectedVenue?.venueId);
+  // The registry record as it is now, so the checklist and Stripe status update while the dialog stays open.
+  const currentVenue = venuesRegistry?.find(v => v.venueId === selectedVenue?.venueId) ?? selectedVenue;
   const qrUrl = currentSeller?.qrActive && currentSeller?.qrSecret
     ? `${baseUrl}/sellers/${currentSeller.id}/order?key=${currentSeller.qrSecret}`
     : '';
@@ -590,11 +593,11 @@ export default function AdminVenueRegistryPage() {
   // in the Manage dialog below, so an admin can see progress as they go.
   const launchChecklist = React.useMemo(() => buildVenueChecklist({
     seller: currentSeller,
-    venue: selectedVenue,
+    venue: currentVenue,
     staffCount: venueStaff?.length || 0,
     menuItemCount: venueMenuItems?.length || 0,
     adminLoginCount: venueAdminLogins?.length || 0,
-  }), [currentSeller, selectedVenue, venueStaff, venueMenuItems, venueAdminLogins]);
+  }), [currentSeller, currentVenue, venueStaff, venueMenuItems, venueAdminLogins]);
 
   const launchReadyCount = launchChecklist.filter(i => i.done).length;
 
@@ -1018,11 +1021,11 @@ export default function AdminVenueRegistryPage() {
                        <div className="grid gap-3">
                          <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border-2 border-slate-100">
                            <span className="text-[10px] font-black uppercase text-[#213147]">Stripe Account</span>
-                           <Badge className={cn("border-0 text-[8px] font-black uppercase", selectedVenue?.stripeAccountId ? "bg-green-500" : "bg-slate-400")}>{selectedVenue?.stripeAccountId ? 'Connected' : 'Not Connected'}</Badge>
+                           <Badge className={cn("border-0 text-[8px] font-black uppercase", currentVenue?.stripeAccountId ? "bg-green-500" : "bg-slate-400")}>{currentVenue?.stripeAccountId ? 'Connected' : 'Not Connected'}</Badge>
                          </div>
                          <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border-2 border-slate-100">
                            <span className="text-[10px] font-black uppercase text-[#213147]">Payouts</span>
-                           <Badge className={cn("border-0 text-[8px] font-black uppercase", selectedVenue?.payoutsEnabled ? "bg-green-500" : "bg-slate-400")}>{selectedVenue?.payoutsEnabled ? 'Enabled' : 'Not Enabled'}</Badge>
+                           <Badge className={cn("border-0 text-[8px] font-black uppercase", currentVenue?.payoutsEnabled ? "bg-green-500" : "bg-slate-400")}>{currentVenue?.payoutsEnabled ? 'Enabled' : 'Not Enabled'}</Badge>
                          </div>
                           <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border-2 border-slate-100">
                              <span className="text-[10px] font-black uppercase text-[#213147]">Stripe Verified</span>
