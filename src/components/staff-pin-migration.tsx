@@ -1,35 +1,37 @@
 'use client';
 
 import { useState } from 'react';
-import { getFunctions, httpsCallable } from 'firebase/functions';
 import { KeyRound, Loader2 } from 'lucide-react';
-import { useFirebaseApp } from '@/firebase';
+import { useFirestore } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { migrateStaffPins, type PinMigrationResult } from '@/lib/staff-pin-migration';
 
 // Koop admin: moves every existing staff login PIN out of the staff records (which patrons'
 // browsers can read) into a private place only venue admins can read. Safe to run again.
 export function StaffPinMigration() {
-  const firebaseApp = useFirebaseApp();
+  const firestore = useFirestore();
   const { toast } = useToast();
   const [running, setRunning] = useState(false);
-  const [lastMoved, setLastMoved] = useState<number | null>(null);
+  const [last, setLast] = useState<PinMigrationResult | null>(null);
 
   const run = async () => {
-    if (!firebaseApp) return;
+    if (!firestore) return;
     setRunning(true);
     try {
-      const functions = getFunctions(firebaseApp, 'us-central1');
-      const result = await httpsCallable(functions, 'migrateStaffPins')();
-      const moved = (result.data as { moved: number }).moved;
-      setLastMoved(moved);
-      toast({
-        title: 'Staff PINs Secured',
-        description: moved === 0 ? 'Nothing left to move. Every PIN is already private.' : `Moved ${moved} staff PIN${moved === 1 ? '' : 's'} to private storage.`,
-      });
+      const result = await migrateStaffPins(firestore);
+      setLast(result);
+      if (result.failed.length > 0) {
+        toast({ variant: 'destructive', title: 'Some PINs Could Not Be Moved', description: `${result.moved} moved, ${result.failed.length} failed. Details are on this page.` });
+      } else {
+        toast({
+          title: 'Staff PINs Secured',
+          description: result.moved === 0 ? 'Nothing left to move. Every PIN is already private.' : `Moved ${result.moved} staff PIN${result.moved === 1 ? '' : 's'} to private storage.`,
+        });
+      }
     } catch (e: any) {
-      toast({ variant: 'destructive', title: 'Could Not Move PINs', description: e.message });
+      toast({ variant: 'destructive', title: 'Could Not Move PINs', description: e?.message || 'Unknown error' });
     } finally {
       setRunning(false);
     }
@@ -51,7 +53,14 @@ export function StaffPinMigration() {
         {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
         Secure Staff PINs
       </Button>
-      {lastMoved !== null && <p className="text-[10px] font-black uppercase tracking-widest text-green-700">Last run: {lastMoved} moved</p>}
+      {last && (
+        <div className="space-y-1">
+          <p className="text-[10px] font-black uppercase tracking-widest text-green-700">Last run: {last.moved} moved</p>
+          {last.failed.map((f) => (
+            <p key={f.path} className="text-[10px] font-bold text-destructive break-all">{f.path}: {f.message}</p>
+          ))}
+        </div>
+      )}
     </Card>
   );
 }
