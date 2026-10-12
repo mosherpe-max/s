@@ -98,7 +98,7 @@ export function VenueAdminLinkDialog({ result, onClose }: { result: VenueAdminLi
 
 // Koop Admin > Venue Controls: the venue's admin logins, with a way to add one and to
 // send any of them a password reset.
-export function VenueAdminLogins({ venueId, courseName }: { venueId: string; courseName: string }) {
+export function VenueAdminLogins({ venueId, courseName, step }: { venueId: string; courseName: string; step?: number }) {
   const firestore = useFirestore();
   const auth = useAuth();
   const { toast } = useToast();
@@ -161,7 +161,7 @@ export function VenueAdminLogins({ venueId, courseName }: { venueId: string; cou
   return (
     <div className="space-y-4">
       <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">
-        <KeyRound className="h-3 w-3" /> Venue Admin Logins
+        <KeyRound className="h-3 w-3" /> {step ? `${step}. ` : ''}Venue Admin Logins
       </p>
 
       {isLoading ? (
