@@ -170,6 +170,18 @@ export const staffLogin = onCall({ region: 'us-central1' }, async (request) => {
     }
 
     if (!staffDoc) {
+      // Counts only (never the PIN) so a refused login can be told apart from missing data.
+      const [secretTotal, staffTotal] = await Promise.all([
+        sellerRef.collection('staffSecrets').count().get(),
+        sellerRef.collection('staff').count().get(),
+      ]);
+      logger.warn('staffLogin: PIN not matched', {
+        sellerId,
+        pinMatches: secretSnap.size,
+        secretsInVenue: secretTotal.data().count,
+        staffInVenue: staffTotal.data().count,
+        matchedButInactiveOrMissing: secretSnap.docs.map(d => d.id),
+      });
       await attemptsRef.set({
         count: windowOpen ? (attempts?.count || 0) + 1 : 1,
         windowStart: windowOpen ? attempts!.windowStart : Date.now(),
