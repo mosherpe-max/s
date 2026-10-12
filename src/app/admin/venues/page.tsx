@@ -541,21 +541,6 @@ export default function AdminVenueRegistryPage() {
 
     return [
       {
-        label: 'Transaction Model',
-        done: !!(venue && venue.monthlySolutionFee != null && venue.solutionFeePercent != null && venue.patronConvenienceFee != null),
-        detail: 'Set the Koop fees for this venue. New venues start with the standard fees.'
-      },
-      {
-        label: 'Operational Status',
-        done: seller?.status === 'Active',
-        detail: 'Switch the venue to Active (and set holes or lanes) so it can go live.'
-      },
-      {
-        label: 'Venue Admin Logins',
-        done: (venueAdminLogins?.length || 0) > 0,
-        detail: 'Create a login for the venue admin so they can set up their own menu and staff.'
-      },
-      {
         label: 'Manager Contact',
         done: !!(seller?.contactName && seller?.contactEmail && seller?.contactPhone),
         detail: 'Add the manager\'s name, email, and phone number.'
@@ -564,6 +549,21 @@ export default function AdminVenueRegistryPage() {
         label: 'Venue Address',
         done: !!(seller?.streetAddress && seller?.city && seller?.state && seller?.zip),
         detail: 'Add the street address, city, state, and zip.'
+      },
+      {
+        label: 'Venue Admin Logins',
+        done: (venueAdminLogins?.length || 0) > 0,
+        detail: 'Create a login for the venue admin so they can set up their own menu and staff.'
+      },
+      {
+        label: 'Transaction Model',
+        done: !!(venue && venue.monthlySolutionFee != null && venue.solutionFeePercent != null && venue.patronConvenienceFee != null),
+        detail: 'Set the Koop fees for this venue. New venues start with the standard fees.'
+      },
+      {
+        label: 'Operational Status',
+        done: seller?.status === 'Active',
+        detail: 'Switch the venue to Active (and set holes or lanes) so it can go live.'
       },
       {
         label: 'Map Location',
@@ -837,7 +837,46 @@ export default function AdminVenueRegistryPage() {
                <div className="space-y-10">
 
                     <div className="space-y-4 pt-8 border-t-4 border-slate-100">
-                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><DollarSign className="h-3 w-3" /> 1. Transaction Model</Label>
+                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><User className="h-3 w-3" /> 1. Manager Contact</Label>
+                       <div className="grid grid-cols-2 gap-4">
+                          <FormField control={registryForm.control} name="contactName" render={({ field }) => (
+                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Name</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                          )} />
+                          <FormField control={registryForm.control} name="contactPhone" render={({ field }) => (
+                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Phone</FormLabel><FormControl><Input {...field} type="tel" className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                          )} />
+                       </div>
+                       <FormField control={registryForm.control} name="contactEmail" render={({ field }) => (
+                         <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Email</FormLabel><FormControl><Input {...field} type="email" className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                       )} />
+                    </div>
+
+                    <div className="space-y-4 pt-8 border-t-4 border-slate-100">
+                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><MapPin className="h-3 w-3" /> 2. Venue Address</Label>
+                       <FormField control={registryForm.control} name="streetAddress" render={({ field }) => (
+                         <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Street Address</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                       )} />
+                       <div className="grid grid-cols-3 gap-4">
+                          <FormField control={registryForm.control} name="city" render={({ field }) => (
+                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">City</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                          )} />
+                          <FormField control={registryForm.control} name="state" render={({ field }) => (
+                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">State</FormLabel><FormControl><Input {...field} maxLength={2} className="h-11 border-2 font-bold uppercase" /></FormControl></FormItem>
+                          )} />
+                          <FormField control={registryForm.control} name="zip" render={({ field }) => (
+                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Zip</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                          )} />
+                       </div>
+                    </div>
+
+               {selectedVenue && (
+                 <div className="pt-8 border-t-4 border-slate-100">
+                   <VenueAdminLogins venueId={selectedVenue.venueId} courseName={selectedVenue.name} step={3} />
+                 </div>
+               )}
+
+                    <div className="space-y-4 pt-8 border-t-4 border-slate-100">
+                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><DollarSign className="h-3 w-3" /> 4. Transaction Model</Label>
                        <div className="grid grid-cols-2 gap-4">
                           <FormField control={registryForm.control} name="solutionFeeFixed" render={({ field }) => (
                             <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Koop Stripe Fee Coverage (Cents)</FormLabel><FormControl><Input {...field} type="number" className="h-11 border-2 font-bold" /></FormControl><FormDescription className="text-[9px]">Cents of the Stripe fee Koop covers; venue absorbs the rest</FormDescription></FormItem>
@@ -857,7 +896,7 @@ export default function AdminVenueRegistryPage() {
                     </div>
 
                     <div className="space-y-4 pt-8 border-t-4 border-slate-100">
-                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><ShieldCheck className="h-3 w-3" /> 2. Operational Status</Label>
+                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><ShieldCheck className="h-3 w-3" /> 5. Operational Status</Label>
                        <div className="grid gap-3">
                           <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border-2 border-slate-100">
                              <div className="flex flex-col text-left">
@@ -900,45 +939,6 @@ export default function AdminVenueRegistryPage() {
                              <div className="flex flex-col text-left"><span className="text-[10px] font-black uppercase text-[#213147]">Demo Instance</span><span className="text-[8px] font-bold text-muted-foreground uppercase">Exclude from Global Results</span></div>
                              <FormField control={registryForm.control} name="isDemo" render={({ field }) => (<Switch checked={field.value} onCheckedChange={field.onChange} className="data-[state=checked]:bg-amber-500" />)} />
                           </div>
-                       </div>
-                    </div>
-
-               {selectedVenue && (
-                 <div className="pt-8 border-t-4 border-slate-100">
-                   <VenueAdminLogins venueId={selectedVenue.venueId} courseName={selectedVenue.name} step={3} />
-                 </div>
-               )}
-
-                    <div className="space-y-4 pt-8 border-t-4 border-slate-100">
-                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><User className="h-3 w-3" /> 4. Manager Contact</Label>
-                       <div className="grid grid-cols-2 gap-4">
-                          <FormField control={registryForm.control} name="contactName" render={({ field }) => (
-                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Name</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
-                          )} />
-                          <FormField control={registryForm.control} name="contactPhone" render={({ field }) => (
-                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Phone</FormLabel><FormControl><Input {...field} type="tel" className="h-11 border-2 font-bold" /></FormControl></FormItem>
-                          )} />
-                       </div>
-                       <FormField control={registryForm.control} name="contactEmail" render={({ field }) => (
-                         <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Email</FormLabel><FormControl><Input {...field} type="email" className="h-11 border-2 font-bold" /></FormControl></FormItem>
-                       )} />
-                    </div>
-
-                    <div className="space-y-4 pt-8 border-t-4 border-slate-100">
-                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><MapPin className="h-3 w-3" /> 5. Venue Address</Label>
-                       <FormField control={registryForm.control} name="streetAddress" render={({ field }) => (
-                         <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Street Address</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
-                       )} />
-                       <div className="grid grid-cols-3 gap-4">
-                          <FormField control={registryForm.control} name="city" render={({ field }) => (
-                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">City</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
-                          )} />
-                          <FormField control={registryForm.control} name="state" render={({ field }) => (
-                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">State</FormLabel><FormControl><Input {...field} maxLength={2} className="h-11 border-2 font-bold uppercase" /></FormControl></FormItem>
-                          )} />
-                          <FormField control={registryForm.control} name="zip" render={({ field }) => (
-                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Zip</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-bold" /></FormControl></FormItem>
-                          )} />
                        </div>
                     </div>
 
