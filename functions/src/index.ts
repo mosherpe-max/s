@@ -4,9 +4,13 @@ import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import * as logger from "firebase-functions/logger";
 import { initializeApp } from "firebase-admin/app";
-import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import { getFirestore, FieldValue, Timestamp } from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
 import { randomBytes } from "crypto";
+import {
+  IN_PROGRESS_STATUSES, cancelReasonOf, computeDurations, isDemoSeller, isExcluded, localTimeParts,
+  modeFlagPrefix, placementLocation, roundCoord, summarizeItems, suspectReasons,
+} from "./order-timing.js";
 import Stripe from 'stripe';
 import twilio from 'twilio';
 import webpush from 'web-push';
@@ -1041,12 +1045,199 @@ export const syncOrderQueue = onDocumentWritten({
     await ref.delete().catch(() => {});
     return;
   }
+  // A card order starts as a bare record from the payment webhook, with no service mode until the patron's
+  // browser adds its details; it joins the queue when that happens.
+  if (!order.sellerId || !order.menuType) return;
   await ref.set({
     sellerId: order.sellerId,
     menuType: order.menuType,
     status: order.status,
     createdAt: order.createdAt || FieldValue.serverTimestamp(),
   });
+});
+
+/**
+ * recordOrderTiming
+ * Writes one record per order to orderTimings/{orderId}: what the order looked like and how busy the venue
+ * was when it was placed, and when each step happened. It is the history that delivery time estimates will
+ * be built from, so it is written here on the server (staff phones cannot change it), holds no names, phone
+ * numbers or emails, and each step time is only ever set once. Nothing the patron or staff see depends on it.
+ *
+ * A patron's phone updates its order about every 30 seconds with GPS; those writes are ignored straight away.
+ */
+export const recordOrderTiming = onDocumentWritten({
+  document: "orders/{orderId}",
+  region: 'us-central1'
+}, async (event) => {
+  try {
+    const before = event.data?.before?.exists ? event.data.before.data() : null;
+    const after = event.data?.after?.exists ? event.data.after.data() : null;
+    if (!after || !after.sellerId) return;
+
+    // A card order starts as a bare record from the payment webhook and is completed by the patron's browser,
+    // so "placed" means the moment it has its details (service mode and items).
+    const hasDetails = !!after.menuType;
+    const detailsCompleted = hasDetails && !before?.menuType;
+    const statusChanged = !!before && before.status !== after.status;
+    const relocated = !!before && (before.deliveryHole !== after.deliveryHole || before.menuTypeLocation !== after.menuTypeLocation);
+    if (!detailsCompleted && !statusChanged && !relocated) return;
+
+    const orderId: string = event.params.orderId;
+    const sellerId: string = after.sellerId;
+    const ref = db.collection('orderTimings').doc(orderId);
+    const eventTs = Timestamp.fromDate(event.time ? new Date(event.time) : new Date());
+    const stampOr = (value: unknown) => (value instanceof Timestamp ? value : eventTs);
+    const toMs = (value: any): number | null => (value && typeof value.toMillis === 'function' ? value.toMillis() : null);
+
+    const existing = (await ref.get()).data() || {};
+    const once: Record<string, unknown> = {};   // set the first time only
+    let relocationIncrement = false;
+
+    // --- placement snapshot, taken once the order has its details. An order that was already in progress before
+    // this function existed has no honest snapshot (the venue has moved on), so its load and location fields
+    // stay empty and it is labelled as such.
+    if (existing.menuType === undefined && hasDetails && !detailsCompleted) {
+      const placedMs = toMs(after.createdAt) ?? eventTs.toMillis();
+      Object.assign(once, {
+        sellerId,
+        menuType: after.menuType,
+        isDemo: isDemoSeller(sellerId),
+        backfilled: false,
+        placementSnapshot: false,
+        placedAt: Timestamp.fromMillis(placedMs),
+        ...localTimeParts(new Date(placedMs)),
+        ...summarizeItems(after.items),
+        paymentMethod: after.paymentMethod || null,
+        relocationCount: 0,
+        quotedMinMinutes: null,
+        quotedMaxMinutes: null,
+        quoteModelVersion: null,
+      });
+    } else if (existing.menuType === undefined && hasDetails) {
+      const mode: string = after.menuType;
+      const placedMs = toMs(after.createdAt) ?? eventTs.toMillis();
+      const [venueSnap, sellerSnap, activeSnap, staffSnap] = await Promise.all([
+        db.collection('venues').doc(sellerId).get(),
+        db.collection('sellers').doc(sellerId).get(),
+        db.collection('orders').where('sellerId', '==', sellerId).where('menuType', '==', mode).where('status', 'in', IN_PROGRESS_STATUSES).get(),
+        db.collection('sellers').doc(sellerId).collection('staff').where('activeMode', '==', mode).get(),
+      ]);
+      const ahead = activeSnap.docs.filter(d => d.id !== orderId && (toMs(d.data().createdAt) ?? 0) <= placedMs);
+      const oldestWaitingSec = ahead.reduce((max, d) => Math.max(max, Math.round((placedMs - (toMs(d.data().createdAt) ?? placedMs)) / 1000)), 0);
+      const prefix = modeFlagPrefix(mode);
+      const seller = sellerSnap.data() || {};
+      const location = placementLocation(after);
+      const local = localTimeParts(new Date(placedMs));
+      Object.assign(once, {
+        sellerId,
+        menuType: mode,
+        isDemo: isDemoSeller(sellerId, venueSnap.data()?.isDemo),
+        backfilled: false,
+        placementSnapshot: true,
+        placedAt: Timestamp.fromMillis(placedMs),
+        ...local,
+        ...summarizeItems(after.items),
+        paymentMethod: after.paymentMethod || null,
+        ordersAhead: ahead.length,
+        ordersAheadPreparing: ahead.filter(d => d.data().status !== 'Placed').length,
+        oldestWaitingSec,
+        staffOnShift: staffSnap.size,
+        staffAvailable: staffSnap.docs.filter(d => d.data().isAvailable !== false).length,
+        modePaused: prefix ? !!seller[`${prefix}PausedByStaff`] : false,
+        modeThrottled: prefix ? !!seller[`${prefix}AutoThrottled`] : false,
+        locationSource: location.source,
+        hole: location.hole,
+        placedLat: location.lat,
+        placedLng: location.lng,
+        relocationCount: 0,
+        // Filled in later, once estimates are shown to patrons.
+        quotedMinMinutes: null,
+        quotedMaxMinutes: null,
+        quoteModelVersion: null,
+      });
+    }
+
+    // --- when each step happened, and who and where
+    const staffId: string | null = after.assignedStaffId || null;
+    const staffLocation = async () => {
+      if (!staffId) return { lat: null, lng: null };
+      const staff = (await db.collection('sellers').doc(sellerId).collection('staff').doc(staffId).get()).data();
+      return { lat: roundCoord(staff?.latitude), lng: roundCoord(staff?.longitude) };
+    };
+    if (statusChanged) {
+      switch (after.status) {
+        case 'Preparing': {
+          const loc = await staffLocation();
+          Object.assign(once, {
+            preparingAt: eventTs,
+            acknowledgedAt: stampOr(after.acknowledgedAt),
+            acknowledgedByStaffId: staffId,
+            staffLatAtAck: loc.lat,
+            staffLngAtAck: loc.lng,
+          });
+          break;
+        }
+        case 'Out for Delivery':
+          Object.assign(once, {
+            outForDeliveryAt: eventTs,
+            preparedByStaffId: after.preparedByStaffId || before?.assignedStaffId || null,
+          });
+          break;
+        case 'Delivered': {
+          const loc = await staffLocation();
+          Object.assign(once, {
+            deliveredAt: stampOr(after.deliveredAt),
+            deliveredByStaffId: staffId,
+            staffLatAtDelivery: loc.lat,
+            staffLngAtDelivery: loc.lng,
+            patronLatAtDelivery: roundCoord(after.deliveryLocation?.latitude),
+            patronLngAtDelivery: roundCoord(after.deliveryLocation?.longitude),
+            lateAlertSent: !!after.lateAlertSentAt,
+          });
+          break;
+        }
+        case 'Cancelled':
+          Object.assign(once, { cancelledAt: eventTs, cancelReason: cancelReasonOf(after) });
+          break;
+      }
+    }
+    if (relocated && existing.menuType !== undefined) relocationIncrement = true;
+
+    await db.runTransaction(async (tx) => {
+      const cur = (await tx.get(ref)).data() || {};
+      const patch: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(once)) {
+        if (cur[key] === undefined) patch[key] = value;
+      }
+      // The order's own identity, in case it was placed before this record existed.
+      if (cur.sellerId === undefined && patch.sellerId === undefined) patch.sellerId = sellerId;
+      if (cur.placedAt === undefined && patch.placedAt === undefined && after.createdAt instanceof Timestamp) patch.placedAt = after.createdAt;
+      if (cur.isDemo === undefined && patch.isDemo === undefined) patch.isDemo = isDemoSeller(sellerId);
+      if (relocationIncrement) patch.relocationCount = FieldValue.increment(1);
+
+      // Totals, a first check on the data, and whether to leave this order out of analysis.
+      if (after.status === 'Delivered' || after.status === 'Cancelled') {
+        const merged: Record<string, any> = { ...cur, ...patch };
+        patch.outcome = after.status;
+        let suspect = !!merged.suspect;
+        if (after.status === 'Delivered') {
+          const times = {
+            placed: toMs(merged.placedAt), acknowledged: toMs(merged.acknowledgedAt), preparing: toMs(merged.preparingAt),
+            outForDelivery: toMs(merged.outForDeliveryAt), delivered: toMs(merged.deliveredAt),
+          };
+          const reasons = suspectReasons(times);
+          suspect = reasons.length > 0;
+          Object.assign(patch, computeDurations(times), { suspect, suspectReasons: reasons });
+        }
+        patch.excluded = isExcluded({ isDemo: merged.isDemo, cancelReason: merged.cancelReason, suspect });
+      }
+
+      if (Object.keys(patch).length > 0) tx.set(ref, patch, { merge: true });
+    });
+  } catch (err) {
+    // Recording must never get in the way of an order.
+    logger.error("recordOrderTiming failed", err);
+  }
 });
 
 /**

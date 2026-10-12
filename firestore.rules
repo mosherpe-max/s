@@ -222,6 +222,14 @@ service cloud.firestore {
       allow delete: if isSuperAdmin() || isVenueOwner(resource.data.sellerId);
     }
 
+    // One timing record per order (what the venue looked like when it was placed and when each step
+    // happened), kept by the recordOrderTiming function as the history delivery-time estimates will be built
+    // from. No personal details. Only the Koop admin can read it, and the app itself never writes to it.
+    match /orderTimings/{orderId} {
+      allow read: if isSuperAdmin();
+      allow write: if false;
+    }
+
     // A copy of each in-progress order with no personal details (venue, service mode, status,
     // placed time), kept by the syncOrderQueue function. It lets a patron see their place in
     // line without being able to read other people's orders.
