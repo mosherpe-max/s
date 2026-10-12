@@ -810,6 +810,157 @@ export default function AdminVenueRegistryPage() {
 
                <Form {...registryForm}>
                <div className="space-y-10">
+                    <div className="pt-8 border-t-4 border-primary/20">
+                      <p className="text-[11px] font-black uppercase tracking-[0.3em] text-[#213147]">Baseline Setup</p>
+                      <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mt-1">Start here: set these up first, then work down the checklist steps</p>
+                    </div>
+
+                    <div className="space-y-4 pt-8 border-t-4 border-slate-100">
+                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><DollarSign className="h-3 w-3" /> Transaction Model</Label>
+                       <div className="grid grid-cols-2 gap-4">
+                          <FormField control={registryForm.control} name="solutionFeeFixed" render={({ field }) => (
+                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Koop Stripe Fee Coverage (Cents)</FormLabel><FormControl><Input {...field} type="number" className="h-11 border-2 font-bold" /></FormControl><FormDescription className="text-[9px]">Cents of the Stripe fee Koop covers; venue absorbs the rest</FormDescription></FormItem>
+                          )} />
+                          <FormField control={registryForm.control} name="solutionFeePercent" render={({ field }) => (
+                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Koop % Fee</FormLabel><FormControl><Input {...field} type="number" step="0.1" className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                          )} />
+                       </div>
+                       <div className="grid grid-cols-2 gap-4">
+                          <FormField control={registryForm.control} name="patronConvenienceFee" render={({ field }) => (
+                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Patron Conv. Fee (Cents)</FormLabel><FormControl><Input {...field} type="number" className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                          )} />
+                          <FormField control={registryForm.control} name="monthlySolutionFee" render={({ field }) => (
+                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Monthly Fee ($)</FormLabel><FormControl><Input {...field} type="number" className="h-11 border-2 font-bold" /></FormControl></FormItem>
+                          )} />
+                       </div>
+                    </div>
+
+                    <div className="space-y-4 pt-8 border-t-4 border-slate-100">
+                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><ShieldCheck className="h-3 w-3" /> Operational Status</Label>
+                       <div className="grid gap-3">
+                          <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border-2 border-slate-100">
+                             <div className="flex flex-col text-left">
+                               <span className="text-[10px] font-black uppercase text-[#213147]">Operational Activation</span>
+                               <span className="text-[8px] font-bold text-muted-foreground uppercase">Enable global solution access</span>
+                             </div>
+                             <FormField control={registryForm.control} name="status" render={({ field }) => (
+                               <Switch 
+                                 checked={field.value === 'Active'} 
+                                 onCheckedChange={(checked) => field.onChange(checked ? 'Active' : 'Inactive')} 
+                                 className="data-[state=checked]:bg-green-600" 
+                               />
+                             )} />
+                          </div>
+                          {sellers?.find(s => s.id === selectedVenue?.venueId)?.type === 'Golf Course' && (
+                            <>
+                              <FormField control={registryForm.control} name="holeCount" render={({ field }) => (
+                                <FormItem className="text-left p-3 rounded-xl border-2 bg-slate-50 border-slate-100">
+                                  <FormLabel className="text-[10px] font-black uppercase">Number of Holes</FormLabel>
+                                  <FormControl><Input {...field} type="number" min={1} max={36} className="h-10 border-2 font-bold bg-white" /></FormControl>
+                                  <p className="text-[8px] font-bold text-muted-foreground uppercase mt-1">Patrons pick their hole from this list if they won&apos;t share location</p>
+                                  <FormMessage />
+                                </FormItem>
+                              )} />
+                              <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border-2 border-slate-100">
+                                <div className="flex flex-col text-left"><span className="text-[10px] font-black uppercase text-[#213147]">Driving Range</span><span className="text-[8px] font-bold text-muted-foreground uppercase">Offer it as a delivery location</span></div>
+                                <FormField control={registryForm.control} name="hasDrivingRange" render={({ field }) => (<Switch checked={field.value} onCheckedChange={field.onChange} className="data-[state=checked]:bg-green-600" />)} />
+                              </div>
+                            </>
+                          )}
+                          {sellers?.find(s => s.id === selectedVenue?.venueId)?.type === 'Bowling Center' && (
+                            <FormField control={registryForm.control} name="laneCount" render={({ field }) => (
+                              <FormItem className="text-left p-3 rounded-xl border-2 bg-slate-50 border-slate-100">
+                                <FormLabel className="text-[10px] font-black uppercase">Lane Inventory</FormLabel>
+                                <FormControl><Input {...field} type="number" className="h-10 border-2 font-bold bg-white" /></FormControl>
+                              </FormItem>
+                            )} />
+                          )}
+                          <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border-2 border-slate-100">
+                             <div className="flex flex-col text-left"><span className="text-[10px] font-black uppercase text-[#213147]">Demo Instance</span><span className="text-[8px] font-bold text-muted-foreground uppercase">Exclude from Global Results</span></div>
+                             <FormField control={registryForm.control} name="isDemo" render={({ field }) => (<Switch checked={field.value} onCheckedChange={field.onChange} className="data-[state=checked]:bg-amber-500" />)} />
+                          </div>
+                       </div>
+                    </div>
+
+               {selectedVenue && (
+                 <div className="pt-8 border-t-4 border-slate-100">
+                   <VenueAdminLogins venueId={selectedVenue.venueId} courseName={selectedVenue.name} />
+                 </div>
+               )}
+
+               {/* PRINT MARKETING SECTION */}
+               {currentSeller && (
+                 <div className="space-y-6 pt-8 border-t-4 border-slate-100">
+                    <Label className="text-[11px] font-black uppercase tracking-[0.3em] text-primary flex items-center gap-2">
+                      <Printer className="h-4 w-4" /> Print Marketing Kit
+                    </Label>
+                    <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">
+                      Generate print-ready PDFs to send to a printer before launch.
+                    </p>
+
+                    <div className="space-y-2 bg-white p-4 rounded-2xl border-2 border-slate-100">
+                      <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Marketing Venue Name</Label>
+                      <Input
+                        key={currentSeller.id}
+                        defaultValue={currentSeller.marketingVenueName || ''}
+                        placeholder={currentSeller.courseName || 'Venue name shown on print materials'}
+                        onBlur={(e) => handleUpdateMarketingVenueName(e.target.value)}
+                        className="h-10 font-bold text-sm"
+                      />
+                      <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">
+                        Used on the cart sticker &amp; yard sign below. Falls back to the course name if left blank.
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {(['cartSticker', 'yardSign'] as const).map((kind) => {
+                        const asset = currentSeller.printAssets?.[kind];
+                        const label = kind === 'cartSticker' ? 'Cart Sticker' : 'Yard Sign';
+                        const isGenerating = isGeneratingAsset === kind;
+                        return (
+                          <div key={kind} className="space-y-3 bg-white p-4 rounded-2xl border-2 border-slate-100">
+                            <div className="flex items-center justify-between">
+                              <p className="text-[10px] font-black uppercase tracking-widest text-[#213147]">{label}</p>
+                              {asset ? (
+                                <Badge variant="outline" className="text-[7px] font-black uppercase tracking-widest border-2">Generated</Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-[7px] font-black uppercase tracking-widest border-2 text-amber-600 border-amber-200">Not Generated</Badge>
+                              )}
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={!asset}
+                                onClick={() => asset && window.open(asset.url, '_blank')}
+                                className="h-10 text-[9px] font-black uppercase tracking-widest border-2 gap-1.5"
+                              >
+                                <Download className="h-3 w-3" /> Download
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={isGeneratingAsset !== null}
+                                onClick={() => setRecreateConfirmAsset(kind)}
+                                className="h-10 text-[9px] font-black uppercase tracking-widest border-2 gap-1.5 hover:bg-primary/5 hover:text-primary"
+                              >
+                                {isGenerating ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCcw className="h-3 w-3" />} Recreate
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <PrintMarketingKit
+                      courseName={currentSeller.marketingVenueName || currentSeller.courseName || ''}
+                      patronMenuUrl={qrUrl}
+                      venueType={currentSeller.type}
+                    />
+                 </div>
+               )}
+
+
 
                     <div className="space-y-4 pt-8 border-t-4 border-slate-100">
                        <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><User className="h-3 w-3" /> 1. Manager Contact</Label>
@@ -1032,157 +1183,6 @@ export default function AdminVenueRegistryPage() {
                     </CardContent>
                   </Card>
                </div>
-
-                    <div className="pt-8 border-t-4 border-primary/20">
-                      <p className="text-[11px] font-black uppercase tracking-[0.3em] text-[#213147]">Additional Settings</p>
-                      <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mt-1">Not part of the launch checklist</p>
-                    </div>
-
-                    <div className="space-y-4 pt-8 border-t-4 border-slate-100">
-                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><DollarSign className="h-3 w-3" /> Transaction Model</Label>
-                       <div className="grid grid-cols-2 gap-4">
-                          <FormField control={registryForm.control} name="solutionFeeFixed" render={({ field }) => (
-                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Koop Stripe Fee Coverage (Cents)</FormLabel><FormControl><Input {...field} type="number" className="h-11 border-2 font-bold" /></FormControl><FormDescription className="text-[9px]">Cents of the Stripe fee Koop covers; venue absorbs the rest</FormDescription></FormItem>
-                          )} />
-                          <FormField control={registryForm.control} name="solutionFeePercent" render={({ field }) => (
-                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Koop % Fee</FormLabel><FormControl><Input {...field} type="number" step="0.1" className="h-11 border-2 font-bold" /></FormControl></FormItem>
-                          )} />
-                       </div>
-                       <div className="grid grid-cols-2 gap-4">
-                          <FormField control={registryForm.control} name="patronConvenienceFee" render={({ field }) => (
-                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Patron Conv. Fee (Cents)</FormLabel><FormControl><Input {...field} type="number" className="h-11 border-2 font-bold" /></FormControl></FormItem>
-                          )} />
-                          <FormField control={registryForm.control} name="monthlySolutionFee" render={({ field }) => (
-                            <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Monthly Fee ($)</FormLabel><FormControl><Input {...field} type="number" className="h-11 border-2 font-bold" /></FormControl></FormItem>
-                          )} />
-                       </div>
-                    </div>
-
-                    <div className="space-y-4 pt-8 border-t-4 border-slate-100">
-                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><ShieldCheck className="h-3 w-3" /> Operational Status</Label>
-                       <div className="grid gap-3">
-                          <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border-2 border-slate-100">
-                             <div className="flex flex-col text-left">
-                               <span className="text-[10px] font-black uppercase text-[#213147]">Operational Activation</span>
-                               <span className="text-[8px] font-bold text-muted-foreground uppercase">Enable global solution access</span>
-                             </div>
-                             <FormField control={registryForm.control} name="status" render={({ field }) => (
-                               <Switch 
-                                 checked={field.value === 'Active'} 
-                                 onCheckedChange={(checked) => field.onChange(checked ? 'Active' : 'Inactive')} 
-                                 className="data-[state=checked]:bg-green-600" 
-                               />
-                             )} />
-                          </div>
-                          {sellers?.find(s => s.id === selectedVenue?.venueId)?.type === 'Golf Course' && (
-                            <>
-                              <FormField control={registryForm.control} name="holeCount" render={({ field }) => (
-                                <FormItem className="text-left p-3 rounded-xl border-2 bg-slate-50 border-slate-100">
-                                  <FormLabel className="text-[10px] font-black uppercase">Number of Holes</FormLabel>
-                                  <FormControl><Input {...field} type="number" min={1} max={36} className="h-10 border-2 font-bold bg-white" /></FormControl>
-                                  <p className="text-[8px] font-bold text-muted-foreground uppercase mt-1">Patrons pick their hole from this list if they won&apos;t share location</p>
-                                  <FormMessage />
-                                </FormItem>
-                              )} />
-                              <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border-2 border-slate-100">
-                                <div className="flex flex-col text-left"><span className="text-[10px] font-black uppercase text-[#213147]">Driving Range</span><span className="text-[8px] font-bold text-muted-foreground uppercase">Offer it as a delivery location</span></div>
-                                <FormField control={registryForm.control} name="hasDrivingRange" render={({ field }) => (<Switch checked={field.value} onCheckedChange={field.onChange} className="data-[state=checked]:bg-green-600" />)} />
-                              </div>
-                            </>
-                          )}
-                          {sellers?.find(s => s.id === selectedVenue?.venueId)?.type === 'Bowling Center' && (
-                            <FormField control={registryForm.control} name="laneCount" render={({ field }) => (
-                              <FormItem className="text-left p-3 rounded-xl border-2 bg-slate-50 border-slate-100">
-                                <FormLabel className="text-[10px] font-black uppercase">Lane Inventory</FormLabel>
-                                <FormControl><Input {...field} type="number" className="h-10 border-2 font-bold bg-white" /></FormControl>
-                              </FormItem>
-                            )} />
-                          )}
-                          <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border-2 border-slate-100">
-                             <div className="flex flex-col text-left"><span className="text-[10px] font-black uppercase text-[#213147]">Demo Instance</span><span className="text-[8px] font-bold text-muted-foreground uppercase">Exclude from Global Results</span></div>
-                             <FormField control={registryForm.control} name="isDemo" render={({ field }) => (<Switch checked={field.value} onCheckedChange={field.onChange} className="data-[state=checked]:bg-amber-500" />)} />
-                          </div>
-                       </div>
-                    </div>
-
-               {selectedVenue && (
-                 <div className="pt-8 border-t-4 border-slate-100">
-                   <VenueAdminLogins venueId={selectedVenue.venueId} courseName={selectedVenue.name} />
-                 </div>
-               )}
-
-               {/* PRINT MARKETING SECTION */}
-               {currentSeller && (
-                 <div className="space-y-6 pt-8 border-t-4 border-slate-100">
-                    <Label className="text-[11px] font-black uppercase tracking-[0.3em] text-primary flex items-center gap-2">
-                      <Printer className="h-4 w-4" /> Print Marketing Kit
-                    </Label>
-                    <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">
-                      Generate print-ready PDFs to send to a printer before launch.
-                    </p>
-
-                    <div className="space-y-2 bg-white p-4 rounded-2xl border-2 border-slate-100">
-                      <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Marketing Venue Name</Label>
-                      <Input
-                        key={currentSeller.id}
-                        defaultValue={currentSeller.marketingVenueName || ''}
-                        placeholder={currentSeller.courseName || 'Venue name shown on print materials'}
-                        onBlur={(e) => handleUpdateMarketingVenueName(e.target.value)}
-                        className="h-10 font-bold text-sm"
-                      />
-                      <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">
-                        Used on the cart sticker &amp; yard sign below. Falls back to the course name if left blank.
-                      </p>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {(['cartSticker', 'yardSign'] as const).map((kind) => {
-                        const asset = currentSeller.printAssets?.[kind];
-                        const label = kind === 'cartSticker' ? 'Cart Sticker' : 'Yard Sign';
-                        const isGenerating = isGeneratingAsset === kind;
-                        return (
-                          <div key={kind} className="space-y-3 bg-white p-4 rounded-2xl border-2 border-slate-100">
-                            <div className="flex items-center justify-between">
-                              <p className="text-[10px] font-black uppercase tracking-widest text-[#213147]">{label}</p>
-                              {asset ? (
-                                <Badge variant="outline" className="text-[7px] font-black uppercase tracking-widest border-2">Generated</Badge>
-                              ) : (
-                                <Badge variant="outline" className="text-[7px] font-black uppercase tracking-widest border-2 text-amber-600 border-amber-200">Not Generated</Badge>
-                              )}
-                            </div>
-                            <div className="grid grid-cols-2 gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                disabled={!asset}
-                                onClick={() => asset && window.open(asset.url, '_blank')}
-                                className="h-10 text-[9px] font-black uppercase tracking-widest border-2 gap-1.5"
-                              >
-                                <Download className="h-3 w-3" /> Download
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                disabled={isGeneratingAsset !== null}
-                                onClick={() => setRecreateConfirmAsset(kind)}
-                                className="h-10 text-[9px] font-black uppercase tracking-widest border-2 gap-1.5 hover:bg-primary/5 hover:text-primary"
-                              >
-                                {isGenerating ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCcw className="h-3 w-3" />} Recreate
-                              </Button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    <PrintMarketingKit
-                      courseName={currentSeller.marketingVenueName || currentSeller.courseName || ''}
-                      patronMenuUrl={qrUrl}
-                      venueType={currentSeller.type}
-                    />
-                 </div>
-               )}
-
                </div>
                </Form>
             </div>
