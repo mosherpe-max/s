@@ -176,7 +176,50 @@ service cloud.firestore {
                      isStaffOf(resource.data.sellerId) ||
                      isVenueOwner(resource.data.sellerId) ||
                      isSuperAdmin();
-      allow write: if true;
+
+      // A patron places their own order: it must be in their name and start as Placed, with
+      // none of the fields only staff set.
+      allow create: if isSignedIn() &&
+                       request.resource.data.buyerProfileId == request.auth.uid &&
+                       request.resource.data.status == 'Placed' &&
+                       request.resource.data.sellerId is string &&
+                       !request.resource.data.keys().hasAny([
+                         'assignedStaffId', 'assignedStaffName', 'preparedByStaffId', 'preparedByStaffName',
+                         'acknowledgedAt', 'deliveredAt'
+                       ]);
+
+      allow update: if isSuperAdmin() || isVenueOwner(resource.data.sellerId) ||
+
+                       // Staff signed in for this venue work the order: status, who has it, timing,
+                       // and asking the patron to refresh their location. Never who it's for or the money.
+                       (isStaffOf(resource.data.sellerId) &&
+                        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                          'status', 'deliveredAt', 'acknowledgedAt', 'assignedStaffId', 'assignedStaffName',
+                          'preparedByStaffId', 'preparedByStaffName', 'refreshRequestedAt', 'updatedAt'
+                        ])) ||
+
+                       // The patron who placed it can only move where it should be brought...
+                       (isSignedIn() && resource.data.buyerProfileId == request.auth.uid &&
+                        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                          'deliveryLocation', 'lastGpsUpdate', 'deliveryHole', 'deliveryHoleUpdatedAt',
+                          'menuTypeLocation', 'updatedAt'
+                        ])) ||
+
+                       // ...or finish placing it. A card payment's order record is started by the Stripe
+                       // webhook and completed by the patron's browser, so for a brief moment, while it
+                       // is still Placed and nobody has picked it up, they may fill in the order details.
+                       (isSignedIn() && resource.data.buyerProfileId == request.auth.uid &&
+                        resource.data.status == 'Placed' && request.resource.data.status == 'Placed' &&
+                        !('assignedStaffId' in resource.data) &&
+                        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                          'items', 'subtotal', 'serviceFee', 'tax', 'tip', 'total', 'status', 'paymentMethod',
+                          'paymentStatus', 'stripePaymentIntentId', 'menuType', 'menuTypeLocation', 'createdAt', 'updatedAt',
+                          'sellerId', 'buyerProfileId', 'customerName', 'customerPhone', 'customerEmail',
+                          'deliveryLocation', 'lastGpsUpdate', 'deliveryHole', 'deliveryHoleUpdatedAt',
+                          'termsAcceptedVersion', 'termsAcceptedAt'
+                        ]));
+
+      allow delete: if isSuperAdmin() || isVenueOwner(resource.data.sellerId);
     }
 
     // A copy of each in-progress order with no personal details (venue, service mode, status,

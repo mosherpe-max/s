@@ -8,8 +8,6 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2, CreditCard } from 'lucide-react';
 import { CheckoutBrandingBar } from '@/components/checkout-branding-bar';
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 import type { LocationChoice } from '@/components/patron-location-gate';
 import { PatronTermsAgreement } from '@/components/patron-terms-agreement';
 import type { PatronTermsState } from '@/lib/patron-terms';
@@ -148,16 +146,12 @@ export function StripeActionArea({
         // Keyed on the PaymentIntent id (not addDoc's random id) so this write and the
         // Stripe webhook's own order-upsert can never race into two separate order docs.
         const orderRef = doc(firestore, 'orders', paymentIntent.id);
-        setDoc(orderRef, finalOrderData, { merge: true }).then(() => {
-          onOrderComplete(orderRef.id);
-        }).catch(async (error) => {
-          errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: orderRef.path,
-            operation: 'write',
-            requestResourceData: finalOrderData,
-          } satisfies SecurityRuleContext));
-          setIsProcessing(false);
-        });
+        // The card has already been charged by this point, so a failed write here must not look
+        // like a failed order: the Stripe webhook creates the order record on its own, and the
+        // patron should land on their tracking page either way.
+        setDoc(orderRef, finalOrderData, { merge: true })
+          .catch((error) => console.warn('Order details could not be saved from the browser; relying on the payment webhook.', error))
+          .finally(() => onOrderComplete(orderRef.id));
       }
     } catch (e: any) {
       toast({ variant: 'destructive', title: 'Payment Denied', description: e.message });
