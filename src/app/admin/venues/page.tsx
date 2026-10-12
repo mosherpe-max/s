@@ -74,7 +74,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useFirestore, useCollection, useMemoFirebase, useStorage, useDoc } from '@/firebase';
-import { collection, doc, updateDoc, setDoc, deleteDoc, serverTimestamp, writeBatch, getDoc, deleteField, query, where } from 'firebase/firestore';
+import { collection, doc, updateDoc, setDoc, deleteDoc, serverTimestamp, writeBatch, getDoc, deleteField, query, where, limit, getCountFromServer } from 'firebase/firestore';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
@@ -90,6 +90,7 @@ import { StarterItemPicker } from '@/components/starter-item-picker';
 import { StarterModifierPicker } from '@/components/starter-modifier-picker';
 import { PrintMarketingKit } from '@/components/print-marketing-kit';
 import { fetchAsDataUrl } from '@/lib/print-assets';
+import { buildVenueChecklist, venueSetupProgress, venueTypeLockReason, DEFAULT_PAYMENT_METHODS } from '@/lib/venue-setup';
 import {
   buildCartStickerHtml,
   buildYardSignHtml,
@@ -113,6 +114,7 @@ const SERVICE_MODES = [
 
 const venueRegistrySchema = z.object({
   name: z.string().min(2, 'Name required'),
+  type: z.enum(['Golf Course', 'Bowling Center']).default('Golf Course'),
   solutionFeeFixed: z.coerce.number().min(0),
   solutionFeePercent: z.coerce.number().min(0),
   patronConvenienceFee: z.coerce.number().min(0),
@@ -208,10 +210,63 @@ export default function AdminVenueRegistryPage() {
   ), [firestore, selectedVenue]);
   const { data: venueAdminLogins } = useCollection(adminLoginsQuery);
 
+  // Whether the selected venue has any orders (to decide if its type is still changeable).
+  const venueOrdersQuery = useMemoFirebase(() => (
+    firestore && selectedVenue ? query(collection(firestore, 'orders'), where('sellerId', '==', selectedVenue.venueId), limit(1)) : null
+  ), [firestore, selectedVenue]);
+  const { data: venueOrderSample, isLoading: isOrderSampleLoading } = useCollection(venueOrdersQuery);
+  const typeLockReason = (isOrderSampleLoading || venueMenuItems == null)
+    ? 'Checking this venue\'s menu and orders...'
+    : venueTypeLockReason(venueMenuItems.length, (venueOrderSample?.length || 0) > 0);
+
+  // Setup progress for every venue in the registry table. Staff and menu items are sub-collections,
+  // so they are counted on the server (cheap) and recounted whenever the Manage dialog closes.
+  const allAdminLoginsQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'roles_seller_admin') : null), [firestore]);
+  const { data: allAdminLogins } = useCollection<{ id: string; sellerId?: string }>(allAdminLoginsQuery);
+  const [setupCounts, setSetupCounts] = useState<Record<string, { staff: number; menu: number }>>({});
+  const sellerIdsKey = (sellers || []).map(s => s.id).join(',');
+  useEffect(() => {
+    if (!firestore || !sellerIdsKey) return;
+    let cancelled = false;
+    (async () => {
+      const entries = await Promise.all(sellerIdsKey.split(',').map(async (id) => {
+        try {
+          const [staff, menu] = await Promise.all([
+            getCountFromServer(collection(firestore, 'sellers', id, 'staff')),
+            getCountFromServer(collection(firestore, 'sellers', id, 'menuItems')),
+          ]);
+          return [id, { staff: staff.data().count, menu: menu.data().count }] as const;
+        } catch {
+          return null;
+        }
+      }));
+      if (!cancelled) setSetupCounts(Object.fromEntries(entries.filter((e): e is NonNullable<typeof e> => !!e)));
+    })();
+    return () => { cancelled = true; };
+  }, [firestore, sellerIdsKey, isManagementOpen]);
+  const [showOnlyNeedsSetup, setShowOnlyNeedsSetup] = useState(false);
+  const progressByVenue = React.useMemo(() => {
+    const result: Record<string, { ready: number; total: number } | null> = {};
+    (sellers || []).forEach(seller => {
+      const counts = setupCounts[seller.id];
+      if (!counts || !allAdminLogins) { result[seller.id] = null; return; }
+      result[seller.id] = venueSetupProgress({
+        seller,
+        venue: venuesRegistry?.find(r => r.venueId === seller.id),
+        staffCount: counts.staff,
+        menuItemCount: counts.menu,
+        adminLoginCount: allAdminLogins.filter(a => a.sellerId === seller.id).length,
+      });
+    });
+    return result;
+  }, [sellers, venuesRegistry, setupCounts, allAdminLogins]);
+  const needsSetupCount = Object.values(progressByVenue).filter(p => p && p.ready < p.total).length;
+
   const registryForm = useForm<VenueRegistryData>({
     resolver: zodResolver(venueRegistrySchema),
     defaultValues: {
       name: '',
+      type: 'Golf Course',
       solutionFeeFixed: 0,
       solutionFeePercent: 0,
       patronConvenienceFee: 0,
@@ -266,6 +321,7 @@ export default function AdminVenueRegistryPage() {
       setSelectedVenue(reg);
       registryForm.reset({
         name: reg.name,
+        type: seller?.type || 'Golf Course',
         solutionFeeFixed: reg.solutionFeeFixed || 0,
         solutionFeePercent: reg.solutionFeePercent || 0,
         patronConvenienceFee: reg.patronConvenienceFee || 0,
@@ -304,14 +360,18 @@ export default function AdminVenueRegistryPage() {
     const sellerRef = doc(firestore, 'sellers', selectedVenue.venueId);
 
     const {
-      menuTypes, laneCount, holeCount, hasDrivingRange, status, latitude, longitude,
+      type, menuTypes, laneCount, holeCount, hasDrivingRange, status, latitude, longitude,
       contactName, contactEmail, contactPhone, streetAddress, city, state, zip,
       ...venueData
     } = data;
-    const isGolfVenue = sellers?.find(s => s.id === selectedVenue.venueId)?.type === 'Golf Course';
+    // The type can only change while nothing is built on it (no menu items, no orders).
+    const savedType = sellers?.find(s => s.id === selectedVenue.venueId)?.type;
+    const effectiveType = typeLockReason ? (savedType || type) : type;
+    const isGolfVenue = effectiveType === 'Golf Course';
 
     batch.update(venueRef, { ...venueData, updatedAt: serverTimestamp() });
     batch.update(sellerRef, {
+      type: effectiveType,
       menuTypes, laneCount, status, latitude, longitude,
       contactName, contactEmail, contactPhone, streetAddress, city, state, zip,
       ...(isGolfVenue ? { holeCount, hasDrivingRange } : {}),
@@ -345,7 +405,7 @@ export default function AdminVenueRegistryPage() {
       const batch = writeBatch(firestore);
       const sellerRef = doc(firestore, 'sellers', venueId);
       const sellerData: Partial<Seller> = {
-        id: venueId, courseName: data.courseName, type: data.type, status: 'Active',
+        id: venueId, courseName: data.courseName, type: data.type, status: 'Inactive',
         contactName: data.contactName, contactEmail: data.contactEmail, contactPhone: data.contactPhone,
         streetAddress: data.streetAddress, city: data.city, state: data.state, zip: data.zip,
         menuTypes: data.menuTypes, taxRate: 6.0, serviceFee: 1.50, ownerId: data.ownerUid || '',
@@ -523,95 +583,18 @@ export default function AdminVenueRegistryPage() {
   const currentVenueType: 'golf' | 'bowling' = currentSeller?.type === 'Golf Course' ? 'golf' : 'bowling';
   const currentSellerModes = (currentSeller?.menuTypes || []).filter(m => AUTHORIZED_SERVICE_MODES.includes(m));
   // Checkout offers both when a venue has never chosen, so the switches and the checklist read it the same way.
-  const effectivePaymentMethods: string[] = currentSeller?.enabledPaymentMethods ?? ['Digital Payment', 'Pay at Delivery'];
+  const effectivePaymentMethods: string[] = currentSeller?.enabledPaymentMethods ?? DEFAULT_PAYMENT_METHODS;
 
   // Launch readiness - everything a Koop admin needs to have set up before a
   // venue is ready to take real orders. Recomputed live as fields are edited
   // in the Manage dialog below, so an admin can see progress as they go.
-  const launchChecklist = React.useMemo(() => {
-    const seller = currentSeller;
-    const venue = selectedVenue;
-    const authorizedModes = (seller?.menuTypes || []).filter(m => AUTHORIZED_SERVICE_MODES.includes(m));
-    const hasOpenMode = authorizedModes.some(mode => {
-      if (mode === 'Beverage Cart') return !!seller?.bevcartActive;
-      if (mode === 'Clubhouse') return !!seller?.clubhouseActive;
-      if (mode === 'Lane Delivery') return !!seller?.lanedeliveryActive;
-      return false;
-    });
-
-    return [
-      {
-        label: 'Manager Contact',
-        done: !!(seller?.contactName && seller?.contactEmail && seller?.contactPhone),
-        detail: 'Add the manager\'s name, email, and phone number.'
-      },
-      {
-        label: 'Venue Address',
-        done: !!(seller?.streetAddress && seller?.city && seller?.state && seller?.zip),
-        detail: 'Add the street address, city, state, and zip.'
-      },
-      {
-        label: 'Venue Admin Logins',
-        done: (venueAdminLogins?.length || 0) > 0,
-        detail: 'Create a login for the venue admin so they can set up their own menu and staff.'
-      },
-      {
-        label: 'Transaction Model',
-        done: !!(venue && venue.monthlySolutionFee != null && venue.solutionFeePercent != null && venue.patronConvenienceFee != null),
-        detail: 'Set the Koop fees for this venue. New venues start with the standard fees.'
-      },
-      {
-        label: 'Operational Status',
-        done: seller?.status === 'Active',
-        detail: 'Switch the venue to Active (and set holes or lanes) so it can go live.'
-      },
-      {
-        label: 'Map Location',
-        done: !!(seller?.latitude && seller?.longitude),
-        detail: 'Set latitude/longitude so patrons see the venue correctly on the map.'
-      },
-      {
-        label: 'Service Mode Selected',
-        done: authorizedModes.length > 0,
-        detail: 'Choose at least one service mode (Beverage Cart, Clubhouse, Lane Delivery).'
-      },
-      {
-        label: 'A Service Mode Is Open',
-        done: hasOpenMode,
-        detail: 'Open at least one service mode so patrons can actually order.'
-      },
-      {
-        label: 'Stripe Connected',
-        done: !!(venue?.stripeAccountId && venue?.payoutsEnabled),
-        detail: 'Complete Stripe Connect onboarding so the venue can receive payouts.'
-      },
-      {
-        label: 'Payment Methods Enabled',
-        done: (seller?.enabledPaymentMethods ?? ['Digital Payment', 'Pay at Delivery']).length > 0,
-        detail: 'Enable at least one patron payment method.'
-      },
-      {
-        label: 'Staff Added',
-        done: (venueStaff?.length || 0) > 0,
-        detail: 'Add at least one staff member so orders can be fulfilled.'
-      },
-      {
-        label: 'Menu Items Added',
-        done: (venueMenuItems?.length || 0) > 0,
-        detail: 'Add menu items, or clone starter templates below.'
-      },
-      {
-        label: 'QR Access Active',
-        done: !!(seller?.qrActive && seller?.qrSecret),
-        detail: 'Generate a QR code so patrons can reach the ordering page.'
-      },
-      {
-        label: 'Print Marketing Kit',
-        done: !!(seller?.printAssets?.cartSticker && seller?.printAssets?.yardSign),
-        detail: 'Generate the cart sticker and yard sign (needs the QR code above).'
-      },
-    ];
-  }, [currentSeller, selectedVenue, venueStaff, venueMenuItems, venueAdminLogins]);
+  const launchChecklist = React.useMemo(() => buildVenueChecklist({
+    seller: currentSeller,
+    venue: selectedVenue,
+    staffCount: venueStaff?.length || 0,
+    menuItemCount: venueMenuItems?.length || 0,
+    adminLoginCount: venueAdminLogins?.length || 0,
+  }), [currentSeller, selectedVenue, venueStaff, venueMenuItems, venueAdminLogins]);
 
   const launchReadyCount = launchChecklist.filter(i => i.done).length;
 
@@ -632,6 +615,15 @@ export default function AdminVenueRegistryPage() {
         </Button>
       </div>
 
+      <div className="max-w-7xl mx-auto w-full flex items-center gap-2">
+        <Button type="button" size="sm" variant={showOnlyNeedsSetup ? 'outline' : 'default'} onClick={() => setShowOnlyNeedsSetup(false)} className="h-8 rounded-full text-[9px] font-black uppercase tracking-widest">
+          All Venues ({(sellers || []).length})
+        </Button>
+        <Button type="button" size="sm" variant={showOnlyNeedsSetup ? 'default' : 'outline'} onClick={() => setShowOnlyNeedsSetup(true)} className="h-8 rounded-full text-[9px] font-black uppercase tracking-widest">
+          Needs Setup ({needsSetupCount})
+        </Button>
+      </div>
+
       <div className="max-w-7xl mx-auto w-full border-2 rounded-[2rem] overflow-hidden bg-white shadow-sm">
         <Table>
           <TableHeader className="bg-slate-50">
@@ -640,14 +632,19 @@ export default function AdminVenueRegistryPage() {
               <TableHead className="text-[10px] font-black uppercase tracking-widest">Type</TableHead>
               <TableHead className="text-[10px] font-black uppercase tracking-widest">Authorized Modes</TableHead>
               <TableHead className="text-[10px] font-black uppercase tracking-widest">Operational Status</TableHead>
+              <TableHead className="text-[10px] font-black uppercase tracking-widest">Setup</TableHead>
               <TableHead className="text-right px-8 text-[10px] font-black uppercase tracking-widest">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isSellersLoading ? (
-              <TableRow><TableCell colSpan={5} className="py-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto text-primary opacity-20" /></TableCell></TableRow>
-            ) : (sellers || []).map(v => {
+              <TableRow><TableCell colSpan={6} className="py-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto text-primary opacity-20" /></TableCell></TableRow>
+            ) : (sellers || []).filter(v => {
+              const progress = progressByVenue[v.id];
+              return !showOnlyNeedsSetup || !progress || progress.ready < progress.total;
+            }).map(v => {
               const registry = venuesRegistry?.find(r => r.venueId === v.id);
+              const progress = progressByVenue[v.id];
               return (
                 <TableRow key={v.id} className="group hover:bg-slate-50/50 transition-colors">
                   <TableCell className="px-8 py-4">
@@ -671,6 +668,15 @@ export default function AdminVenueRegistryPage() {
                         </Badge>
                         {registry?.isDemo && <Badge variant="outline" className="text-[7px] font-black uppercase w-fit border-amber-500/50 text-amber-600 bg-amber-50 gap-1.5"><FlaskConical className="h-2 w-2" /> Demo Instance</Badge>}
                      </div>
+                  </TableCell>
+                  <TableCell>
+                    {progress ? (
+                      <Badge className={cn("border-0 text-[8px] font-black uppercase tracking-widest w-fit", progress.ready === progress.total ? "bg-green-500" : "bg-amber-500")}>
+                        {progress.ready === progress.total ? 'Launch Ready' : `Setup ${progress.ready}/${progress.total}`}
+                      </Badge>
+                    ) : (
+                      <span className="text-[9px] font-black uppercase text-muted-foreground">...</span>
+                    )}
                   </TableCell>
                   <TableCell className="text-right px-8">
                     <div className="flex justify-end gap-2">
@@ -835,6 +841,24 @@ export default function AdminVenueRegistryPage() {
 
                <Form {...registryForm}>
                <div className="space-y-10">
+                    <div className="space-y-4 pt-8 border-t-4 border-slate-100">
+                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><Store className="h-3 w-3" /> Venue Type</Label>
+                       <FormField control={registryForm.control} name="type" render={({ field }) => (
+                         <FormItem className="text-left">
+                           <Select value={field.value} onValueChange={field.onChange} disabled={!!typeLockReason}>
+                             <FormControl><SelectTrigger className="h-12 border-2 font-bold"><SelectValue /></SelectTrigger></FormControl>
+                             <SelectContent>
+                               <SelectItem value="Golf Course">Golf Course</SelectItem>
+                               <SelectItem value="Bowling Center">Bowling Center</SelectItem>
+                             </SelectContent>
+                           </Select>
+                           <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest px-1">
+                             {typeLockReason || 'Decides the menu libraries, holes or lanes, and the wording patrons see. It can be changed until the venue has menu items or orders.'}
+                           </p>
+                         </FormItem>
+                       )} />
+                    </div>
+
 
                     <div className="space-y-4 pt-8 border-t-4 border-slate-100">
                        <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><User className="h-3 w-3" /> 1. Manager Contact</Label>
@@ -911,7 +935,7 @@ export default function AdminVenueRegistryPage() {
                                />
                              )} />
                           </div>
-                          {sellers?.find(s => s.id === selectedVenue?.venueId)?.type === 'Golf Course' && (
+                          {registryForm.watch('type') === 'Golf Course' && (
                             <>
                               <FormField control={registryForm.control} name="holeCount" render={({ field }) => (
                                 <FormItem className="text-left p-3 rounded-xl border-2 bg-slate-50 border-slate-100">
@@ -927,7 +951,7 @@ export default function AdminVenueRegistryPage() {
                               </div>
                             </>
                           )}
-                          {sellers?.find(s => s.id === selectedVenue?.venueId)?.type === 'Bowling Center' && (
+                          {registryForm.watch('type') === 'Bowling Center' && (
                             <FormField control={registryForm.control} name="laneCount" render={({ field }) => (
                               <FormItem className="text-left p-3 rounded-xl border-2 bg-slate-50 border-slate-100">
                                 <FormLabel className="text-[10px] font-black uppercase">Lane Inventory</FormLabel>
