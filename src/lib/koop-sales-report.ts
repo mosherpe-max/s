@@ -85,7 +85,7 @@ export function totalKoopSalesRows(rows: KoopSalesRow[]): KoopSalesTotals {
 
 // A cell starting with = + - @ would run as a formula in a spreadsheet; venue names are typed
 // by people, so defuse those.
-const csvCell = (value: string | number) => {
+export const csvCell = (value: string | number) => {
   let text = String(value);
   if (typeof value === 'string' && /^[=+\-@\t\r]/.test(text)) text = `'${text}`;
   return `"${text.replace(/"/g, '""')}"`;

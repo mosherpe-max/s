@@ -360,6 +360,8 @@ export interface Order {
   // Set once the "running late" staff push fires, so the scheduled check
   // never re-sends it on every pass for the same order.
   lateAlertSentAt?: Timestamp;
+  // Set by the nightly Operational Reset ("Operational Reset: ...") when it cancels an unfinished order.
+  notes?: string;
 }
 
 // A frozen, one-time-written daily bookkeeping total for a single venue +
