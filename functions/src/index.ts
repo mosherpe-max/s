@@ -755,7 +755,8 @@ export const dailyOperationalReset = onSchedule({
  * manualOperationalReset
  */
 export const manualOperationalReset = onCall({ region: 'us-central1' }, async (request) => {
-  if (!request.auth) throw new HttpsError('unauthenticated', 'Unauthorized access.');
+  // Cancels every open order and signs out all staff, so only the Koop admin may run it.
+  assertSuperAdmin(request);
   return await performOperationalReset();
 });
 
