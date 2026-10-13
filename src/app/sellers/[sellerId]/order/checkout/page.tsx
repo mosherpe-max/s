@@ -118,6 +118,9 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
     return enabled.filter(method => method !== 'Digital Payment' || isCardReady(venue));
   }, [seller, venue, isVenueLoading, isSellerLoading]);
   const cannotTakePayments = !isVenueLoading && !isSellerLoading && availableMethods.length === 0;
+  // The venue lists card payment but Stripe hasn't approved it yet, while another method still works.
+  const cardUnavailable = !isVenueLoading && !isSellerLoading && !cannotTakePayments
+    && (seller?.enabledPaymentMethods || ['Digital Payment']).includes('Digital Payment') && !isCardReady(venue);
 
   useEffect(() => {
     if (availableMethods.length > 0 && !paymentMethod) {
@@ -437,6 +440,12 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
               <p className="text-xs font-black uppercase tracking-widest text-amber-800">This venue can&apos;t take payments yet</p>
               <p className="text-[11px] font-semibold text-amber-900">Nothing has been charged. Please ask the venue to place your order for you.</p>
             </div>
+          )}
+
+          {cardUnavailable && (
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest text-center px-4 leading-relaxed">
+              Card payment isn&apos;t available at this venue yet. You can pay when your order arrives.
+            </p>
           )}
 
           <div className="space-y-2">
