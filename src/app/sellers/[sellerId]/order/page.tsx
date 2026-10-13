@@ -89,15 +89,17 @@ function BuyerOrderContent({ sellerId }: { sellerId: string }) {
     return seller.qrSecret === keyParam;
   }, [seller, isSellerLoading, keyParam, sellerId]);
 
-  // FETCH ACTIVE ORDERS FOR CURRENT PATRON SESSION
+  // FETCH ACTIVE ORDERS FOR CURRENT PATRON SESSION - this venue only, so an unfinished order at
+  // one venue doesn't show up on another venue's menu.
   const activeOrdersQuery = useMemoFirebase(() => {
     if (!firestore || !user?.uid) return null;
     return query(
       collection(firestore, 'orders'),
       where('buyerProfileId', '==', user.uid),
+      where('sellerId', '==', sellerId),
       where('status', 'in', ['Placed', 'Preparing', 'Out for Delivery'])
     );
-  }, [firestore, user?.uid]);
+  }, [firestore, user?.uid, sellerId]);
   const { data: userActiveOrders } = useCollection<Order>(activeOrdersQuery);
 
   // All of this patron's currently in-progress orders, most recent first - not
