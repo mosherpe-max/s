@@ -22,6 +22,7 @@ import { collection } from 'firebase/firestore';
 import type { Seller, Lead } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
+import { StripeAttentionCard } from '@/components/stripe-attention-card';
 
 function KPICard({ label, value, sub, icon: Icon, colorClass }: { label: string, value: string | number, sub: string, icon: any, colorClass?: string }) {
   return (
@@ -60,6 +61,8 @@ export default function AdminDashboardPage() {
           <KPICard label="System Health" value="100%" sub="All Feeds Live" icon={Activity} colorClass="bg-emerald-500" />
           <KPICard label="Total Prospects" value={leads?.length || 0} sub="In Sales Pipeline" icon={Target} colorClass="bg-primary" />
         </div>
+
+        <StripeAttentionCard />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <Card className="border-2 shadow-sm">

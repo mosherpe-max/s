@@ -49,6 +49,7 @@ import {
   Menu,
   Image as LucideImage,
   AlertTriangle,
+  RefreshCcw,
   MapPin,
   Mail,
   Timer,
@@ -150,6 +151,8 @@ import { LOG_RANGES, logRangeStart, type LogRange } from '@/lib/log-range';
 import { getTaxRate } from '@/lib/tax';
 import { PatronList } from '@/components/patron-list';
 import { isStaffUid } from '@/lib/staff-session';
+import { stripeAttention } from '@/lib/stripe-readiness';
+import { useRefreshStripeStatus } from '@/lib/use-refresh-stripe-status';
 import { nextCategoryList } from '@/lib/category-visibility';
 import { signOut } from 'firebase/auth';
 import { 
@@ -336,6 +339,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   const [salesFrom, setSalesFrom] = useState<string>(() => format(startOfMonth(new Date()), 'yyyy-MM-dd'));
   const [salesTo, setSalesTo] = useState<string>(() => format(new Date(), 'yyyy-MM-dd'));
   const [isConnectingStripe, setIsConnectingStripe] = useState(false);
+  const { refresh: refreshStripeStatus, isRefreshing: isRefreshingStripe } = useRefreshStripeStatus();
 
   // Analytics State
   const [analyticsTimeframe, setAnalyticsTimeframe] = useState<'7d' | 'month' | 'year'>('7d');
@@ -1920,13 +1924,29 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                       </CardHeader>
                       <CardContent className="pt-6 space-y-4">
                         {venue?.payoutsEnabled ? (
-                          <div className="flex items-center gap-3 p-4 bg-green-50 border-2 border-green-100 rounded-xl">
-                            <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />
-                            <div>
-                              <p className="text-xs font-black uppercase text-green-800">Stripe Connected</p>
-                              <p className="text-[8px] font-bold text-green-700 uppercase tracking-widest">Payouts enabled — funds route directly to your account.</p>
+                          <>
+                            <div className="flex items-center gap-3 p-4 bg-green-50 border-2 border-green-100 rounded-xl">
+                              <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />
+                              <div>
+                                <p className="text-xs font-black uppercase text-green-800">Stripe Connected</p>
+                                <p className="text-[8px] font-bold text-green-700 uppercase tracking-widest">Payouts enabled — funds route directly to your account.</p>
+                              </div>
                             </div>
-                          </div>
+                            {stripeAttention(venue) && (
+                              <div className="p-4 bg-amber-50 border-2 border-amber-200 rounded-xl space-y-2">
+                                <p className="text-xs font-black uppercase text-amber-800 flex items-center gap-2"><AlertTriangle className="h-4 w-4" /> {stripeAttention(venue)!.label}</p>
+                                <p className="text-[9px] font-bold text-amber-800 uppercase leading-tight">{stripeAttention(venue)!.detail} Finish this in Stripe so payouts are not interrupted.</p>
+                                <Button
+                                  onClick={handleConnectStripe}
+                                  disabled={isConnectingStripe}
+                                  className="w-full h-11 bg-[#635bff] hover:bg-[#5851e0] font-black uppercase tracking-widest text-[10px] gap-2"
+                                >
+                                  {isConnectingStripe ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
+                                  Open Stripe To Finish
+                                </Button>
+                              </div>
+                            )}
+                          </>
                         ) : (
                           <>
                             <p className="text-[9px] font-bold text-muted-foreground uppercase leading-tight">
@@ -1934,6 +1954,9 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                                 ? 'Onboarding started but not yet complete — finish setup to enable digital payments.'
                                 : 'Connect a Stripe account to accept digital payments and receive payouts directly.'}
                             </p>
+                            {venue?.stripeAccountId && stripeAttention(venue) && (
+                              <p className="text-[9px] font-black text-amber-700 uppercase leading-tight">{stripeAttention(venue)!.detail}</p>
+                            )}
                             <Button
                               onClick={handleConnectStripe}
                               disabled={isConnectingStripe}
@@ -1942,6 +1965,17 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                               {isConnectingStripe ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
                               {venue?.stripeAccountId ? 'Continue Stripe Setup' : 'Connect With Stripe'}
                             </Button>
+                            {venue?.stripeAccountId && (
+                              <Button
+                                variant="outline"
+                                onClick={() => refreshStripeStatus(sellerId)}
+                                disabled={isRefreshingStripe}
+                                className="w-full h-10 border-2 font-black uppercase tracking-widest text-[9px] gap-2"
+                              >
+                                {isRefreshingStripe ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCcw className="h-3 w-3" />}
+                                I Finished — Check Stripe Status
+                              </Button>
+                            )}
                           </>
                         )}
                       </CardContent>

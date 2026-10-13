@@ -11,6 +11,7 @@ import {
   IN_PROGRESS_STATUSES, cancelReasonOf, computeDurations, isDemoSeller, isExcluded, localTimeParts,
   modeFlagPrefix, placementLocation, roundCoord, summarizeItems, suspectReasons,
 } from "./order-timing.js";
+import { canTakeCardPayments, stripeStatusFromAccount } from "./stripe-status.js";
 import Stripe from 'stripe';
 import twilio from 'twilio';
 import webpush from 'web-push';
@@ -408,6 +409,11 @@ export const createPaymentIntent = onCall({
     if (!venueStripeAccountId) {
       throw new HttpsError('failed-precondition', 'Venue is not configured for digital payments.');
     }
+    // Stripe has to have approved the venue's account (payouts enabled) before a card is charged for it.
+    const venueRecordSnap = await db.collection('venues').doc(sellerId).get();
+    if (!canTakeCardPayments({ stripeAccountId: venueStripeAccountId, payoutsEnabled: venueRecordSnap.data()?.payoutsEnabled })) {
+      throw new HttpsError('failed-precondition', 'This venue is not ready to take card payments yet.');
+    }
 
     // Never charge a patron for a service mode nobody can currently fulfill.
     // The client's isModeAvailable() (order/page.tsx) checks this too, but
@@ -459,8 +465,7 @@ export const createPaymentIntent = onCall({
       }
     }
 
-    const venueDoc = await db.collection('venues').doc(sellerId).get();
-    const koopStripeFeeCoverageCents = Math.round(venueDoc.data()?.solutionFeeFixed ?? 0);
+    const koopStripeFeeCoverageCents = Math.round(venueRecordSnap.data()?.solutionFeeFixed ?? 0);
 
     const baseCents = Math.round(amount * 100);
     const convenienceFeeCents = Math.round((convenienceFee || 0) * 100);
@@ -888,15 +893,15 @@ export const handleStripeWebhook = onRequest({
       const account = event.data.object as Stripe.Account;
       const venueId = account.metadata?.venueId;
       if (venueId) {
-        const payoutsEnabled = !!account.payouts_enabled;
-        const onboardingComplete = !!account.details_submitted;
+        const status = stripeStatusFromAccount(account);
         const batch = db.batch();
         batch.set(db.collection('sellers').doc(venueId), {
-          stripeOnboardingComplete: onboardingComplete,
+          stripeOnboardingComplete: status.stripeDetailsSubmitted,
           updatedAt: FieldValue.serverTimestamp()
         }, { merge: true });
         batch.set(db.collection('venues').doc(venueId), {
-          payoutsEnabled,
+          ...status,
+          stripeStatusUpdatedAt: FieldValue.serverTimestamp(),
           updatedAt: FieldValue.serverTimestamp()
         }, { merge: true });
         await batch.commit();
@@ -1238,6 +1243,55 @@ export const recordOrderTiming = onDocumentWritten({
   } catch (err) {
     // Recording must never get in the way of an order.
     logger.error("recordOrderTiming failed", err);
+  }
+});
+
+/**
+ * refreshStripeStatus
+ * Asks Stripe for a venue's current account status and saves it (card payments allowed, anything Stripe
+ * still wants). The account.updated webhook normally keeps this current; this is the manual check for when
+ * that is late or was never set up, and how existing venues get their status recorded the first time.
+ * One venue: its own admin or the Koop admin. No venue given: every venue with a Stripe account, Koop admin only.
+ */
+export const refreshStripeStatus = onCall({
+  secrets: ["STRIPE_SECRET_KEY"],
+  region: 'us-central1',
+  timeoutSeconds: 120,
+}, async (request) => {
+  try {
+    const venueId = typeof request.data?.venueId === 'string' ? request.data.venueId.trim() : '';
+    if (venueId) await assertVenueAuthorized(request, venueId);
+    else assertSuperAdmin(request);
+
+    const apiKey = process.env.STRIPE_SECRET_KEY;
+    if (!apiKey) throw new HttpsError('failed-precondition', 'Gateway not configured.');
+    const stripe = new Stripe(apiKey, { apiVersion: '2025-01-27.acacia' as any });
+
+    const venueDocs = venueId
+      ? [await db.collection('venues').doc(venueId).get()]
+      : (await db.collection('venues').get()).docs;
+
+    let checked = 0;
+    const failed: { venueId: string; message: string }[] = [];
+    for (const venueDoc of venueDocs) {
+      const accountId = venueDoc.data()?.stripeAccountId;
+      if (!venueDoc.exists || !accountId) continue;
+      try {
+        const account = await stripe.accounts.retrieve(accountId);
+        await venueDoc.ref.set({
+          ...stripeStatusFromAccount(account),
+          stripeStatusUpdatedAt: FieldValue.serverTimestamp(),
+        }, { merge: true });
+        checked++;
+      } catch (err: any) {
+        failed.push({ venueId: venueDoc.id, message: err?.message || 'Could not reach Stripe.' });
+      }
+    }
+    return { checked, failed };
+  } catch (err: any) {
+    logger.error("refreshStripeStatus Error", err);
+    if (err instanceof HttpsError) throw err;
+    throw new HttpsError('internal', err.message || 'Could not check Stripe.');
   }
 });
 
