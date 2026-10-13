@@ -91,6 +91,8 @@ import { StarterModifierPicker } from '@/components/starter-modifier-picker';
 import { PrintMarketingKit } from '@/components/print-marketing-kit';
 import { fetchAsDataUrl } from '@/lib/print-assets';
 import { buildVenueChecklist, venueSetupProgress, venueTypeLockReason, DEFAULT_PAYMENT_METHODS } from '@/lib/venue-setup';
+import { stripeAttention } from '@/lib/stripe-readiness';
+import { useRefreshStripeStatus } from '@/lib/use-refresh-stripe-status';
 import {
   buildCartStickerHtml,
   buildYardSignHtml,
@@ -245,6 +247,7 @@ export default function AdminVenueRegistryPage() {
     return () => { cancelled = true; };
   }, [firestore, sellerIdsKey, isManagementOpen]);
   const [showOnlyNeedsSetup, setShowOnlyNeedsSetup] = useState(false);
+  const { refresh: refreshStripeStatus, isRefreshing: isRefreshingStripe } = useRefreshStripeStatus();
   const progressByVenue = React.useMemo(() => {
     const result: Record<string, { ready: number; total: number } | null> = {};
     (sellers || []).forEach(seller => {
@@ -1032,7 +1035,17 @@ export default function AdminVenueRegistryPage() {
                              <FormField control={registryForm.control} name="stripeOnboardingComplete" render={({ field }) => (<Switch checked={field.value} onCheckedChange={field.onChange} className="data-[state=checked]:bg-green-500" />)} />
                           </div>
                        </div>
-                       <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest px-1">The venue admin connects Stripe from their Settings page.</p>
+                       {currentVenue && stripeAttention(currentVenue, { isActive: currentSeller?.status === 'Active', isDemo: !!selectedVenue?.venueId.startsWith('demo-') }) && (
+                     <p className="text-[9px] font-black text-amber-700 uppercase leading-snug px-1">
+                       {stripeAttention(currentVenue, { isActive: currentSeller?.status === 'Active', isDemo: !!selectedVenue?.venueId.startsWith('demo-') })!.detail}
+                     </p>
+                   )}
+                   {currentVenue?.stripeAccountId && (
+                     <Button type="button" variant="outline" disabled={isRefreshingStripe} onClick={() => selectedVenue && refreshStripeStatus(selectedVenue.venueId)} className="w-full h-10 border-2 font-black uppercase tracking-widest text-[9px] gap-2">
+                       {isRefreshingStripe ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCcw className="h-3 w-3" />} Check Stripe Status
+                     </Button>
+                   )}
+                   <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest px-1">The venue admin connects Stripe from their Settings page.</p>
                     </div>
 
                     <div className="space-y-4 pt-8 border-t-4 border-slate-100">

@@ -74,6 +74,14 @@ export interface Venue {
   patronConvenienceFee?: number; // Master fee in cents
   serviceFees?: Record<string, number>; // Individual overrides in cents
   payoutsEnabled?: boolean;
+  // What Stripe last told us about the venue's connected account (kept current by the account.updated
+  // webhook and the Check Stripe Status button).
+  chargesEnabled?: boolean;
+  stripeDetailsSubmitted?: boolean;
+  stripeRequirementsDue?: number;   // things Stripe still wants from the venue
+  stripePastDue?: number;           // of those, how many are overdue
+  stripeDisabledReason?: string | null;
+  stripeStatusUpdatedAt?: Timestamp;
   monthlySolutionFee?: number;
   serviceStartDate?: Timestamp;
   isFoundingPartner?: boolean;

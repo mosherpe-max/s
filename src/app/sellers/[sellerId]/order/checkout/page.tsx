@@ -22,6 +22,7 @@ import { loadStripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { cn } from '@/lib/utils';
+import { isCardReady } from '@/lib/stripe-readiness';
 import { usePatronLocationGate } from '@/components/patron-location-gate';
 import { PatronTermsAgreement } from '@/components/patron-terms-agreement';
 import { usePatronTerms } from '@/lib/patron-terms';
@@ -109,9 +110,14 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
   const isLocationValid = menuTypeFromUrl !== 'Lane Delivery' || !!locationValue;
   const isFormValid = isContactValid && isLocationValid && !!paymentMethod;
 
+  // Card payment is only offered once Stripe has approved the venue's account. Until the venue record has
+  // loaded nothing is offered, so a card is never pre-selected for a venue that can't take one.
   const availableMethods = useMemo<PaymentMethodType[]>(() => {
-    return seller?.enabledPaymentMethods || ['Digital Payment', 'Pay at Delivery'];
-  }, [seller]);
+    if (isVenueLoading || isSellerLoading) return [];
+    const enabled = seller?.enabledPaymentMethods || ['Digital Payment', 'Pay at Delivery'];
+    return enabled.filter(method => method !== 'Digital Payment' || isCardReady(venue));
+  }, [seller, venue, isVenueLoading, isSellerLoading]);
+  const cannotTakePayments = !isVenueLoading && !isSellerLoading && availableMethods.length === 0;
 
   useEffect(() => {
     if (availableMethods.length > 0 && !paymentMethod) {
@@ -424,6 +430,13 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
             <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest text-center px-4 leading-relaxed opacity-60">
               {LOCATION_TRACKING_NOTE[menuTypeFromUrl]}
             </p>
+          )}
+
+          {cannotTakePayments && (
+            <div className="p-4 rounded-2xl border-2 border-amber-200 bg-amber-50 text-left space-y-1">
+              <p className="text-xs font-black uppercase tracking-widest text-amber-800">This venue can&apos;t take payments yet</p>
+              <p className="text-[11px] font-semibold text-amber-900">Nothing has been charged. Please ask the venue to place your order for you.</p>
+            </div>
           )}
 
           <div className="space-y-2">
