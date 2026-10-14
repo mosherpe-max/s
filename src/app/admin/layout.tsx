@@ -13,7 +13,8 @@ import {
   ShieldCheck,
   Library,
   Receipt,
-  BarChart3
+  BarChart3,
+  UsersRound
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn, SUPER_ADMIN_ID, getDisplayNameFromEmail } from '@/lib/utils';
@@ -37,6 +38,7 @@ const NAV_ITEMS = [
   { id: "venues", label: "Venue Registry", icon: Store, href: "/admin/venues" },
   { id: "sales-report", label: "Sales Report", icon: Receipt, href: "/admin/sales-report" },
   { id: "analytics", label: "Analytics", icon: BarChart3, href: "/admin/analytics" },
+  { id: "patrons", label: "Patrons", icon: UsersRound, href: "/admin/patrons" },
   { id: "libraries", label: "Global Libraries", icon: Library, href: "/admin/libraries" },
   { id: "system", label: "System Config", icon: Settings2, href: "/admin/system" }
 ];
