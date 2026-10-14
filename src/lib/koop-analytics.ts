@@ -277,6 +277,7 @@ export interface TimingRow {
   medianAckSec: number | null;
   medianPrepSec: number | null;
   medianDeliverySec: number | null;
+  limitMinutes: number | null;   // the limit used for this row's venue and mode
   withinLimitPct: number | null;
 }
 
@@ -304,8 +305,7 @@ const BUCKET_EDGES = [0, 5, 10, 15, 20, 25, 30, 40];
 
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 const stat = (values: number[]): Stat => ({ n: values.length, median: median(values), p90: percentile(values, 90) });
-const pctWithin = (values: number[], max: number): number | null =>
-  values.length === 0 ? null : Math.round((values.filter((v) => v <= max).length / values.length) * 1000) / 10;
+const pctOf = (hits: number, of: number): number | null => (of === 0 ? null : Math.round((hits / of) * 1000) / 10);
 
 export function buildTimingAnalytics(
   records: TimingRecord[],
@@ -314,7 +314,9 @@ export function buildTimingAnalytics(
   from: string,
   to: string,
   includeDemo: boolean,
-  limits: { totalMinutes: number; ackSeconds: number },
+  // Each venue and service mode has its own limits (the venue's override, else Koop's setting, else the built-in
+  // fallback), so the share "within the limit" is judged order by order against the limit that applies to it.
+  limitFor: (sellerId: string, menuType: string) => { totalMinutes: number; ackSeconds: number },
 ): TimingAnalytics {
   const venueIsDemo = (r: TimingRecord) => (venues[r.sellerId] ? venues[r.sellerId].isDemo : isDemoId(r.sellerId)) || !!r.isDemo;
   const counts = { finished: 0, usable: 0, suspect: 0, resetCancelled: 0, cancelled: 0 };
@@ -339,7 +341,8 @@ export function buildTimingAnalytics(
 
   const totals = usable.map((r) => r.totalSec as number);
   const col = (pick: (r: TimingRecord) => number | null | undefined) => usable.map(pick).filter(isNum);
-  const limitSec = limits.totalMinutes * 60;
+  const limitOf = (r: TimingRecord) => limitFor(r.sellerId, r.menuType || 'Unknown');
+  const withinTotal = (r: TimingRecord) => (r.totalSec as number) <= limitOf(r).totalMinutes * 60;
 
   const groups = new Map<string, TimingRecord[]>();
   for (const r of usable) {
@@ -361,7 +364,8 @@ export function buildTimingAnalytics(
       medianAckSec: median(list.map((r) => r.ackSec).filter(isNum)),
       medianPrepSec: median(list.map((r) => r.prepSec).filter(isNum)),
       medianDeliverySec: median(list.map((r) => r.deliverySec).filter(isNum)),
-      withinLimitPct: pctWithin(t, limitSec),
+      limitMinutes: limitOf(first).totalMinutes,
+      withinLimitPct: pctOf(list.filter(withinTotal).length, list.length),
     };
   }).sort((a, b) => b.orders - a.orders || a.venueName.localeCompare(b.venueName) || a.menuType.localeCompare(b.menuType));
 
@@ -381,8 +385,11 @@ export function buildTimingAnalytics(
     ack: stat(col((r) => r.ackSec)),
     prep: stat(col((r) => r.prepSec)),
     delivery: stat(col((r) => r.deliverySec)),
-    withinLimitPct: pctWithin(totals, limitSec),
-    ackWithinLimitPct: pctWithin(col((r) => r.ackSec), limits.ackSeconds),
+    withinLimitPct: pctOf(usable.filter(withinTotal).length, usable.length),
+    ackWithinLimitPct: (() => {
+      const withAck = usable.filter((r) => isNum(r.ackSec));
+      return pctOf(withAck.filter((r) => (r.ackSec as number) <= limitOf(r).ackSeconds).length, withAck.length);
+    })(),
     histogram,
     rows,
   };
@@ -406,10 +413,10 @@ export function buildVenueSalesCsv(rows: VenueSalesRow[], from: string, to: stri
 // Times are in whole seconds so they open as plain numbers in a spreadsheet.
 export function buildTimingCsv(rows: TimingRow[], from: string, to: string): string {
   return [
-    line(['Venue', 'Venue ID', 'Demo Venue', 'Service Mode', 'From', 'To', 'Orders', 'Median Total (s)', '90th Percentile Total (s)', 'Median Acknowledge (s)', 'Median Prep (s)', 'Median Delivery Leg (s)', 'Within Limit %']),
+    line(['Venue', 'Venue ID', 'Demo Venue', 'Service Mode', 'From', 'To', 'Orders', 'Median Total (s)', '90th Percentile Total (s)', 'Median Acknowledge (s)', 'Median Prep (s)', 'Median Delivery Leg (s)', 'Limit (min)', 'Within Limit %']),
     ...rows.map((r) => line([
       r.venueName, r.sellerId, r.isDemo ? 'Yes' : 'No', r.menuType, from, to, r.orders,
-      r.medianTotalSec ?? '', r.p90TotalSec ?? '', r.medianAckSec ?? '', r.medianPrepSec ?? '', r.medianDeliverySec ?? '', r.withinLimitPct ?? '',
+      r.medianTotalSec ?? '', r.p90TotalSec ?? '', r.medianAckSec ?? '', r.medianPrepSec ?? '', r.medianDeliverySec ?? '', r.limitMinutes ?? '', r.withinLimitPct ?? '',
     ])),
   ].join('\r\n');
 }

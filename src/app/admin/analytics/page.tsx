@@ -1,11 +1,11 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { collection, query, where, Timestamp } from 'firebase/firestore';
+import { collection, doc, query, where, Timestamp } from 'firebase/firestore';
 import { format, subDays } from 'date-fns';
 import { ArrowDown, ArrowUp, BarChart3, Download, Loader2, Minus } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { useCollection, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -14,10 +14,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import type { Order, Seller } from '@/lib/types';
+import type { Order, Seller, SolutionConfig } from '@/lib/types';
 import { REPORT_PRESETS, reportRange, type ReportPreset } from '@/lib/report-ranges';
 import { isDemoVenue } from '@/lib/koop-sales-report';
-import { DEFAULT_THRESHOLDS } from '@/lib/ops-stats';
+import { resolveThresholds } from '@/lib/ops-stats';
 import {
   buildSalesAnalytics, buildTimingAnalytics, buildTimingCsv, buildVenueSalesCsv, daysInRange, formatDuration, priorRange,
   type AnalyticsVenue, type TimingRecord, type VenueSalesRow,
@@ -159,6 +159,18 @@ export default function KoopAnalyticsPage() {
   const sellersQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'sellers') : null), [firestore]);
   const { data: sellers } = useCollection<Seller>(sellersQuery);
 
+  // Koop's own limits live in System Config, per service mode. A venue can override them in its settings.
+  const configRef = useMemoFirebase(() => (firestore ? doc(firestore, 'solution', 'config') : null), [firestore]);
+  const { data: solutionConfig } = useDoc<SolutionConfig>(configRef);
+
+  const limitFor = useMemo(() => {
+    const byId = new Map((sellers || []).map(s => [s.id, s]));
+    return (sellerId: string, menuType: string) => {
+      const t = resolveThresholds(byId.get(sellerId)?.orderThresholds?.[menuType], solutionConfig?.orderThresholds?.[menuType]);
+      return { totalMinutes: t.maxOrderProcessingMinutes, ackSeconds: t.maxOrderAcknowledgeSeconds };
+    };
+  }, [sellers, solutionConfig]);
+
   const venues = useMemo(() => {
     const map: Record<string, AnalyticsVenue> = {};
     (sellers || []).forEach(s => { map[s.id] = { name: s.courseName || s.id, isDemo: isDemoVenue(s.id) }; });
@@ -179,9 +191,8 @@ export default function KoopAnalyticsPage() {
       totalSec: t.totalSec, ackSec: t.ackSec, prepSec: t.prepSec, deliverySec: t.deliverySec, localDate: t.localDate,
       placedAtMs: t.placedAt?.toMillis ? t.placedAt.toMillis() : undefined,
     })),
-    venues, dateKey, from, to, includeDemo,
-    { totalMinutes: DEFAULT_THRESHOLDS.maxOrderProcessingMinutes, ackSeconds: DEFAULT_THRESHOLDS.maxOrderAcknowledgeSeconds },
-  ), [timings, venues, from, to, includeDemo]);
+    venues, dateKey, from, to, includeDemo, limitFor,
+  ), [timings, venues, from, to, includeDemo, limitFor]);
 
   const sortedVenues = useMemo(() => {
     const rows = [...sales.venues];
@@ -352,7 +363,7 @@ export default function KoopAnalyticsPage() {
         {/* ---------------- TIMING ---------------- */}
         <SectionTitle
           title="Order timing"
-          note={`Placed to delivered, from the order timing records · limits are Koop's defaults (${DEFAULT_THRESHOLDS.maxOrderProcessingMinutes} min to deliver, ${DEFAULT_THRESHOLDS.maxOrderAcknowledgeSeconds}s to acknowledge); venue overrides are not applied`}
+          note="Placed to delivered, from the order timing records · 'within limit' uses each venue's and service mode's own max times: the venue's override, else Koop's System Config value, else 25 min to deliver and 120s to acknowledge"
         />
 
         {timingLoading ? (
@@ -381,9 +392,9 @@ export default function KoopAnalyticsPage() {
               <Tile label="Typical acknowledge" value={formatDuration(timing.ack.median)}><p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mt-1">Placed to staff started</p></Tile>
               <Tile label="Typical prep" value={formatDuration(timing.prep.median)}><p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mt-1">Started to out for delivery</p></Tile>
               <Tile label="Typical delivery leg" value={formatDuration(timing.delivery.median)}><p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mt-1">Out for delivery to delivered</p></Tile>
-              <Tile label={`Within ${DEFAULT_THRESHOLDS.maxOrderProcessingMinutes} min`} value={timing.withinLimitPct === null ? '—' : `${timing.withinLimitPct}%`}>
+              <Tile label="Within max time" value={timing.withinLimitPct === null ? '—' : `${timing.withinLimitPct}%`}>
                 <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mt-1">
-                  {timing.ackWithinLimitPct === null ? '' : `${timing.ackWithinLimitPct}% acknowledged within ${DEFAULT_THRESHOLDS.maxOrderAcknowledgeSeconds}s`}
+                  {timing.ackWithinLimitPct === null ? '' : `${timing.ackWithinLimitPct}% acknowledged within the max`}
                 </p>
               </Tile>
             </div>
@@ -414,12 +425,13 @@ export default function KoopAnalyticsPage() {
                       <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Acknowledge</TableHead>
                       <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Prep</TableHead>
                       <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Delivery Leg</TableHead>
-                      <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Within {DEFAULT_THRESHOLDS.maxOrderProcessingMinutes} Min</TableHead>
+                      <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Max Time</TableHead>
+                      <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Within Max</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {timing.rows.length === 0 ? (
-                      <TableRow><TableCell colSpan={9} className="py-12 text-center text-[10px] font-black uppercase text-muted-foreground">No usable delivered orders in this range</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={10} className="py-12 text-center text-[10px] font-black uppercase text-muted-foreground">No usable delivered orders in this range</TableCell></TableRow>
                     ) : timing.rows.map(r => (
                       <TableRow key={r.key} className="hover:bg-slate-50/50 transition-colors">
                         <TableCell className="font-bold text-sm uppercase whitespace-nowrap">
@@ -433,6 +445,7 @@ export default function KoopAnalyticsPage() {
                         <TableCell className="text-right font-mono font-black text-sm">{formatDuration(r.medianAckSec)}</TableCell>
                         <TableCell className="text-right font-mono font-black text-sm">{formatDuration(r.medianPrepSec)}</TableCell>
                         <TableCell className="text-right font-mono font-black text-sm">{formatDuration(r.medianDeliverySec)}</TableCell>
+                        <TableCell className="text-right font-mono font-black text-sm">{r.limitMinutes === null ? '—' : `${r.limitMinutes}m`}</TableCell>
                         <TableCell className="text-right font-mono font-black text-sm">{r.withinLimitPct === null ? '—' : `${r.withinLimitPct}%`}</TableCell>
                       </TableRow>
                     ))}
