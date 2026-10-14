@@ -23,6 +23,7 @@ import type { Seller, Lead } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { StripeAttentionCard } from '@/components/stripe-attention-card';
+import { AckGoalCard } from '@/components/ack-goal-card';
 
 function KPICard({ label, value, sub, icon: Icon, colorClass }: { label: string, value: string | number, sub: string, icon: any, colorClass?: string }) {
   return (
@@ -63,6 +64,8 @@ export default function AdminDashboardPage() {
         </div>
 
         <StripeAttentionCard />
+
+        <AckGoalCard />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <Card className="border-2 shadow-sm">
