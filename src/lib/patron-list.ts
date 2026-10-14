@@ -32,7 +32,7 @@ export function formatPhone(raw: string | undefined): string {
 
 // The same person can order under slightly different spellings, so match on email
 // first and fall back to the phone number.
-function patronKey(o: PatronOrderInput): string {
+export function patronKey(o: PatronOrderInput): string {
   const email = (o.customerEmail || '').trim().toLowerCase();
   if (email) return `e:${email}`;
   const digits = (o.customerPhone || '').replace(/\D/g, '');
