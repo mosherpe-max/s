@@ -1,9 +1,11 @@
 
 'use client';
 
-import { collection, query, where, doc, updateDoc, serverTimestamp, setDoc, deleteDoc, deleteField } from 'firebase/firestore';
+import { collection, query, where, doc, updateDoc, serverTimestamp, deleteDoc, deleteField } from 'firebase/firestore';
 import { playStaffAlertSound, useStaffAlertSound } from '@/lib/staff-alert-sound';
 import { useStaffSessionGuard } from '@/lib/use-staff-session-guard';
+import { useStaffLocation } from '@/lib/use-staff-location';
+import { StaffLocationBanner } from '@/components/staff-location-banner';
 import { useCollection, useFirestore, useMemoFirebase, useDoc, useUser } from '@/firebase';
 import { MapView } from '@/components/map-view';
 import { useEffect, useState, useMemo, useRef, use } from 'react';
@@ -185,16 +187,23 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
   }, [firestore, sellerId]);
   const { data: allStaff } = useCollection<StaffMember>(staffQuery);
 
-  // My own live position for the map's "YOU" marker - sourced from the same
-  // staff doc fields the geolocation watch below broadcasts to. MapView
-  // already treats a missing sellerLocation as "no YOU marker, center on
-  // whatever driver/buyer data is available" so this is safe to leave
-  // undefined until the first broadcast lands.
-  const sellerLocation = useMemo<LatLng | undefined>(() => (
-    myStaffData?.latitude && myStaffData?.longitude
+  // Share this staff member's position from the moment the terminal opens (see useStaffLocation). Their own
+  // "YOU" marker uses the live position straight from the device, and falls back on what was last saved while
+  // the first fix is still coming in. MapView treats a missing sellerLocation as "no YOU marker".
+  // Broadcasting runs from inside this installed standalone app; an earlier version opened a separate Safari tab
+  // for it, which iOS foregrounded and which looked exactly like the app ejecting. That workaround is gone.
+  const { status: locationStatus, position: myPosition, retry: retryLocation } = useStaffLocation({
+    firestore,
+    sellerId,
+    staffId: currentStaffId,
+    pollIntervalMs: (solutionConfig?.driverGpsPollIntervalSeconds || 15) * 1000,
+  });
+  const sellerLocation = useMemo<LatLng | undefined>(() => {
+    if (myPosition) return myPosition;
+    return myStaffData?.latitude && myStaffData?.longitude
       ? { latitude: myStaffData.latitude, longitude: myStaffData.longitude }
-      : undefined
-  ), [myStaffData?.latitude, myStaffData?.longitude]);
+      : undefined;
+  }, [myPosition, myStaffData?.latitude, myStaffData?.longitude]);
 
   // Personal "I'm stepping away" status - this is the individual staff member
   // taking themselves off signal without ending their shift, NOT the venue-
@@ -385,40 +394,6 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
     return () => clearInterval(interval);
   }, []);
 
-  // Live GPS broadcasting, called directly from inside this installed
-  // standalone app. An earlier version of this comment claimed geolocation
-  // itself ejects the standalone shell into Safari chrome - on-device
-  // re-testing showed that's wrong: a bare gesture-gated
-  // getCurrentPosition() call here does NOT eject the app. The real cause
-  // was staff-login's window.open() to a separate Safari tab
-  // (track-delivery) for this same purpose, which iOS foregrounds the
-  // instant it's created. That tab-opening workaround has been removed.
-  const gpsStartedRef = useRef(false);
-  const gpsLastWriteRef = useRef(0);
-  const gpsPollIntervalMsRef = useRef(15000);
-  useEffect(() => {
-    gpsPollIntervalMsRef.current = (solutionConfig?.driverGpsPollIntervalSeconds || 15) * 1000;
-  }, [solutionConfig?.driverGpsPollIntervalSeconds]);
-
-  useEffect(() => {
-    if (gpsStartedRef.current || !currentStaffId || !firestore || typeof navigator === 'undefined' || !navigator.geolocation) return;
-    gpsStartedRef.current = true;
-    navigator.geolocation.watchPosition(
-      (position) => {
-        const now = Date.now();
-        if (now - gpsLastWriteRef.current < gpsPollIntervalMsRef.current) return;
-        gpsLastWriteRef.current = now;
-        setDoc(doc(firestore, 'sellers', sellerId, 'staff', currentStaffId), {
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-          lastActive: serverTimestamp(),
-        }, { merge: true }).catch(() => {});
-      },
-      () => {},
-      { enableHighAccuracy: true }
-    );
-  }, [currentStaffId, firestore, sellerId]);
-
   const handleUpdateOrderStatus = (orderId: string, currentStatus: string) => {
     if (!firestore) return;
     const stages: Order['status'][] = ['Placed', 'Preparing', 'Out for Delivery', 'Delivered'];
@@ -591,6 +566,8 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
               </span>
             </Badge>
           </div>
+
+          <StaffLocationBanner status={locationStatus} onRetry={retryLocation} />
 
           {isPrimaryLoading ? (
             <Skeleton className="w-full h-full" />
