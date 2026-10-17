@@ -68,6 +68,8 @@ export function PatronIdentifyFields({
           <Input
             placeholder="Email Address"
             type="email"
+            autoComplete="email"
+            enterKeyHint="next"
             value={patronEmail}
             onChange={(e) => setPatronEmail(e.target.value)}
             className="pl-10 h-11 border-2 border-white rounded-xl font-bold focus-visible:ring-primary bg-white shadow-sm"
@@ -79,6 +81,8 @@ export function PatronIdentifyFields({
             <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Full Name"
+              autoComplete="name"
+              enterKeyHint="next"
               value={patronName}
               onChange={(e) => setPatronName(e.target.value)}
               className="pl-10 h-11 border-2 border-white rounded-xl font-bold focus-visible:ring-primary bg-white shadow-sm"
@@ -90,6 +94,8 @@ export function PatronIdentifyFields({
             <Input
               placeholder="Mobile Number"
               type="tel"
+              autoComplete="tel"
+              enterKeyHint="done"
               value={patronPhone}
               onChange={(e) => setPatronPhone(e.target.value)}
               className="pl-10 h-11 border-2 border-white rounded-xl font-bold focus-visible:ring-primary bg-white shadow-sm"
