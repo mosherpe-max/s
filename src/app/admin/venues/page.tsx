@@ -926,54 +926,7 @@ export default function AdminVenueRegistryPage() {
                     </div>
 
                     <div className="space-y-4 pt-8 border-t-4 border-slate-100">
-                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><ShieldCheck className="h-3 w-3" /> 5. Operational Status</Label>
-                       <div className="grid gap-3">
-                          <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border-2 border-slate-100">
-                             <div className="flex flex-col text-left">
-                               <span className="text-[10px] font-black uppercase text-[#213147]">Operational Activation</span>
-                               <span className="text-[8px] font-bold text-muted-foreground uppercase">Enable global solution access</span>
-                             </div>
-                             <FormField control={registryForm.control} name="status" render={({ field }) => (
-                               <Switch 
-                                 checked={field.value === 'Active'} 
-                                 onCheckedChange={(checked) => field.onChange(checked ? 'Active' : 'Inactive')} 
-                                 className="data-[state=checked]:bg-green-600" 
-                               />
-                             )} />
-                          </div>
-                          {registryForm.watch('type') === 'Golf Course' && (
-                            <>
-                              <FormField control={registryForm.control} name="holeCount" render={({ field }) => (
-                                <FormItem className="text-left p-3 rounded-xl border-2 bg-slate-50 border-slate-100">
-                                  <FormLabel className="text-[10px] font-black uppercase">Number of Holes</FormLabel>
-                                  <FormControl><Input {...field} type="number" min={1} max={36} className="h-10 border-2 font-bold bg-white" /></FormControl>
-                                  <p className="text-[8px] font-bold text-muted-foreground uppercase mt-1">Patrons pick their hole from this list if they won&apos;t share location</p>
-                                  <FormMessage />
-                                </FormItem>
-                              )} />
-                              <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border-2 border-slate-100">
-                                <div className="flex flex-col text-left"><span className="text-[10px] font-black uppercase text-[#213147]">Driving Range</span><span className="text-[8px] font-bold text-muted-foreground uppercase">Offer it as a delivery location</span></div>
-                                <FormField control={registryForm.control} name="hasDrivingRange" render={({ field }) => (<Switch checked={field.value} onCheckedChange={field.onChange} className="data-[state=checked]:bg-green-600" />)} />
-                              </div>
-                            </>
-                          )}
-                          {registryForm.watch('type') === 'Bowling Center' && (
-                            <FormField control={registryForm.control} name="laneCount" render={({ field }) => (
-                              <FormItem className="text-left p-3 rounded-xl border-2 bg-slate-50 border-slate-100">
-                                <FormLabel className="text-[10px] font-black uppercase">Lane Inventory</FormLabel>
-                                <FormControl><Input {...field} type="number" className="h-10 border-2 font-bold bg-white" /></FormControl>
-                              </FormItem>
-                            )} />
-                          )}
-                          <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border-2 border-slate-100">
-                             <div className="flex flex-col text-left"><span className="text-[10px] font-black uppercase text-[#213147]">Demo Instance</span><span className="text-[8px] font-bold text-muted-foreground uppercase">Exclude from Global Results</span></div>
-                             <FormField control={registryForm.control} name="isDemo" render={({ field }) => (<Switch checked={field.value} onCheckedChange={field.onChange} className="data-[state=checked]:bg-amber-500" />)} />
-                          </div>
-                       </div>
-                    </div>
-
-                    <div className="space-y-4 pt-8 border-t-4 border-slate-100">
-                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><MapPin className="h-3 w-3" /> 6. Map Location</Label>
+                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><MapPin className="h-3 w-3" /> 5. Map Location</Label>
                        <div className="grid grid-cols-2 gap-4">
                           <FormField control={registryForm.control} name="latitude" render={({ field }) => (
                             <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Latitude</FormLabel><FormControl><Input {...field} type="number" step="0.000001" className="h-11 border-2 font-bold" /></FormControl></FormItem>
@@ -986,7 +939,7 @@ export default function AdminVenueRegistryPage() {
                     </div>
 
                     <div className="space-y-4 pt-8 border-t-4 border-slate-100">
-                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><Zap className="h-3 w-3" /> 7. Service Mode Selected</Label>
+                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><Zap className="h-3 w-3" /> 6. Service Mode Selected</Label>
                        <div className="grid gap-3">
                         {SERVICE_MODES.map((mode) => (
                           <FormField key={mode.id} control={registryForm.control} name="menuTypes" render={({ field }) => (
@@ -1000,7 +953,7 @@ export default function AdminVenueRegistryPage() {
                     </div>
 
                     <div className="space-y-4 pt-8 border-t-4 border-slate-100">
-                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><Power className="h-3 w-3" /> 8. A Service Mode Is Open</Label>
+                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><Power className="h-3 w-3" /> 7. A Service Mode Is Open</Label>
                        {currentSellerModes.length === 0 ? (
                          <p className="text-[9px] font-bold text-muted-foreground uppercase">Select a service mode above first</p>
                        ) : (
@@ -1020,7 +973,7 @@ export default function AdminVenueRegistryPage() {
                     </div>
 
                     <div className="space-y-4 pt-8 border-t-4 border-slate-100">
-                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><CreditCard className="h-3 w-3" /> 9. Stripe Connected</Label>
+                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><CreditCard className="h-3 w-3" /> 8. Stripe Connected</Label>
                        <div className="grid gap-3">
                          <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border-2 border-slate-100">
                            <span className="text-[10px] font-black uppercase text-[#213147]">Stripe Account</span>
@@ -1049,7 +1002,7 @@ export default function AdminVenueRegistryPage() {
                     </div>
 
                     <div className="space-y-4 pt-8 border-t-4 border-slate-100">
-                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><Wallet className="h-3 w-3" /> 10. Payment Methods Enabled</Label>
+                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><Wallet className="h-3 w-3" /> 9. Payment Methods Enabled</Label>
                        <div className="grid gap-3">
                          {(['Digital Payment', 'Pay at Delivery'] as const).map(method => (
                            <div key={method} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border-2 border-slate-100">
@@ -1062,7 +1015,7 @@ export default function AdminVenueRegistryPage() {
                     </div>
 
                     <div className="space-y-4 pt-8 border-t-4 border-slate-100">
-                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><Users className="h-3 w-3" /> 11. Staff Added</Label>
+                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><Users className="h-3 w-3" /> 10. Staff Added</Label>
                        <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border-2 border-slate-100">
                          <span className="text-[10px] font-black uppercase text-[#213147]">Staff Members</span>
                          <Badge className={cn("border-0 text-[8px] font-black uppercase", (venueStaff?.length || 0) > 0 ? "bg-green-500" : "bg-slate-400")}>{venueStaff?.length || 0}</Badge>
@@ -1071,7 +1024,7 @@ export default function AdminVenueRegistryPage() {
                     </div>
 
                <div className="space-y-6 pt-8 border-t-4 border-slate-100">
-                  <Label className="text-[11px] font-black uppercase tracking-[0.3em] text-primary flex items-center gap-2"><Library className="h-4 w-4" /> 12. Menu Items Added <span className="text-muted-foreground tracking-widest">· {venueMenuItems?.length || 0} on the menu</span></Label>
+                  <Label className="text-[11px] font-black uppercase tracking-[0.3em] text-primary flex items-center gap-2"><Library className="h-4 w-4" /> 11. Menu Items Added <span className="text-muted-foreground tracking-widest">· {venueMenuItems?.length || 0} on the menu</span></Label>
                   <p className="text-[10px] font-medium text-muted-foreground leading-relaxed uppercase">Pick specific items and modifiers to add to this venue &mdash; nothing is bulk-loaded.</p>
                   {selectedVenue && (
                     <div className="space-y-3">
@@ -1109,7 +1062,7 @@ export default function AdminVenueRegistryPage() {
                {/* QR LOGISTICS SECTION */}
                <div className="space-y-6 pt-8 border-t-4 border-slate-100">
                   <Label className="text-[11px] font-black uppercase tracking-[0.3em] text-primary flex items-center gap-2">
-                    <QrCode className="h-4 w-4" /> 13. QR Access Active
+                    <QrCode className="h-4 w-4" /> 12. QR Access Active
                   </Label>
                   
                   <Card className="border-2 border-slate-100 bg-slate-50 overflow-hidden rounded-2xl">
@@ -1175,7 +1128,7 @@ export default function AdminVenueRegistryPage() {
                {currentSeller && (
                  <div className="space-y-6 pt-8 border-t-4 border-slate-100">
                     <Label className="text-[11px] font-black uppercase tracking-[0.3em] text-primary flex items-center gap-2">
-                      <Printer className="h-4 w-4" /> 14. Print Marketing Kit
+                      <Printer className="h-4 w-4" /> 13. Print Marketing Kit
                     </Label>
                     <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">
                       Generate print-ready PDFs to send to a printer before launch.
@@ -1242,6 +1195,53 @@ export default function AdminVenueRegistryPage() {
                     />
                  </div>
                )}
+
+                    <div className="space-y-4 pt-8 border-t-4 border-slate-100">
+                       <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2"><ShieldCheck className="h-3 w-3" /> 14. Operational Status</Label>
+                       <div className="grid gap-3">
+                          <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border-2 border-slate-100">
+                             <div className="flex flex-col text-left">
+                               <span className="text-[10px] font-black uppercase text-[#213147]">Operational Activation</span>
+                               <span className="text-[8px] font-bold text-muted-foreground uppercase">Enable global solution access</span>
+                             </div>
+                             <FormField control={registryForm.control} name="status" render={({ field }) => (
+                               <Switch 
+                                 checked={field.value === 'Active'} 
+                                 onCheckedChange={(checked) => field.onChange(checked ? 'Active' : 'Inactive')} 
+                                 className="data-[state=checked]:bg-green-600" 
+                               />
+                             )} />
+                          </div>
+                          {registryForm.watch('type') === 'Golf Course' && (
+                            <>
+                              <FormField control={registryForm.control} name="holeCount" render={({ field }) => (
+                                <FormItem className="text-left p-3 rounded-xl border-2 bg-slate-50 border-slate-100">
+                                  <FormLabel className="text-[10px] font-black uppercase">Number of Holes</FormLabel>
+                                  <FormControl><Input {...field} type="number" min={1} max={36} className="h-10 border-2 font-bold bg-white" /></FormControl>
+                                  <p className="text-[8px] font-bold text-muted-foreground uppercase mt-1">Patrons pick their hole from this list if they won&apos;t share location</p>
+                                  <FormMessage />
+                                </FormItem>
+                              )} />
+                              <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border-2 border-slate-100">
+                                <div className="flex flex-col text-left"><span className="text-[10px] font-black uppercase text-[#213147]">Driving Range</span><span className="text-[8px] font-bold text-muted-foreground uppercase">Offer it as a delivery location</span></div>
+                                <FormField control={registryForm.control} name="hasDrivingRange" render={({ field }) => (<Switch checked={field.value} onCheckedChange={field.onChange} className="data-[state=checked]:bg-green-600" />)} />
+                              </div>
+                            </>
+                          )}
+                          {registryForm.watch('type') === 'Bowling Center' && (
+                            <FormField control={registryForm.control} name="laneCount" render={({ field }) => (
+                              <FormItem className="text-left p-3 rounded-xl border-2 bg-slate-50 border-slate-100">
+                                <FormLabel className="text-[10px] font-black uppercase">Lane Inventory</FormLabel>
+                                <FormControl><Input {...field} type="number" className="h-10 border-2 font-bold bg-white" /></FormControl>
+                              </FormItem>
+                            )} />
+                          )}
+                          <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border-2 border-slate-100">
+                             <div className="flex flex-col text-left"><span className="text-[10px] font-black uppercase text-[#213147]">Demo Instance</span><span className="text-[8px] font-bold text-muted-foreground uppercase">Exclude from Global Results</span></div>
+                             <FormField control={registryForm.control} name="isDemo" render={({ field }) => (<Switch checked={field.value} onCheckedChange={field.onChange} className="data-[state=checked]:bg-amber-500" />)} />
+                          </div>
+                       </div>
+                    </div>
 
                </div>
                </Form>
