@@ -68,7 +68,7 @@ export default function GolfPage() {
             cta="Text Peter for a 20-minute demo"
             sms={SMS}
             note="Offer good until February 28, 2027."
-            why="I set up each course personally."
+            why="We set up each course for you."
           />
         }
       >
