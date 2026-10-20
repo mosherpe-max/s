@@ -166,9 +166,9 @@ export default function GolfPage() {
           text="Call or text Peter for a 20-minute demo."
           cta="Text Peter"
           sms={SMS}
-          otherLabel="Run a bowling center?"
-          otherHref="/bowling"
-          otherText="See Koop for bowling"
+          otherLabel="Run a bowling center? Bowling is coming soon."
+          otherHref="sms:+12488367515?&body=BOWLING"
+          otherText="Text Peter about bowling"
         />
       </main>
     </div>

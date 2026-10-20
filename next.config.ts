@@ -2,6 +2,12 @@ import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
   /* config options here */
+  // Bowling is "coming soon" and not marketed yet, so the bowling page is not public. The page itself
+  // (src/app/bowling/page.tsx) is kept for the relaunch: delete this redirect to bring it back, and put the
+  // Bowling card on the home page back to a link.
+  async redirects() {
+    return [{ source: '/bowling', destination: '/', permanent: false }];
+  },
   typescript: {
     ignoreBuildErrors: true,
   },

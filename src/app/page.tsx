@@ -1,9 +1,9 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-const TITLE = 'Koop | Mobile ordering for golf courses and bowling centers';
+const TITLE = 'Koop | Mobile ordering for golf courses';
 const DESCRIPTION =
-  'Koop lets golfers and bowlers order and pay from their phone, and your staff delivers. No POS changes, no new hardware, live in less than a week.';
+  'Koop lets golfers order and pay from their phone, and your staff delivers. No POS changes, no new hardware, live in less than a week.';
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -102,6 +102,28 @@ function Door({
   );
 }
 
+// Bowling is not marketed yet: a card that says so, with a button to text Peter instead of a link to a page.
+function SoonDoor({
+  art, title, line, desc, chip, cta, sms,
+}: {
+  art: React.ReactNode; title: string; line: string; desc: string; chip: string; cta: string; sms: string;
+}) {
+  return (
+    <div className="flex flex-col bg-white text-[#213147] rounded-[10px] overflow-hidden border-2 border-transparent">
+      <div className="bg-[#17233a] aspect-[20/9]" aria-hidden="true">{art}</div>
+      <div className="flex flex-col gap-2.5 flex-1 px-6 pt-5 pb-6">
+        <h2 className={`${condensed} font-bold text-[2.3rem] leading-none uppercase tracking-[0.01em]`}>{title}</h2>
+        <p className="font-semibold text-[1.1rem] text-[#E50000]">{line}</p>
+        <p className="text-[#55637a] text-[0.98rem] leading-relaxed">{desc}</p>
+        <span className="self-start bg-[#213147] text-white text-[0.8rem] font-semibold px-3 py-1 rounded-full">{chip}</span>
+        <div className="mt-auto pt-3 self-start">
+          <a href={sms} className="inline-block bg-[#E50000] hover:bg-[#c70000] text-white font-semibold text-[0.95rem] px-[22px] py-3 rounded-md">{cta}</a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const reasons = [
   { h: 'Nobody leaves the fun', p: 'Guests order from where they are, on the course or at the lane. No walk to the clubhouse or snack bar, and no waiting for someone to pass by.' },
   { h: 'Staff deliver, not take orders', p: 'Your people spend the shift bringing orders out. Every order arrives already paid.' },
@@ -151,14 +173,14 @@ export default function HomePage() {
               chip="$179/mo founding rate. $0 launch fee. Good until Feb 28, 2027."
               cta="See Koop for golf"
             />
-            <Door
-              href="/bowling"
+            <SoonDoor
               art={<BowlingArt />}
               title="Bowling centers"
               line="The second round stops walking out the door."
               desc="Bowlers order and pay without leaving their lane. Koop adds a sales channel beside your snack bar and servers."
-              chip="5 founding spots. Launch fee waived."
-              cta="See Koop for bowling"
+              chip="Coming soon"
+              cta="Text Peter about bowling"
+              sms="sms:+12488367515?&body=BOWLING"
             />
           </div>
         </div>
@@ -201,7 +223,7 @@ export default function HomePage() {
           <div className="w-full max-w-[1120px] mx-auto px-6 py-11 flex flex-wrap gap-7 items-center justify-between">
             <div>
               <h3 className={`${condensed} font-bold uppercase leading-[1.05] text-[clamp(2rem,5vw,2.8rem)] text-white mb-1.5`}>See it in 20 minutes.</h3>
-              <p className="m-0 text-[#c9d2e0]">I set up each venue personally. Text GOLF or BOWLING and I will send times for a demo.</p>
+              <p className="m-0 text-[#c9d2e0]">I set up each venue personally. Text GOLF and I will send times for a demo. Bowling is coming soon: text BOWLING and I will let you know when it is ready.</p>
             </div>
             <div className="border-l-4 border-[#E50000] pl-5">
               <b className="block text-[1.3rem] font-semibold">Peter Mosher</b>
