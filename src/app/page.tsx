@@ -148,7 +148,7 @@ export default function HomePage() {
               title="Golf courses"
               line="Every delivery is a paid order. Zero dead passes."
               desc="Golfers scan, order, and pay from their phone and your staff delivers to their GPS location. Your clubhouse kitchen becomes another on-course sales channel. 16 extra orders a month covers the $179 fee."
-              chip="$179/mo founding rate. Launch fee waived. 5 spots."
+              chip="$179/mo founding rate. $0 launch fee. Good until Feb 28, 2027."
               cta="See Koop for golf"
             />
             <Door
@@ -200,7 +200,7 @@ export default function HomePage() {
         <div className="mt-[72px] bg-[#213147] text-white border-t-[5px] border-[#E50000]">
           <div className="w-full max-w-[1120px] mx-auto px-6 py-11 flex flex-wrap gap-7 items-center justify-between">
             <div>
-              <h3 className={`${condensed} font-bold uppercase leading-[1.05] text-[clamp(2rem,5vw,2.8rem)] text-white mb-1.5`}>See it in 15 minutes.</h3>
+              <h3 className={`${condensed} font-bold uppercase leading-[1.05] text-[clamp(2rem,5vw,2.8rem)] text-white mb-1.5`}>See it in 20 minutes.</h3>
               <p className="m-0 text-[#c9d2e0]">I set up each venue personally. Text GOLF or BOWLING and I will send times for a demo.</p>
             </div>
             <div className="border-l-4 border-[#E50000] pl-5">
