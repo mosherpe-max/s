@@ -223,7 +223,7 @@ export default function HomePage() {
           <div className="w-full max-w-[1120px] mx-auto px-6 py-11 flex flex-wrap gap-7 items-center justify-between">
             <div>
               <h3 className={`${condensed} font-bold uppercase leading-[1.05] text-[clamp(2rem,5vw,2.8rem)] text-white mb-1.5`}>See it in 20 minutes.</h3>
-              <p className="m-0 text-[#c9d2e0]">I set up each venue personally. Text GOLF and I will send times for a demo. Bowling is coming soon: text BOWLING and I will let you know when it is ready.</p>
+              <p className="m-0 text-[#c9d2e0]">We set up your menus, staff training and marketing materials. Text GOLF for demo times. Bowling is coming soon: text BOWLING and we will let you know when it is ready.</p>
             </div>
             <div className="border-l-4 border-[#E50000] pl-5">
               <b className="block text-[1.3rem] font-semibold">Peter Mosher</b>
