@@ -5,7 +5,7 @@ import {
 
 const TITLE = 'Koop Golf | Mobile ordering for the beverage cart and clubhouse';
 const DESCRIPTION =
-  'Keep the amenity. Remove the variability. The app sells, your staff delivers to the golfer\'s GPS location. 5 founding spots, launch fee waived. Live in less than a week.';
+  'Keep the amenity. Remove the variability. The app sells, your staff delivers to the golfer\'s GPS location. Founding member rate of $179/month with the launch fee waived, offer good until February 28, 2027. Live in less than a week.';
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -17,20 +17,40 @@ export const metadata: Metadata = {
 const SMS = 'sms:+12488367515?&body=FOUNDER5';
 
 const diffCards = [
-  { h: 'Consistent selling', li: ['Same menu, ordering and upselling experience every shift.', "Your best operator shouldn't have to be working for you to have a great sales day."] },
-  { h: 'Orders come to the golfer', li: ['Served on demand—not when the cart happens to pass.', 'Every delivery is a paid order—zero dead passes.'] },
-  { h: 'Your kitchen sells on course', li: ['Turn your clubhouse kitchen into another on-course sales channel.'] },
-  { h: "Less dependent on who's working", li: ["Your sales don't have to swing with the operator.", 'Koop handles the selling, upselling and payment.', 'Your staff focuses on delivery.'] },
+  {
+    h: 'Consistent selling',
+    li: [
+      'Same menu, ordering and upselling experience every shift.',
+      "Your best operator shouldn't have to be working for you to have a great sales day.",
+      'Koop handles the selling and payment. Your staff focuses on delivery.',
+    ],
+  },
+  {
+    h: 'Orders come to the golfer',
+    li: ["Served on demand—not on a fixed loop. Golfers order when they're thirsty.", 'Every stop is for a golfer who already wants something.'],
+  },
+  {
+    h: 'Your kitchen sells on course',
+    li: ["Turn your clubhouse kitchen into another on-course sales channel—including when the beverage cart isn't on shift."],
+  },
+  {
+    h: 'Staff go straight to the golfer',
+    li: [
+      'Instant notification when an order comes in.',
+      "The golfer's live GPS location shows on a map.",
+      'Staff go straight to the golfer instead of searching the course.',
+    ],
+  },
 ];
 
 const easyToAdd = [
   { h: 'No POS integration', p: 'No changes to your existing POS.' },
-  { h: 'No new hardware', p: 'Zero IT project.' },
+  { h: 'Works on any phone or tablet', p: 'No integration, no setup headaches.' },
   { h: 'Live in less than a week', p: 'Menus, training and marketing materials included.' },
-  { h: 'Cancel anytime' },
+  { h: 'Cancel anytime', p: "Your rate is locked. You're not." },
 ];
 
-const promises = ['Live in less than a week', 'No POS changes', 'No new hardware', 'Cancel anytime'];
+const promises = ['Live in less than a week', 'No POS changes', 'Any phone or tablet', 'Cancel anytime'];
 
 const shotClass =
   'block w-[240px] min-[481px]:w-[220px] h-auto border-8 border-[#213147] rounded-[28px] shadow-[0_10px_30px_rgba(0,0,0,0.25)] bg-white';
@@ -41,20 +61,21 @@ export default function GolfPage() {
       <PageHero
         offer={
           <OfferCard
-            heading="5 founding spots"
+            heading="Founding member offer"
             price="$179"
             priceNote="/mo, locked in for 2 years"
-            bullets={['Launch fee waived ($399 value)', 'Menus, marketing materials, and staff training included', 'Cancel anytime']}
-            cta="Text Peter for a 15-minute demo"
+            bullets={['Launch fee waived ($399 value)', 'No per-order fees for your venue', 'Menus, marketing materials, and staff training included', 'Cancel anytime']}
+            cta="Text Peter for a 20-minute demo"
             sms={SMS}
-            code="FOUNDER5"
-            why="I set up each course personally, so I can only take five."
+            note="Offer good until February 28, 2027."
+            why="I set up each course personally."
           />
         }
       >
         <HeroText
           h1="Keep the amenity. Remove the variability."
           highlight="The app sells. Your staff delivers."
+          tag="Instead of driving a fixed loop, your cart goes where the orders are."
           banner
           sub={
             <>
@@ -127,14 +148,13 @@ export default function GolfPage() {
         </Section>
 
         <Section id="pricing">
-          <h3 className={h3Class}>Founding member <Red>offer</Red></h3>
-          <p className="mb-8 text-[0.75rem] font-bold uppercase tracking-wide text-[#E50000]">Only 5 founding member spots available, first come, first served.</p>
+          <h3 className={`${h3Class} mb-8`}>Founding member <Red>offer</Red></h3>
           <FoundingOffer
             price="$179"
             unit="/month"
-            until="Offer good until December 31, 2026"
+            until="Offer good until February 28, 2027"
             bullets={['$0 launch fee', 'Rate locked for 2 years', 'No per-order fees for your venue']}
-            after="After the first five: $289/month + $399 launch fee"
+            after="After February 28, 2027: $289/month + $399 launch fee"
           />
           <p className="mt-4 mb-0 max-w-[880px] text-[0.82rem] text-[#55637a]">
             Standard card processing is paid by the venue, with no markup from Koop. The per-order convenience fee ($0.99) is paid by the patron.
@@ -143,7 +163,7 @@ export default function GolfPage() {
 
         <ContactBand
           heading="Become a Koop founding member."
-          text="Call or text Peter for a 15-minute demo."
+          text="Call or text Peter for a 20-minute demo."
           cta="Text Peter"
           sms={SMS}
           otherLabel="Run a bowling center? Bowling is coming soon."
