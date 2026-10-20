@@ -111,7 +111,10 @@ export function ContactBand({
           <p className="m-0 text-[#c9d2e0]">{text}</p>
           <p className="mt-[18px] mb-0"><a href={sms} className={btnBig}>{cta}</a></p>
           <p className="mt-5 mb-0 text-[#c9d2e0] text-[0.95rem]">
-            {otherLabel} <Link href={otherHref} className="text-white underline underline-offset-2">{otherText}</Link>
+            {otherLabel}{' '}
+            {otherHref.startsWith('/')
+              ? <Link href={otherHref} className="text-white underline underline-offset-2">{otherText}</Link>
+              : <a href={otherHref} className="text-white underline underline-offset-2">{otherText}</a>}
           </p>
         </div>
         <div className="border-l-4 border-[#E50000] pl-5">
