@@ -124,10 +124,12 @@ export function ContactBand({
   );
 }
 
+// code and note are optional: a page can show "Mention CODE. <note>", just the note, or (by default, as on the
+// bowling page) "Mention CODE. Spots close December 31, 2026."
 export function OfferCard({
-  heading, price, priceNote, bullets, cta, sms, code, why,
+  heading, price, priceNote, bullets, cta, sms, code, note = 'Spots close December 31, 2026.', why,
 }: {
-  heading: string; price: string; priceNote: string; bullets: string[]; cta: string; sms: string; code: string; why: string;
+  heading: string; price: string; priceNote: string; bullets: string[]; cta: string; sms: string; code?: string; note?: string; why: string;
 }) {
   return (
     <aside aria-labelledby="offer-h" className="bg-white text-[#213147] rounded-[10px] p-[26px] border-t-[6px] border-[#E50000]">
@@ -139,7 +141,9 @@ export function OfferCard({
         {bullets.map((b) => <li key={b}>{b}</li>)}
       </ul>
       <a href={sms} className={`${btnBig} block text-center`}>{cta}</a>
-      <p className="mt-2.5 mb-0 text-[0.85rem] text-[#55637a] text-center">Mention <b className="text-[#213147]">{code}</b>. Spots close December 31, 2026.</p>
+      <p className="mt-2.5 mb-0 text-[0.85rem] text-[#55637a] text-center">
+        {code && <>Mention <b className="text-[#213147]">{code}</b>. </>}{note}
+      </p>
       <p className="mt-3.5 mb-0 text-[0.85rem] italic text-[#55637a]">{why}</p>
     </aside>
   );
