@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2, CreditCard } from 'lucide-react';
 import { CheckoutBrandingBar } from '@/components/checkout-branding-bar';
+import { CheckoutActionPanel } from '@/components/checkout-action-panel';
 import type { LocationChoice } from '@/components/patron-location-gate';
 import { PatronTermsAgreement } from '@/components/patron-terms-agreement';
 import type { PatronTermsState } from '@/lib/patron-terms';
@@ -41,6 +42,8 @@ interface StripeActionAreaProps {
   askForLocation: () => Promise<LocationChoice | null>;
   // The patron's agreement to the Terms & Conditions, required before paying.
   terms: PatronTermsState;
+  // Slides the bottom bar out of the way while the patron is typing (the keyboard needs the room).
+  hidePanel?: boolean;
 }
 
 export function StripeActionArea({
@@ -61,6 +64,7 @@ export function StripeActionArea({
   useNewCard,
   askForLocation,
   terms,
+  hidePanel,
 }: StripeActionAreaProps) {
   const stripe = useStripe();
   const elements = useElements();
@@ -164,8 +168,7 @@ export function StripeActionArea({
       {/* Pinned above the Pay button (rather than left in normal scroll
           flow) so a patron can't miss this option by simply not scrolling
           far enough down to see it. */}
-      <div className="fixed bottom-7 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t z-50 animate-in slide-in-from-bottom-4 duration-500">
-        <div className="max-w-xl mx-auto px-2 space-y-3">
+      <CheckoutActionPanel hidden={hidePanel}>
           <div
             className="flex items-center space-x-3 p-3 bg-primary/5 rounded-2xl border-2 border-primary/10 cursor-pointer transition-all hover:bg-primary/10"
             onClick={() => setSaveInfo(!saveInfo)}
@@ -190,8 +193,7 @@ export function StripeActionArea({
               PAY & PLACE ORDER
             </Button>
           )}
-        </div>
-      </div>
+      </CheckoutActionPanel>
       <CheckoutBrandingBar />
     </div>
   );

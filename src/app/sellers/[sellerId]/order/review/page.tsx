@@ -16,6 +16,7 @@ import { FEE_DISCLOSURES, getDisclosureCategory } from '@/config/fee-disclosures
 import { useUpsellOffer } from '@/lib/use-upsell-offer';
 import { isCategoryVisible } from '@/lib/category-visibility';
 import { computeTax, getTaxRate } from '@/lib/tax';
+import { useGuidedScroll } from '@/lib/use-guided-scroll';
 
 function ReviewOrderContent({ sellerId }: { sellerId: string }) {
   const firestore = useFirestore();
@@ -23,6 +24,8 @@ function ReviewOrderContent({ sellerId }: { sellerId: string }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { orderItems, updateItem, removeItem, tip, setTip } = useCart();
+  // A custom tip amount scrolls into view as it is typed, clear of the on-screen keyboard.
+  useGuidedScroll({ topInsetSelector: '[data-screen-header]' });
 
   const sellerRef = useMemoFirebase(() => (firestore ? doc(firestore, 'sellers', sellerId) : null), [firestore, sellerId]);
   const { data: seller, isLoading: isSellerLoading } = useDoc<Seller>(sellerRef);
@@ -79,8 +82,8 @@ function ReviewOrderContent({ sellerId }: { sellerId: string }) {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-[#F0F0F0]">
-      <header className="shrink-0 bg-[#213147] px-4 py-3 flex items-center gap-3 shadow-md border-b-2 border-[#E50000]">
+    <div className="flex flex-col h-app bg-[#F0F0F0]">
+      <header data-screen-header className="shrink-0 bg-[#213147] px-4 py-3 flex items-center gap-3 shadow-md border-b-2 border-[#E50000]">
         <Button
           variant="ghost"
           size="icon"
@@ -95,7 +98,7 @@ function ReviewOrderContent({ sellerId }: { sellerId: string }) {
         </div>
       </header>
 
-      <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4">
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 pt-4 pb-8 space-y-4">
         <OrderSummary
           items={activeOrderItems}
           onUpdateItem={updateItem}

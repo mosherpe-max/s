@@ -85,4 +85,11 @@ body {
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+  /* A full-screen app view: the screen height less the 1.75rem brand footer pinned to the bottom. dvh follows a
+     mobile browser's toolbars as they come and go, where 100vh is taller than what is actually visible and
+     pushes the bottom of the view (the Checkout button) off screen. The vh line is the fallback. */
+  .h-app {
+    height: calc(100vh - 1.75rem);
+    height: calc(100dvh - 1.75rem);
+  }
 }
