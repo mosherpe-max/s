@@ -1,6 +1,6 @@
 'use client';
 
-import { use, useState, useEffect, useMemo, Suspense } from 'react';
+import { use, useState, useEffect, useMemo, useRef, Suspense } from 'react';
 import { isModePaused } from '@/lib/mode-status';
 import { collection, doc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { signInAnonymously } from 'firebase/auth';
@@ -17,6 +17,8 @@ import { PatronIdentifyFields } from '@/components/patron-identify-fields';
 import { StripeActionArea } from '@/components/stripe-action-area';
 import { StripeCheckoutForm } from '@/components/stripe-checkout-form';
 import { CheckoutBrandingBar } from '@/components/checkout-branding-bar';
+import { CheckoutActionPanel } from '@/components/checkout-action-panel';
+import { useGuidedScroll } from '@/lib/use-guided-scroll';
 import { Loader2, ChevronLeft, CreditCard, Banknote, UserCircle, Check, ShoppingBag, Lock, ArrowLeft, AlertTriangle } from 'lucide-react';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
@@ -109,6 +111,17 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
   const isContactValid = patronName.length >= 2 && patronPhone.replace(/\D/g, '').length >= 10 && patronEmail.includes('@');
   const isLocationValid = menuTypeFromUrl !== 'Lane Delivery' || !!locationValue;
   const isFormValid = isContactValid && isLocationValid && !!paymentMethod;
+
+  // The screen follows the patron: a tapped field is brought into view above the keyboard, and finishing a step
+  // (picking a lane, completing the contact details) brings the next one into view. They can still scroll freely.
+  const { goTo, keyboardOpen } = useGuidedScroll({ topInsetSelector: '[data-screen-header]' });
+  const contactRef = useRef<HTMLDivElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const wasContactValidRef = useRef(isContactValid);
+  useEffect(() => {
+    if (isContactValid && !wasContactValidRef.current) goTo(cardRef.current);
+    wasContactValidRef.current = isContactValid;
+  }, [isContactValid, goTo]);
 
   // Card payment is only offered once Stripe has approved the venue's account. Until the venue record has
   // loaded nothing is offered, so a card is never pre-selected for a venue that can't take one.
@@ -386,7 +399,7 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
   return (
     <div className="flex flex-col min-h-screen bg-[#F0F0F0]">
       {gateDialog}
-      <header className="shrink-0 bg-[#213147] px-4 py-3 flex items-center gap-3 shadow-md border-b-2 border-[#E50000] sticky top-0 z-40">
+      <header data-screen-header className="shrink-0 bg-[#213147] px-4 py-3 flex items-center gap-3 shadow-md border-b-2 border-[#E50000] sticky top-0 z-40">
         <Button
           variant="ghost"
           size="icon"
@@ -406,13 +419,13 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
       </header>
 
       <ScrollArea className="flex-1 w-full overflow-x-hidden">
-        <div className="max-w-xl mx-auto px-4 py-4 space-y-4 pb-48">
+        <div className="max-w-xl mx-auto px-4 pt-4 space-y-4" style={{ paddingBottom: 'calc(var(--checkout-action-h, 13rem) + 2.5rem)' }}>
           {menuTypeFromUrl === 'Lane Delivery' && seller?.laneCount && (
             <div className="space-y-2">
               <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">STATION / LANE</h3>
               <div className="grid grid-cols-5 gap-2">
                 {Array.from({ length: seller.laneCount }, (_, i) => (i + 1).toString()).map(l => (
-                  <Button key={l} variant={locationValue === `Lane ${l}` ? 'default' : 'outline'} size="sm" onClick={() => setLocationValue(`Lane ${l}`)} className="font-black h-10 px-0 rounded-xl">
+                  <Button key={l} variant={locationValue === `Lane ${l}` ? 'default' : 'outline'} size="sm" onClick={() => { setLocationValue(`Lane ${l}`); if (!isContactValid) goTo(contactRef.current); }} className="font-black h-10 px-0 rounded-xl">
                     {l}
                   </Button>
                 ))}
@@ -421,12 +434,14 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
           )}
 
           {paymentMethod !== 'Digital Payment' && (
-            <PatronIdentifyFields
-              patronEmail={patronEmail} setPatronEmail={setPatronEmail}
-              patronName={patronName} setPatronName={setPatronName}
-              patronPhone={patronPhone} setPatronPhone={setPatronPhone}
-              isReturningCustomer={isKnownPatron}
-            />
+            <div ref={contactRef}>
+              <PatronIdentifyFields
+                patronEmail={patronEmail} setPatronEmail={setPatronEmail}
+                patronName={patronName} setPatronName={setPatronName}
+                patronPhone={patronPhone} setPatronPhone={setPatronPhone}
+                isReturningCustomer={isKnownPatron}
+              />
+            </div>
           )}
 
           {LOCATION_TRACKING_NOTE[menuTypeFromUrl] && (
@@ -509,7 +524,7 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
                 // stacked ones, and this data already flows to both: it's
                 // saved on the order doc and passed to Stripe as the
                 // PaymentMethod's billing_details in stripe-action-area.tsx.
-                <div className="p-3 border-2 border-slate-100 rounded-2xl bg-slate-50/50 animate-in fade-in duration-500 space-y-3">
+                <div ref={contactRef} className="p-3 border-2 border-slate-100 rounded-2xl bg-slate-50/50 animate-in fade-in duration-500 space-y-3">
                   <PatronIdentifyFields
                     bare
                     patronEmail={patronEmail} setPatronEmail={setPatronEmail}
@@ -547,7 +562,7 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
                     }
                   }}
                 >
-                  <div className="p-3 border-2 border-slate-100 rounded-2xl bg-slate-50/50 animate-in fade-in duration-500 space-y-3">
+                  <div ref={contactRef} className="p-3 border-2 border-slate-100 rounded-2xl bg-slate-50/50 animate-in fade-in duration-500 space-y-3">
                     <PatronIdentifyFields
                       bare
                       patronEmail={patronEmail} setPatronEmail={setPatronEmail}
@@ -556,6 +571,7 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
                       isReturningCustomer={isKnownPatron}
                     />
                     <div className="border-t-2 border-white" />
+                    <div ref={cardRef}>
                     {savedPaymentMethod && !useNewCard ? (
                       // Bypasses the Payment Element entirely for a
                       // returning patron with a saved card - only Stripe's
@@ -580,6 +596,7 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
                     ) : (
                       <StripeCheckoutForm onReadyStateChange={setIsStripeReady} clientSecret={clientSecret} />
                     )}
+                    </div>
                   </div>
                   <StripeActionArea
                     clientSecret={clientSecret}
@@ -599,6 +616,7 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
                     useNewCard={useNewCard}
                     askForLocation={askForLocation}
                     terms={terms}
+                    hidePanel={keyboardOpen}
                   />
                 </Elements>
               )
@@ -609,8 +627,7 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
                 {/* Pinned above the Place Order button (rather than left in
                     normal scroll flow) so a patron can't miss this option by
                     simply not scrolling far enough to see it. */}
-                <div className="fixed bottom-7 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t z-50 animate-in slide-in-from-bottom-4 duration-500">
-                  <div className="max-w-xl mx-auto px-2 space-y-3">
+                <CheckoutActionPanel hidden={keyboardOpen}>
                     <div
                       className="flex items-center space-x-3 p-3 bg-primary/5 rounded-2xl border-2 border-primary/10 cursor-pointer transition-all hover:bg-primary/10"
                       onClick={() => setSaveInfo(!saveInfo)}
@@ -627,8 +644,7 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
                         {isProcessing ? <Loader2 className="animate-spin" /> : <ShoppingBag className="h-5 w-5" />} PLACE ORDER
                       </Button>
                     )}
-                  </div>
-                </div>
+                </CheckoutActionPanel>
                 <CheckoutBrandingBar />
               </div>
             )}
