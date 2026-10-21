@@ -12,6 +12,7 @@ import {
   modeFlagPrefix, placementLocation, roundCoord, summarizeItems, suspectReasons,
 } from "./order-timing.js";
 import { canTakeCardPayments, stripeStatusFromAccount } from "./stripe-status.js";
+import { reconcileOrderQueue, syncQueueEntry } from "./order-queue.js";
 import Stripe from 'stripe';
 import twilio from 'twilio';
 import webpush from 'web-push';
@@ -1044,22 +1045,22 @@ export const syncOrderQueue = onDocumentWritten({
   document: "orders/{orderId}",
   region: 'us-central1'
 }, async (event) => {
-  const ref = db.collection('orderQueue').doc(event.params.orderId);
-  const order = event.data?.after?.exists ? event.data.after.data() : null;
-  const inProgress = order && ['Placed', 'Preparing', 'Out for Delivery'].includes(order.status);
-  if (!inProgress) {
-    await ref.delete().catch(() => {});
-    return;
-  }
-  // A card order starts as a bare record from the payment webhook, with no service mode until the patron's
-  // browser adds its details; it joins the queue when that happens.
-  if (!order.sellerId || !order.menuType) return;
-  await ref.set({
-    sellerId: order.sellerId,
-    menuType: order.menuType,
-    status: order.status,
-    createdAt: order.createdAt || FieldValue.serverTimestamp(),
-  });
+  // Works from the order as it is now, not from this event, so events handled out of order cannot leave a stale entry.
+  await syncQueueEntry(db, event.params.orderId);
+});
+
+/**
+ * reconcileOrderQueue
+ * Safety net for orderQueue: every 15 minutes, finds any entry that is missing, left over from an order that is no
+ * longer in progress, or out of date, and fixes it. A patron's place in line counts these entries, so a stale one
+ * makes everyone behind it look further back than they are.
+ */
+export const reconcileOrderQueueSchedule = onSchedule({
+  schedule: "every 15 minutes",
+  region: 'us-central1',
+}, async () => {
+  const result = await reconcileOrderQueue(db);
+  if (result.fixed > 0) logger.warn(`[reconcileOrderQueue] fixed ${result.fixed} of ${result.checked} queue entries`);
 });
 
 /**
