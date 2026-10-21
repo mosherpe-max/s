@@ -235,9 +235,14 @@ function OrderTrackingContent() {
       <div className="bg-[#213147] border-b-2 border-primary/20 shadow-lg shrink-0 z-20">
         <div className="max-w-2xl mx-auto p-6 space-y-6">
           <div className="flex flex-col items-center text-center space-y-4">
-            <h2 className="font-headline text-sm font-black uppercase tracking-tight text-white leading-tight max-w-[90%] mx-auto">
-              Thanks for ordering from {seller?.courseName} {order.menuType} Service
-            </h2>
+            <div className="max-w-[90%] mx-auto space-y-1">
+              <h2 className="font-headline text-lg font-black uppercase tracking-tight text-white leading-tight">
+                Thank you for your order
+              </h2>
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/60 leading-tight break-words">
+                {seller?.courseName}
+              </p>
+            </div>
             {queuePosition !== null && !isDelivered && (
               <Badge variant="outline" className="text-[10px] font-black uppercase border-white/20 bg-white/5 text-white rounded-md px-3 h-6">
                 {queuePosition === 1 ? 'You are Next' : `${queuePosition}${queuePosition === 2 ? 'nd' : queuePosition === 3 ? 'rd' : 'th'} in Delivery Queue`}
@@ -364,7 +369,7 @@ function OrderTrackingContent() {
             <div className="flex flex-col text-left">
               <h3 className="text-[10px] font-black uppercase tracking-widest">Order Details</h3>
               <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5">
-                Ticket #{getNumericOrderId(order.id)}
+                Ticket #{getNumericOrderId(order.id)}{order.menuType ? ` · ${order.menuType}` : ''}
               </p>
             </div>
             
