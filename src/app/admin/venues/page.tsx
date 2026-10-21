@@ -982,7 +982,7 @@ export default function AdminVenueRegistryPage() {
                             <FormItem className="text-left"><FormLabel className="text-[9px] font-black uppercase">Longitude</FormLabel><FormControl><Input {...field} type="number" step="0.000001" className="h-11 border-2 font-bold" /></FormControl></FormItem>
                           )} />
                        </div>
-                       <p className="text-[8px] font-medium text-muted-foreground uppercase px-1">Coordinates used as default center for patrons.</p>
+                       <p className="text-[8px] font-medium text-muted-foreground uppercase px-1">Shows the venue&apos;s pin on the patron&apos;s map when a staff member&apos;s live location isn&apos;t available. Not used for bowling.</p>
                     </div>
 
                     <div className="space-y-4 pt-8 border-t-4 border-slate-100">
