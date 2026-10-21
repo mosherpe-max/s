@@ -59,7 +59,7 @@ export function buildVenueChecklist({ seller, venue, staffCount, menuItemCount, 
     {
       label: 'Map Location',
       done: !!(seller?.latitude && seller?.longitude),
-      detail: 'Set latitude/longitude. The venue's pin shows on the patron's map when staff location isn't available.',
+      detail: "Set latitude/longitude. The venue's pin shows on the patron's map when staff location isn't available.",
     },
     {
       label: 'Service Mode Selected',
