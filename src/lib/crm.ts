@@ -77,7 +77,7 @@ export function filterLeads(
 
 // Common point-of-sale systems, offered as suggestions while typing. Anything else can be typed in.
 export const POS_SUGGESTIONS: Record<Lead['venueType'], string[]> = {
-  'Golf Course': ['Square', 'Toast', 'Clover', 'Lightspeed', 'ForeUP', 'Club Prophet', 'Northstar', 'Jonas', 'PAR Brink', 'NCR Aloha', 'Oracle Micros', 'Heartland', 'Cash register only'],
+  'Golf Course': ['Square', 'Toast', 'Clover', 'Lightspeed', 'GolfNow', 'ForeUP', 'Club Prophet', 'Northstar', 'Jonas', 'PAR Brink', 'NCR Aloha', 'Oracle Micros', 'Heartland', 'Cash register only'],
   'Bowling Center': ['Square', 'Toast', 'Clover', 'Lightspeed', 'Bowl.com', 'QubicaAMF Conqueror', 'Brunswick Vector', 'NCR Aloha', 'Heartland', 'Cash register only'],
 };
 
