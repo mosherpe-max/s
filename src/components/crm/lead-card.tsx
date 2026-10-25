@@ -14,7 +14,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -178,19 +177,20 @@ export function LeadCard({ lead, open, onOpenChange, onSaved }: {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent closeClassName="text-white hover:text-white/80" className="sm:max-w-[820px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
-        <DialogHeader className="p-6 bg-[#213147] text-white space-y-1">
+      <DialogContent closeClassName="text-white hover:text-white/80" onOpenAutoFocus={(e) => { if (!lead) { e.preventDefault(); setTimeout(() => form.setFocus('venueName'), 0); } }} className="sm:max-w-[820px] max-h-[92dvh] flex flex-col gap-0 rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
+        <DialogHeader className="shrink-0 p-6 bg-[#213147] text-white space-y-1">
           <DialogTitle className="font-headline font-black uppercase text-xl">{lead ? lead.venueName : 'New Lead'}</DialogTitle>
           {lead && <p className="text-[10px] font-bold uppercase tracking-widest text-white/60">{lead.venueType} · {lead.city}{lead.city && lead.state ? ', ' : ''}{lead.state}</p>}
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit, onInvalid)}>
-            <Tabs value={tab} onValueChange={setTab}>
-              <TabsList className="mx-6 mt-4 grid grid-cols-2 w-auto">
+          <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="flex min-h-0 flex-1 flex-col">
+            <Tabs value={tab} onValueChange={setTab} className="flex min-h-0 flex-1 flex-col">
+              <TabsList className="mx-6 mt-4 grid shrink-0 grid-cols-2 w-auto">
                 <TabsTrigger value="key" className="text-[10px] font-black uppercase tracking-widest">Key Data</TabsTrigger>
                 <TabsTrigger value="funnel" className="text-[10px] font-black uppercase tracking-widest">Sales Funnel</TabsTrigger>
               </TabsList>
-              <ScrollArea className="max-h-[62vh]">
+              {/* A plain scrolling area: the header, tabs and Save bar stay put while the form scrolls between them. */}
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
                 <div className="p-6 space-y-8">
                   <TabsContent value="key" forceMount className="mt-0 space-y-8 data-[state=inactive]:hidden">
                     <section className="space-y-4">
@@ -360,9 +360,9 @@ export function LeadCard({ lead, open, onOpenChange, onSaved }: {
                     </section>
                   </TabsContent>
                 </div>
-              </ScrollArea>
+              </div>
             </Tabs>
-            <div className="p-4 border-t bg-white flex items-center justify-between gap-3">
+            <div className="shrink-0 p-4 border-t bg-white flex items-center justify-between gap-3">
               <p className="text-[10px] font-bold uppercase text-muted-foreground">{Object.keys(form.formState.errors).length > 0 ? 'Fix the highlighted fields to save.' : ''}</p>
               <Button type="submit" disabled={saving} className="h-12 px-8 bg-[#213147] font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">
                 {saving ? <Loader2 className="animate-spin h-4 w-4" /> : <Save className="h-4 w-4" />} {lead ? 'Save Lead' : 'Create Lead'}
