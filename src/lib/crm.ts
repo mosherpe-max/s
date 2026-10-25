@@ -69,10 +69,17 @@ export function filterLeads(
       (l.county || '').toLowerCase().includes(t) ||
       (l.contactName || '').toLowerCase().includes(t) ||
       (l.email || '').toLowerCase().includes(t) ||
+      (l.posSystem || '').toLowerCase().includes(t) ||
       (digits.length >= 3 && (l.phone || '').replace(/\D/g, '').includes(digits))
     );
   });
 }
+
+// Common point-of-sale systems, offered as suggestions while typing. Anything else can be typed in.
+export const POS_SUGGESTIONS: Record<Lead['venueType'], string[]> = {
+  'Golf Course': ['Square', 'Toast', 'Clover', 'Lightspeed', 'ForeUP', 'Club Prophet', 'Northstar', 'Jonas', 'PAR Brink', 'NCR Aloha', 'Oracle Micros', 'Heartland', 'Cash register only'],
+  'Bowling Center': ['Square', 'Toast', 'Clover', 'Lightspeed', 'Bowl.com', 'QubicaAMF Conqueror', 'Brunswick Vector', 'NCR Aloha', 'Heartland', 'Cash register only'],
+};
 
 // 'quiet' puts the leads that have gone longest without a contact first, and leads never contacted before those.
 export function sortLeads(leads: Lead[], sort: LeadSort): Lead[] {

@@ -19,7 +19,7 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import type { Lead, LeadContact, LeadContactType } from '@/lib/types';
-import { CONTACT_TYPES, LEAD_STAGES, firstYearValue, latestDate } from '@/lib/crm';
+import { CONTACT_TYPES, LEAD_STAGES, POS_SUGGESTIONS, firstYearValue, latestDate } from '@/lib/crm';
 import { leadFormSchema, leadFormToFields, leadToFormValues, type LeadFormValues } from '@/lib/crm-form';
 import { US_STATES } from '@/lib/us-states';
 
@@ -230,6 +230,13 @@ export function LeadCard({ lead, open, onOpenChange, onSaved }: {
                           <FormItem><FormLabel className={labelClass}>Zip</FormLabel><FormControl><Input {...field} className={inputClass} /></FormControl></FormItem>
                         )} />
                       </div>
+                      <FormField control={form.control} name="posSystem" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className={labelClass}>POS System</FormLabel>
+                          <FormControl><Input {...field} list="crm-pos-options" autoComplete="off" placeholder="Type or pick one, for example Square or Toast" className={inputClass} /></FormControl>
+                          <datalist id="crm-pos-options">{POS_SUGGESTIONS[venueType].map(o => <option key={o} value={o} />)}</datalist>
+                        </FormItem>
+                      )} />
                     </section>
 
                     <section className="space-y-4">
