@@ -19,6 +19,7 @@ import { StripeCheckoutForm } from '@/components/stripe-checkout-form';
 import { CheckoutBrandingBar } from '@/components/checkout-branding-bar';
 import { CheckoutActionPanel } from '@/components/checkout-action-panel';
 import { useGuidedScroll } from '@/lib/use-guided-scroll';
+import { checkoutProblems, problemSummary } from '@/lib/checkout-validation';
 import { Loader2, ChevronLeft, CreditCard, Banknote, UserCircle, Check, ShoppingBag, Lock, ArrowLeft, AlertTriangle } from 'lucide-react';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
@@ -108,9 +109,23 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
   const finalTotal = subtotal + solutionFee + tax + tip;
   const baseTotalForBackend = subtotal + tax + tip;
 
-  const isContactValid = patronName.length >= 2 && patronPhone.replace(/\D/g, '').length >= 10 && patronEmail.includes('@');
-  const isLocationValid = menuTypeFromUrl !== 'Lane Delivery' || !!locationValue;
+  // What is wrong with the details so far, so the patron can be told which field to fix.
+  const problems = useMemo(
+    () => checkoutProblems({ email: patronEmail, name: patronName, phone: patronPhone, needsLane: menuTypeFromUrl === 'Lane Delivery', lane: locationValue }),
+    [patronEmail, patronName, patronPhone, menuTypeFromUrl, locationValue]
+  );
+  const fieldProblems = useMemo(() => {
+    const out: Partial<Record<'email' | 'name' | 'phone', string>> = {};
+    problems.forEach(p => { if (p.field !== 'lane') out[p.field] = p.message; });
+    return out;
+  }, [problems]);
+  const laneProblem = problems.find(p => p.field === 'lane');
+  const isContactValid = !fieldProblems.email && !fieldProblems.name && !fieldProblems.phone;
+  const isLocationValid = !laneProblem;
   const isFormValid = isContactValid && isLocationValid && !!paymentMethod;
+  // Set once the patron taps Place Order with something missing, so every problem field shows its message at once.
+  const [showProblems, setShowProblems] = useState(false);
+  const laneRef = useRef<HTMLDivElement>(null);
 
   // The screen follows the patron: a tapped field is brought into view above the keyboard, and finishing a step
   // (picking a lane, completing the contact details) brings the next one into view. They can still scroll freely.
@@ -118,6 +133,26 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
   const contactRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const wasContactValidRef = useRef(isContactValid);
+  // Runs when the patron taps Place Order or Pay. Returns true when it is fine to go ahead. Otherwise it shows what
+  // needs fixing: a message under each field, a note saying which, and the first one brought into view.
+  const attemptCheck = (): boolean => {
+    if (problems.length > 0) {
+      setShowProblems(true);
+      toast({ variant: 'destructive', title: 'Please fix the highlighted details', description: `${problemSummary(problems)} ${problems.length > 1 ? 'need' : 'needs'} attention.` });
+      const first = problems[0];
+      setTimeout(() => {
+        if (first.field === 'lane') goTo(laneRef.current);
+        else document.getElementById(`checkout-${first.field}`)?.focus();
+      }, 80);
+      return false;
+    }
+    if (!terms.canProceed) {
+      toast({ variant: 'destructive', title: 'Terms Required', description: 'Please agree to the Terms & Conditions to place your order.' });
+      document.getElementById('agree-patron-terms')?.focus();
+      return false;
+    }
+    return true;
+  };
   useEffect(() => {
     if (isContactValid && !wasContactValidRef.current) goTo(cardRef.current);
     wasContactValidRef.current = isContactValid;
@@ -244,14 +279,7 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
 
   const handleManualOrder = async () => {
     if (!firestore || activeOrderItems.length === 0) return;
-    if (!isFormValid) {
-      toast({ variant: 'destructive', title: 'Details Required', description: 'Please complete your contact info to receive tracking updates.' });
-      return;
-    }
-    if (!terms.canProceed) {
-      toast({ variant: 'destructive', title: 'Terms Required', description: 'Please agree to the Terms & Conditions to place your order.' });
-      return;
-    }
+    if (!attemptCheck()) return;
     terms.recordAcceptance();
     setIsProcessing(true);
     // Location (or the patron's hole) is settled before the order is placed.
@@ -421,7 +449,7 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
       <ScrollArea className="flex-1 w-full overflow-x-hidden">
         <div className="max-w-xl mx-auto px-4 pt-4 space-y-4" style={{ paddingBottom: 'calc(var(--checkout-action-h, 13rem) + 2.5rem)' }}>
           {menuTypeFromUrl === 'Lane Delivery' && seller?.laneCount && (
-            <div className="space-y-2">
+            <div ref={laneRef} id="checkout-lane" className="space-y-2">
               <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground px-1">STATION / LANE</h3>
               <div className="grid grid-cols-5 gap-2">
                 {Array.from({ length: seller.laneCount }, (_, i) => (i + 1).toString()).map(l => (
@@ -430,6 +458,9 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
                   </Button>
                 ))}
               </div>
+              {showProblems && laneProblem && (
+                <p role="alert" className="px-1 text-[10px] font-bold leading-snug text-red-600">{laneProblem.message}</p>
+              )}
             </div>
           )}
 
@@ -440,6 +471,7 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
                 patronName={patronName} setPatronName={setPatronName}
                 patronPhone={patronPhone} setPatronPhone={setPatronPhone}
                 isReturningCustomer={isKnownPatron}
+                problems={fieldProblems} showAllProblems={showProblems}
               />
             </div>
           )}
@@ -531,6 +563,7 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
                     patronName={patronName} setPatronName={setPatronName}
                     patronPhone={patronPhone} setPatronPhone={setPatronPhone}
                     isReturningCustomer={isKnownPatron}
+                problems={fieldProblems} showAllProblems={showProblems}
                   />
                   <div className="border-t-2 border-white" />
                   <div className="flex flex-col items-center gap-4 py-16 animate-in fade-in duration-300">
@@ -569,6 +602,7 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
                       patronName={patronName} setPatronName={setPatronName}
                       patronPhone={patronPhone} setPatronPhone={setPatronPhone}
                       isReturningCustomer={isKnownPatron}
+                problems={fieldProblems} showAllProblems={showProblems}
                     />
                     <div className="border-t-2 border-white" />
                     <div ref={cardRef}>
@@ -610,7 +644,7 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
                     stripeCustomerId={stripeCustomerId}
                     saveInfo={saveInfo}
                     setSaveInfo={setSaveInfo}
-                    isFormValid={isFormValid}
+                    attemptCheck={attemptCheck}
                     isStripeReady={isStripeReady}
                     savedPaymentMethod={savedPaymentMethod}
                     useNewCard={useNewCard}
@@ -639,11 +673,9 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
                       </div>
                     </div>
                     <PatronTermsAgreement terms={terms} />
-                    {isFormValid && (
-                      <Button size="lg" className="w-full h-14 font-black uppercase tracking-widest gap-2 shadow-xl" onClick={handleManualOrder} disabled={isProcessing || !terms.canProceed}>
-                        {isProcessing ? <Loader2 className="animate-spin" /> : <ShoppingBag className="h-5 w-5" />} PLACE ORDER
-                      </Button>
-                    )}
+                    <Button size="lg" className="w-full h-14 font-black uppercase tracking-widest gap-2 shadow-xl" onClick={handleManualOrder} disabled={isProcessing}>
+                      {isProcessing ? <Loader2 className="animate-spin" /> : <ShoppingBag className="h-5 w-5" />} PLACE ORDER
+                    </Button>
                 </CheckoutActionPanel>
                 <CheckoutBrandingBar />
               </div>

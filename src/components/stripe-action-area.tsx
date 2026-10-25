@@ -25,7 +25,8 @@ interface StripeActionAreaProps {
   stripeCustomerId: string | null;
   saveInfo: boolean;
   setSaveInfo: (value: boolean) => void;
-  isFormValid: boolean;
+  // Checks the details and the terms before paying. Returns false (after telling the patron what to fix) if not.
+  attemptCheck: () => boolean;
   // The card fields themselves (StripeCheckoutForm) are rendered by the
   // parent, inside its own shared card alongside contact info, so this
   // reads as one unified form. This is just whether that form has finished
@@ -58,7 +59,7 @@ export function StripeActionArea({
   stripeCustomerId,
   saveInfo,
   setSaveInfo,
-  isFormValid,
+  attemptCheck,
   isStripeReady,
   savedPaymentMethod,
   useNewCard,
@@ -77,15 +78,7 @@ export function StripeActionArea({
     if (!stripe || !clientSecret || !firestore) return;
     if (!usingSavedCard && !elements) return;
 
-    if (!isFormValid) {
-      toast({ variant: 'destructive', title: 'Details Required', description: 'Please complete your contact info to receive tracking updates.' });
-      return;
-    }
-
-    if (!terms.canProceed) {
-      toast({ variant: 'destructive', title: 'Terms Required', description: 'Please agree to the Terms & Conditions to place your order.' });
-      return;
-    }
+    if (!attemptCheck()) return;
     terms.recordAcceptance();
     setIsProcessing(true);
     // Asked from the tap, before any charge: the order only goes ahead once we know
@@ -182,17 +175,15 @@ export function StripeActionArea({
 
           <PatronTermsAgreement terms={terms} />
 
-          {isFormValid && (
-            <Button
-              size="lg"
-              className="w-full h-14 font-black uppercase tracking-widest gap-2 shadow-xl"
-              onClick={handleStripePayment}
-              disabled={isProcessing || !terms.canProceed || (!usingSavedCard && !isStripeReady)}
-            >
-              {isProcessing ? <Loader2 className="animate-spin" /> : <CreditCard className="h-5 w-5" />}
-              PAY & PLACE ORDER
-            </Button>
-          )}
+          <Button
+            size="lg"
+            className="w-full h-14 font-black uppercase tracking-widest gap-2 shadow-xl"
+            onClick={handleStripePayment}
+            disabled={isProcessing || (!usingSavedCard && !isStripeReady)}
+          >
+            {isProcessing ? <Loader2 className="animate-spin" /> : <CreditCard className="h-5 w-5" />}
+            PAY & PLACE ORDER
+          </Button>
       </CheckoutActionPanel>
       <CheckoutBrandingBar />
     </div>
