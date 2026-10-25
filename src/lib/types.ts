@@ -422,6 +422,18 @@ export interface SellerAdminRole {
 
 export type LeadStage = 'Cold Lead' | 'On-Site Meeting' | 'Demo' | 'Offer' | 'Closed' | 'Dead';
 
+// One thing the founder did with a lead: a call, a visit, a demo. Kept in leads/{id}/contacts.
+export type LeadContactType = 'Call' | 'Text' | 'Email' | 'Visit' | 'Demo' | 'Meeting';
+
+export interface LeadContact {
+  id: string;
+  date: string;          // yyyy-MM-dd, the day it happened
+  type: LeadContactType;
+  notes: string;
+  createdAt: Timestamp;
+}
+
+// Koop admin Sales CRM. One record per venue being sold to; blanks are stored as null/'' (never undefined).
 export interface Lead {
   id: string;
   venueName: string;
@@ -435,18 +447,30 @@ export interface Lead {
   email: string;
   venueType: 'Golf Course' | 'Bowling Center';
   stage: LeadStage;
+  // Where the lead stands in the funnel and what has been quoted.
+  launchFeeQuoted?: number | null;
+  monthlyFeeQuoted?: number | null;
+  stageChangedAt?: Timestamp;
+  // Kept in step with the contact log so the list can show it without reading every log.
+  lastContactDate?: string | null;
+  contactCount?: number;
   marketFitData: {
     golf?: {
-      hasBevCart: boolean;
-      hasClubhouseKitchen: boolean;
-      roundsAnnually: number;
-      bevCartAnnualRevenue: number;
+      holes?: number | null;
+      rackRatePeak?: number | null;           // green fee, peak season
+      hasBevCart?: boolean;
+      hasClubhouseKitchen?: boolean;
+      bevCartCount?: number | null;           // carts on the course at once (not for outings)
+      bevCartOperators?: number | null;
+      bevCartRevenuePerRound?: number | null; // dollars of beverage cart sales per round
+      roundsAnnually?: number | null;
+      bevCartAnnualRevenue?: number | null;
     };
     bowling?: {
-      hasBar: boolean;
-      hasKitchen: boolean;
-      lanesCount: number;
-      fbAnnualRevenue: number;
+      lanesCount?: number | null;
+      hasBar?: boolean;
+      hasKitchen?: boolean;
+      fbAnnualRevenue?: number | null;
     };
   };
   createdAt: Timestamp;
