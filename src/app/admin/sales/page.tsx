@@ -163,7 +163,7 @@ export default function AdminSalesCRMPage() {
                       <TableCell className="px-8 py-4">
                         <p className="font-black text-sm">{lead.venueName}</p>
                         <p className="text-[9px] uppercase text-muted-foreground">
-                          {lead.venueType === 'Golf Course' ? 'Golf' : 'Bowling'}{(lead.city || lead.county) ? ' · ' : ''}{[lead.city, lead.county && `${lead.county} Co.`].filter(Boolean).join(', ')}
+                          {lead.venueType === 'Golf Course' ? 'Golf' : 'Bowling'}{(lead.city || lead.county) ? ' · ' : ''}{[lead.city, lead.county && `${lead.county} Co.`].filter(Boolean).join(', ')}{lead.posSystem ? ` · POS: ${lead.posSystem}` : ''}
                         </p>
                       </TableCell>
                       <TableCell>

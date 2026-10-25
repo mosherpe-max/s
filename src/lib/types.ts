@@ -451,6 +451,7 @@ export interface Lead {
   launchFeeQuoted?: number | null;
   monthlyFeeQuoted?: number | null;
   stageChangedAt?: Timestamp;
+  posSystem?: string;   // the point-of-sale system they use today, as typed (for example Square or Toast)
   // Kept in step with the contact log so the list can show it without reading every log.
   lastContactDate?: string | null;
   contactCount?: number;
