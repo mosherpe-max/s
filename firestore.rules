@@ -22,6 +22,12 @@ service cloud.firestore {
       );
     }
 
+    // A signed-in person (with an email, so never an anonymous patron) who has a sales rep role.
+    function isSalesRep() {
+      return isSignedIn() && request.auth.token.get('email', null) != null &&
+        exists(/databases/$(database)/documents/roles_sales_rep/$(request.auth.token.email.lower()));
+    }
+
     // A staff device signed in through the staffLogin function: its token carries the venue
     // it belongs to. (.get so a token without the claim is simply "no", never an error.)
     function isStaffOf(venueId) {
@@ -238,13 +244,15 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // Sales CRM access
+    // Sales rep CRM. Holds prospects' contact details and the fees quoted to them, so only the Koop admin and
+    // people with a sales rep role (roles_sales_rep, keyed by email) can see or change it - not every signed-in
+    // visitor, which includes patrons who only placed an order.
     match /prospects/{prospectId} {
-      allow read, write: if isSignedIn();
+      allow read, write: if isSuperAdmin() || isSalesRep();
     }
 
     match /activities/{activityId} {
-      allow read, write: if isSignedIn();
+      allow read, write: if isSuperAdmin() || isSalesRep();
     }
 
     // Normalized Menu and Modifiers
