@@ -5,7 +5,7 @@ import { collection, doc, serverTimestamp, setDoc, writeBatch, Timestamp } from 
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { format, parseISO } from 'date-fns';
-import { Loader2, Pencil, Save, Trash2, X } from 'lucide-react';
+import { Download, Loader2, Pencil, Printer, Save, Trash2, X } from 'lucide-react';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
@@ -22,6 +22,7 @@ import type { Lead, LeadContact, LeadContactType } from '@/lib/types';
 import { CONTACT_TYPES, LEAD_STAGES, POS_SUGGESTIONS, firstYearValue, latestDate } from '@/lib/crm';
 import { leadFormSchema, leadFormToFields, leadToFormValues, type LeadFormValues } from '@/lib/crm-form';
 import { US_STATES } from '@/lib/us-states';
+import { buildLeadSheet, leadSheetFileName, renderLeadSheetPdf } from '@/lib/lead-sheet';
 
 const money = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 const todayKey = () => format(new Date(), 'yyyy-MM-dd');
@@ -171,6 +172,46 @@ export function LeadCard({ lead, open, onOpenChange, onSaved }: {
     if (typeof window !== 'undefined' && !window.confirm('Delete this contact entry? This cannot be undone.')) return;
     const others = (contacts || []).filter(c => c.id !== entry.id).map(c => c.date);
     commitContacts((batch, leadId) => batch.delete(doc(firestore, 'leads', leadId, 'contacts', entry.id)), others, 'Entry Deleted');
+  };
+
+  // ---- printable lead sheet: built from the saved lead and its contact log ----
+  const [sheetBusy, setSheetBusy] = useState<'download' | 'print' | null>(null);
+  const makeSheet = () => renderLeadSheetPdf(buildLeadSheet(lead!, contacts || [], todayKey()));
+  const downloadSheet = async () => {
+    if (!lead) return;
+    setSheetBusy('download');
+    try {
+      const url = URL.createObjectURL(await makeSheet());
+      const a = document.createElement('a');
+      a.href = url; a.download = leadSheetFileName(lead, todayKey());
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 30_000);
+      toast({ title: 'Lead Sheet Downloaded', description: `${lead.venueName} · ${(contacts || []).length} logged contact${(contacts || []).length === 1 ? '' : 's'}.` });
+    } catch {
+      toast({ variant: 'destructive', title: 'Could Not Create Sheet', description: 'The lead sheet could not be made. Please try again.' });
+    } finally {
+      setSheetBusy(null);
+    }
+  };
+  // Opens the sheet in a new tab, where the browser's viewer has a Print button (and Save as PDF).
+  const printSheet = async () => {
+    if (!lead) return;
+    setSheetBusy('print');
+    try {
+      const url = URL.createObjectURL(await makeSheet());
+      const win = window.open(url, '_blank');
+      if (!win) {
+        const a = document.createElement('a');
+        a.href = url; a.download = leadSheetFileName(lead, todayKey());
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        toast({ title: 'Pop-up Blocked', description: 'The sheet was downloaded instead. Open it to print.' });
+      }
+      setTimeout(() => URL.revokeObjectURL(url), 120_000);
+    } catch {
+      toast({ variant: 'destructive', title: 'Could Not Create Sheet', description: 'The lead sheet could not be made. Please try again.' });
+    } finally {
+      setSheetBusy(null);
+    }
   };
 
   const startEdit = (entry: LeadContact) => { setEditingEntry(entry); setEntryDate(entry.date); setEntryType(entry.type); setEntryNotes(entry.notes); };
@@ -369,8 +410,20 @@ export function LeadCard({ lead, open, onOpenChange, onSaved }: {
                 </div>
               </div>
             </Tabs>
-            <div className="shrink-0 p-4 border-t bg-white flex items-center justify-between gap-3">
-              <p className="text-[10px] font-bold uppercase text-muted-foreground">{Object.keys(form.formState.errors).length > 0 ? 'Fix the highlighted fields to save.' : ''}</p>
+            <div className="shrink-0 p-4 border-t bg-white flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <Button type="button" variant="outline" disabled={!lead || sheetBusy !== null} onClick={downloadSheet} title={lead ? 'Download a printable lead sheet (PDF)' : 'Save the lead first'}
+                  className="h-10 border-2 font-black uppercase text-[10px] tracking-widest gap-1.5">
+                  {sheetBusy === 'download' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />} Download Sheet
+                </Button>
+                <Button type="button" variant="outline" disabled={!lead || sheetBusy !== null} onClick={printSheet} title={lead ? 'Open the lead sheet to print' : 'Save the lead first'}
+                  className="h-10 border-2 font-black uppercase text-[10px] tracking-widest gap-1.5">
+                  {sheetBusy === 'print' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Printer className="h-3.5 w-3.5" />} Print
+                </Button>
+                <p className="text-[10px] font-bold uppercase text-muted-foreground">
+                  {Object.keys(form.formState.errors).length > 0 ? 'Fix the highlighted fields to save.' : lead && form.formState.isDirty ? 'The sheet uses the saved lead. Save first to include your edits.' : ''}
+                </p>
+              </div>
               <Button type="submit" disabled={saving} className="h-12 px-8 bg-[#213147] font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl">
                 {saving ? <Loader2 className="animate-spin h-4 w-4" /> : <Save className="h-4 w-4" />} {lead ? 'Save Lead' : 'Create Lead'}
               </Button>
