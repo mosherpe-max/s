@@ -780,8 +780,9 @@ export const applyStarterMenu = onCall({ region: 'us-central1' }, async (request
  * imported earlier for a different mode) gets this mode added to its
  * availableOn list instead of being overwritten, so the same item can live
  * on multiple modes without duplicate docs or clobbering prior edits.
- * Also opts the item's category into that mode's categoryVisibility so an
- * import doesn't silently end up invisible on the buyer-facing menu.
+ * If that mode keeps an explicit list of visible categories, the item's category
+ * is added to it so an import doesn't silently end up invisible on the
+ * buyer-facing menu (a mode with no list already shows every category).
  * With no mode, items are only added to the venue's own list (availableOn
  * empty, so nothing goes live) and ones already there are left untouched;
  * the venue admin then adds them to a service mode when ready.
@@ -849,10 +850,18 @@ export const applyStarterItems = onCall({ region: 'us-central1' }, async (reques
       }
     });
 
+    // A mode with no visible-categories list shows every category, so it needs nothing. Only a mode that
+    // already keeps an explicit list gets the new categories added; creating a list here would hide every
+    // other category on that mode.
     if (modeLabel && categoriesTouched.size > 0) {
-      batch.set(db.collection('sellers').doc(venueId), {
-        categoryVisibility: { [modeLabel]: FieldValue.arrayUnion(...Array.from(categoriesTouched)) },
-      }, { merge: true });
+      const sellerRef = db.collection('sellers').doc(venueId);
+      const current: string[] | undefined = (await sellerRef.get()).data()?.categoryVisibility?.[modeLabel];
+      const missing = Array.isArray(current) ? Array.from(categoriesTouched).filter(c => !current.includes(c)) : [];
+      if (missing.length > 0) {
+        batch.set(sellerRef, {
+          categoryVisibility: { [modeLabel]: FieldValue.arrayUnion(...missing) },
+        }, { merge: true });
+      }
     }
 
     await batch.commit();
