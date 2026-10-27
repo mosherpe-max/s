@@ -92,8 +92,8 @@ async function performOperationalReset() {
 
 /**
  * assertVenueAuthorized
- * Mirrors firestore.rules' isVenueOwner: super admin, the venue's ownerUid,
- * or a roles_seller_admin mapping for the caller's email.
+ * Mirrors firestore.rules' isVenueOwner: super admin, a Koop team member, the venue's
+ * ownerUid, or a roles_seller_admin mapping for the caller's email.
  */
 async function assertVenueAuthorized(request: CallableRequest, venueId: string) {
   if (!request.auth) throw new HttpsError('unauthenticated', 'Sign-in required.');
@@ -103,6 +103,7 @@ async function assertVenueAuthorized(request: CallableRequest, venueId: string) 
 
   const isSuperAdmin = uid === 'o9vAQy0aFRPSNPoG0ETvjiGt9If1' || email === 'mosherpe@gmail.com';
   if (isSuperAdmin) return;
+  if (email && (await db.collection('roles_koop_team').doc(email).get()).exists) return;
 
   const venueDoc = await db.collection('venues').doc(venueId).get();
   if (venueDoc.exists && venueDoc.data()?.ownerUid === uid) return;
@@ -124,6 +125,19 @@ function assertSuperAdmin(request: CallableRequest) {
   const email = request.auth.token.email?.toLowerCase();
   const isSuperAdmin = request.auth.uid === 'o9vAQy0aFRPSNPoG0ETvjiGt9If1' || email === 'mosherpe@gmail.com';
   if (!isSuperAdmin) throw new HttpsError('permission-denied', 'Koop admin access required.');
+}
+
+/**
+ * assertKoopAdmin
+ * The Koop admin or a Koop team member (roles_koop_team, keyed by email). For the day-to-day
+ * setup work; things only the Koop admin may do keep using assertSuperAdmin.
+ */
+async function assertKoopAdmin(request: CallableRequest) {
+  if (!request.auth) throw new HttpsError('unauthenticated', 'Sign-in required.');
+  const email = request.auth.token.email?.toLowerCase();
+  if (request.auth.uid === 'o9vAQy0aFRPSNPoG0ETvjiGt9If1' || email === 'mosherpe@gmail.com') return;
+  if (email && (await db.collection('roles_koop_team').doc(email).get()).exists) return;
+  throw new HttpsError('permission-denied', 'Koop admin access required.');
 }
 
 const SUPER_ADMIN_EMAIL = 'mosherpe@gmail.com';
@@ -280,7 +294,7 @@ export const migrateStaffPins = onCall({ region: 'us-central1', timeoutSeconds: 
  */
 export const createVenueAdminLogin = onCall({ region: 'us-central1' }, async (request) => {
   try {
-    assertSuperAdmin(request);
+    await assertKoopAdmin(request);
     const venueId = typeof request.data?.venueId === 'string' ? request.data.venueId.trim() : '';
     const email = typeof request.data?.email === 'string' ? request.data.email.trim().toLowerCase() : '';
     const name = typeof request.data?.name === 'string' ? request.data.name.trim().slice(0, 80) : '';
@@ -288,6 +302,9 @@ export const createVenueAdminLogin = onCall({ region: 'us-central1' }, async (re
     if (!venueId) throw new HttpsError('invalid-argument', 'Missing venueId.');
     if (!EMAIL_PATTERN.test(email)) throw new HttpsError('invalid-argument', 'Enter a valid email address.');
     if (email === SUPER_ADMIN_EMAIL) throw new HttpsError('invalid-argument', 'That email is the Koop admin account.');
+    if ((await db.collection('roles_koop_team').doc(email).get()).exists) {
+      throw new HttpsError('failed-precondition', 'That email is a Koop team login, not a venue login.');
+    }
 
     const sellerRef = db.collection('sellers').doc(venueId);
     const sellerSnap = await sellerRef.get();
@@ -351,7 +368,7 @@ export const createVenueAdminLogin = onCall({ region: 'us-central1' }, async (re
  */
 export const generateVenueAdminResetLink = onCall({ region: 'us-central1' }, async (request) => {
   try {
-    assertSuperAdmin(request);
+    await assertKoopAdmin(request);
     const email = typeof request.data?.email === 'string' ? request.data.email.trim().toLowerCase() : '';
     if (!EMAIL_PATTERN.test(email)) throw new HttpsError('invalid-argument', 'Enter a valid email address.');
 
@@ -365,6 +382,112 @@ export const generateVenueAdminResetLink = onCall({ region: 'us-central1' }, asy
     logger.error("generateVenueAdminResetLink Error", err);
     if (err instanceof HttpsError) throw err;
     throw new HttpsError('internal', err.message || 'Failed to create a reset link.');
+  }
+});
+
+/**
+ * createKoopTeamLogin
+ * Only the Koop admin may add a Koop team member: a login that can set venues up, build menus and
+ * work the sales pipeline, but cannot manage the team or change system settings. Creates the sign-in
+ * (or reuses one that exists), records the email in roles_koop_team, and returns a link for them to
+ * choose their own password, as createVenueAdminLogin does for a venue manager.
+ */
+export const createKoopTeamLogin = onCall({ region: 'us-central1' }, async (request) => {
+  try {
+    assertSuperAdmin(request);
+    const email = typeof request.data?.email === 'string' ? request.data.email.trim().toLowerCase() : '';
+    const name = typeof request.data?.name === 'string' ? request.data.name.trim().slice(0, 80) : '';
+
+    if (!EMAIL_PATTERN.test(email)) throw new HttpsError('invalid-argument', 'Enter a valid email address.');
+    if (email === SUPER_ADMIN_EMAIL) throw new HttpsError('invalid-argument', 'That email is the Koop admin account.');
+
+    const venueRole = await db.collection('roles_seller_admin').doc(email).get();
+    if (venueRole.exists) throw new HttpsError('failed-precondition', 'That email is already a venue admin login. Use a different email.');
+
+    const auth = getAuth();
+    let userRecord;
+    let created = false;
+    try {
+      userRecord = await auth.getUserByEmail(email);
+      if (userRecord.uid === SUPER_ADMIN_UID) throw new HttpsError('invalid-argument', 'That email is the Koop admin account.');
+    } catch (err: any) {
+      if (err instanceof HttpsError) throw err;
+      if (err?.code !== 'auth/user-not-found') throw err;
+      userRecord = await auth.createUser({
+        email,
+        displayName: name || undefined,
+        password: randomBytes(24).toString('base64url'),
+        emailVerified: false,
+      });
+      created = true;
+    }
+
+    await db.collection('roles_koop_team').doc(email).set({
+      userName: name || userRecord.displayName || email,
+      email,
+      uid: userRecord.uid,
+      addedBy: request.auth?.token.email || null,
+      assignedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+    const resetLink = await auth.generatePasswordResetLink(email);
+    return { uid: userRecord.uid, created, email, resetLink };
+  } catch (err: any) {
+    logger.error("createKoopTeamLogin Error", err);
+    if (err instanceof HttpsError) throw err;
+    throw new HttpsError('internal', err.message || 'Failed to create the Koop team login.');
+  }
+});
+
+/**
+ * generateKoopTeamResetLink
+ * Koop admin gets a fresh password link for an existing Koop team member.
+ */
+export const generateKoopTeamResetLink = onCall({ region: 'us-central1' }, async (request) => {
+  try {
+    assertSuperAdmin(request);
+    const email = typeof request.data?.email === 'string' ? request.data.email.trim().toLowerCase() : '';
+    if (!EMAIL_PATTERN.test(email)) throw new HttpsError('invalid-argument', 'Enter a valid email address.');
+
+    const roleSnap = await db.collection('roles_koop_team').doc(email).get();
+    if (!roleSnap.exists) throw new HttpsError('failed-precondition', 'That email is not a Koop team login.');
+
+    const resetLink = await getAuth().generatePasswordResetLink(email);
+    return { email, resetLink };
+  } catch (err: any) {
+    logger.error("generateKoopTeamResetLink Error", err);
+    if (err instanceof HttpsError) throw err;
+    throw new HttpsError('internal', err.message || 'Failed to create a reset link.');
+  }
+});
+
+/**
+ * removeKoopTeamLogin
+ * Takes a person off the Koop team right away: their entry is deleted, so the rules and functions stop
+ * recognizing them, and their sessions are revoked so a page they have open is signed out too. The
+ * sign-in account itself is kept (adding them again switches them back on).
+ */
+export const removeKoopTeamLogin = onCall({ region: 'us-central1' }, async (request) => {
+  try {
+    assertSuperAdmin(request);
+    const email = typeof request.data?.email === 'string' ? request.data.email.trim().toLowerCase() : '';
+    if (!EMAIL_PATTERN.test(email)) throw new HttpsError('invalid-argument', 'Enter a valid email address.');
+
+    const roleRef = db.collection('roles_koop_team').doc(email);
+    const roleSnap = await roleRef.get();
+    if (!roleSnap.exists) throw new HttpsError('not-found', 'That email is not a Koop team login.');
+
+    await roleRef.delete();
+    const uid = roleSnap.data()?.uid;
+    if (uid && uid !== SUPER_ADMIN_UID) {
+      const auth = getAuth();
+      await auth.revokeRefreshTokens(uid).catch(() => {});
+    }
+    return { email, removed: true };
+  } catch (err: any) {
+    logger.error("removeKoopTeamLogin Error", err);
+    if (err instanceof HttpsError) throw err;
+    throw new HttpsError('internal', err.message || 'Failed to remove the Koop team login.');
   }
 });
 
@@ -1262,7 +1385,7 @@ export const refreshStripeStatus = onCall({
   try {
     const venueId = typeof request.data?.venueId === 'string' ? request.data.venueId.trim() : '';
     if (venueId) await assertVenueAuthorized(request, venueId);
-    else assertSuperAdmin(request);
+    else await assertKoopAdmin(request);
 
     const apiKey = process.env.STRIPE_SECRET_KEY;
     if (!apiKey) throw new HttpsError('failed-precondition', 'Gateway not configured.');

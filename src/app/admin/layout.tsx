@@ -17,10 +17,11 @@ import {
   UsersRound
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { cn, SUPER_ADMIN_ID, getDisplayNameFromEmail } from '@/lib/utils';
+import { cn, getDisplayNameFromEmail } from '@/lib/utils';
+import { useKoopRole } from '@/lib/use-koop-role';
 import { StylizedKoopLogo } from '@/components/header';
 import { usePathname, useRouter } from 'next/navigation';
-import { useAuth, useUser } from '@/firebase';
+import { useAuth } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
@@ -32,7 +33,7 @@ import {
 } from '@/components/ui/sheet';
 import Link from 'next/link';
 
-const NAV_ITEMS = [
+const NAV_ITEMS: { id: string; label: string; icon: React.ElementType; href: string; superAdminOnly?: boolean }[] = [
   { id: "dashboard", label: "Overview", icon: LayoutDashboard, href: "/admin/dashboard" },
   { id: "sales", label: "Sales CRM", icon: Target, href: "/admin/sales" },
   { id: "venues", label: "Venue Registry", icon: Store, href: "/admin/venues" },
@@ -40,7 +41,7 @@ const NAV_ITEMS = [
   { id: "analytics", label: "Analytics", icon: BarChart3, href: "/admin/analytics" },
   { id: "patrons", label: "Patrons", icon: UsersRound, href: "/admin/patrons" },
   { id: "libraries", label: "Global Libraries", icon: Library, href: "/admin/libraries" },
-  { id: "system", label: "System Config", icon: Settings2, href: "/admin/system" }
+  { id: "system", label: "System Config", icon: Settings2, href: "/admin/system", superAdminOnly: true }
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -49,15 +50,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname();
   const router = useRouter();
   const auth = useAuth();
-  const { user, isUserLoading } = useUser();
+  const { user, isLoading, isSuperAdmin, isKoopAdmin } = useKoopRole();
 
-  const isSuperAdmin = user?.uid === SUPER_ADMIN_ID || user?.email === 'mosherpe@gmail.com';
+  // The Koop team gets everything except System Config (team access, resets, global settings).
+  const navItems = NAV_ITEMS.filter((item) => isSuperAdmin || !item.superAdminOnly);
 
   useEffect(() => {
-    if (!isUserLoading && (!user || !isSuperAdmin)) {
+    if (!isLoading && (!user || !isKoopAdmin)) {
       router.push('/login');
+    } else if (!isLoading && !isSuperAdmin && NAV_ITEMS.some((item) => item.superAdminOnly && pathname.startsWith(item.href))) {
+      router.replace('/admin/dashboard');
     }
-  }, [user, isUserLoading, isSuperAdmin, router]);
+  }, [user, isLoading, isKoopAdmin, isSuperAdmin, pathname, router]);
 
   const handleLogout = async () => {
     if (!auth) return;
@@ -68,7 +72,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
   };
 
-  if (isUserLoading) {
+  if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center bg-[#213147]">
         <ShieldCheck className="h-12 w-12 animate-spin text-primary" />
@@ -76,7 +80,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     );
   }
 
-  if (!user || !isSuperAdmin) {
+  if (!user || !isKoopAdmin) {
     return null;
   }
 
@@ -117,7 +121,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
         <ScrollArea className="flex-1 p-3">
           <nav className="space-y-1">
-            {NAV_ITEMS.map((item) => (
+            {navItems.map((item) => (
               <NavButton key={item.id} item={item} isSidebar />
             ))}
           </nav>
@@ -146,7 +150,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   <SheetTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-primary mt-2">Solution Control</SheetTitle>
                 </SheetHeader>
                 <div className="p-4">
-                  {NAV_ITEMS.map((item) => (
+                  {navItems.map((item) => (
                     <NavButton key={item.id} item={item} />
                   ))}
                 </div>
@@ -162,7 +166,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
           <div className="flex items-center gap-3">
              <div className="flex flex-col items-end text-right mr-1 hidden sm:flex">
-                <span className="text-[10px] font-black uppercase text-white leading-none mb-1">Status: God Mode</span>
+                <span className="text-[10px] font-black uppercase text-white leading-none mb-1">{isSuperAdmin ? 'Status: God Mode' : 'Status: Koop Team'}</span>
                 <span className="text-[8px] font-bold text-green-400 uppercase tracking-widest flex items-center gap-1">
                   <div className="h-1 w-1 rounded-full bg-green-400 animate-pulse" /> Security Feed Active
                 </span>
@@ -173,7 +177,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 </div>
                 <div className="hidden sm:flex flex-col items-start leading-none">
                    <span className="text-[9px] font-black uppercase text-white truncate max-w-[140px]">{getDisplayNameFromEmail(user?.email)}</span>
-                   <span className="text-[8px] font-bold text-white/40 uppercase tracking-widest">Koop Admin</span>
+                   <span className="text-[8px] font-bold text-white/40 uppercase tracking-widest">{isSuperAdmin ? 'Koop Admin' : 'Koop Team'}</span>
                 </div>
              </div>
              <button onClick={handleLogout} aria-label="Log Out" className="p-2 text-white/50 hover:text-red-400 transition-colors flex items-center gap-2">

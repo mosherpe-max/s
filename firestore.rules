@@ -14,12 +14,26 @@ service cloud.firestore {
       );
     }
 
-    function isVenueOwner(venueId) {
+    // A Koop team member: someone the Koop admin gave a login (roles_koop_team, keyed by email). They run
+    // the day-to-day work (set venues up, build menus, work the sales pipeline) but are not the super admin:
+    // they cannot manage the team, change system settings, run the global reset, or delete a venue or order.
+    function isKoopTeam() {
+      return isSignedIn() && request.auth.token.get('email', null) != null &&
+        exists(/databases/$(database)/documents/roles_koop_team/$(request.auth.token.email.lower()));
+    }
+
+    // The venue's own admin (owner or manager login), without the Koop team.
+    function isVenueOwnerOnly(venueId) {
       return isSignedIn() && (
         (exists(/databases/$(database)/documents/venues/$(venueId)) && get(/databases/$(database)/documents/venues/$(venueId)).data.ownerUid == request.auth.uid) ||
         (exists(/databases/$(database)/documents/roles_seller_admin/$(request.auth.token.email.lower())) && 
          get(/databases/$(database)/documents/roles_seller_admin/$(request.auth.token.email.lower())).data.sellerId == venueId)
       );
+    }
+
+    // Who may manage a venue: its own admin, or the Koop team.
+    function isVenueOwner(venueId) {
+      return isVenueOwnerOnly(venueId) || isKoopTeam();
     }
 
     // A signed-in person (with an email, so never an anonymous patron) who has a sales rep role.
@@ -60,12 +74,21 @@ service cloud.firestore {
     // Global Starter Libraries
     match /starter_modifier_library/{groupId} {
       allow read: if true;
-      allow write: if isSuperAdmin();
+      allow write: if isSuperAdmin() || isKoopTeam();
     }
 
     match /starter_menu_item_library/{itemId} {
       allow read: if true;
-      allow write: if isSuperAdmin();
+      allow write: if isSuperAdmin() || isKoopTeam();
+    }
+
+    // Sales CRM. Prospects' contact details and the fees quoted to them: Koop admin and the Koop team only.
+    match /leads/{leadId} {
+      allow read, write: if isSuperAdmin() || isKoopTeam();
+
+      match /{subPath=**} {
+        allow read, write: if isSuperAdmin() || isKoopTeam();
+      }
     }
 
     // Global catch-all for Super Admins
@@ -79,7 +102,14 @@ service cloud.firestore {
     }
 
     match /roles_seller_admin/{email} {
-      allow read: if isSignedIn() && request.auth.token.email.lower() == email.lower();
+      allow read: if (isSignedIn() && request.auth.token.email.lower() == email.lower()) || isKoopTeam();
+    }
+
+    // Koop team logins. A person can read their own entry (the login page looks for it); only the
+    // super admin, through the catch-all and the team functions, can add or remove one.
+    match /roles_koop_team/{email} {
+      allow read: if isSignedIn() && request.auth.token.get('email', null) != null &&
+                     request.auth.token.email.lower() == email.lower();
     }
 
     match /roles_sales_rep/{email} {
@@ -89,12 +119,14 @@ service cloud.firestore {
     // Venue registry
     match /venues/{venueId} {
       allow read: if true;
-      allow write: if isSuperAdmin() || isVenueOwner(venueId);
+      allow create, update: if isSuperAdmin() || isVenueOwner(venueId);
+      allow delete: if isSuperAdmin() || isVenueOwnerOnly(venueId);
     }
 
     match /sellers/{sellerId} {
       allow read: if true;
-      allow write: if isSuperAdmin() || isVenueOwner(sellerId);
+      allow create, update: if isSuperAdmin() || isVenueOwner(sellerId);
+      allow delete: if isSuperAdmin() || isVenueOwnerOnly(sellerId);
       
       // Allow location and status updates
       // Prototyping: Allow demo venues to be toggled without authentication
@@ -225,14 +257,14 @@ service cloud.firestore {
                           'termsAcceptedVersion', 'termsAcceptedAt'
                         ]));
 
-      allow delete: if isSuperAdmin() || isVenueOwner(resource.data.sellerId);
+      allow delete: if isSuperAdmin() || isVenueOwnerOnly(resource.data.sellerId);
     }
 
     // One timing record per order (what the venue looked like when it was placed and when each step
     // happened), kept by the recordOrderTiming function as the history delivery-time estimates will be built
     // from. No personal details. Only the Koop admin can read it, and the app itself never writes to it.
     match /orderTimings/{orderId} {
-      allow read: if isSuperAdmin();
+      allow read: if isSuperAdmin() || isKoopTeam();
       allow write: if false;
     }
 

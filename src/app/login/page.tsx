@@ -68,11 +68,18 @@ export default function LoginPage() {
   }, [firestore, user]);
   const { data: sellerRole, isLoading: isSellerRoleLoading } = useDoc<SellerAdminRole>(sellerRoleRef);
 
-  const isSolutionAdmin = isSuperAdmin || !!globalRole;
+  // Check Koop Team Role (a Koop admin login without the super admin's full powers)
+  const koopTeamRef = useMemoFirebase(() => {
+    if (!firestore || !user?.email) return null;
+    return doc(firestore, 'roles_koop_team', user.email.toLowerCase());
+  }, [firestore, user]);
+  const { data: koopTeamRole, isLoading: isKoopTeamLoading } = useDoc(koopTeamRef);
+
+  const isSolutionAdmin = isSuperAdmin || !!globalRole || !!koopTeamRole;
   const isInternalStaff = !!salesRole;
   const isVenueManager = !!sellerRole;
 
-  const isVerifyingRoles = isGlobalRoleLoading || isSalesRoleLoading || isSellerRoleLoading;
+  const isVerifyingRoles = isGlobalRoleLoading || isSalesRoleLoading || isSellerRoleLoading || isKoopTeamLoading;
 
   // Redirection Logic
   useEffect(() => {
