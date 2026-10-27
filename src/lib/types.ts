@@ -420,6 +420,15 @@ export interface SellerAdminRole {
   assignedAt: Timestamp;
 }
 
+// A Koop team login: can use the Koop admin for day-to-day setup work, without the super admin's full powers.
+export interface KoopTeamRole {
+  userName: string;
+  email: string;
+  uid: string;
+  addedBy?: string | null;
+  assignedAt: Timestamp;
+}
+
 export type LeadStage = 'Cold Lead' | 'On-Site Meeting' | 'Demo' | 'Offer' | 'Closed' | 'Dead';
 
 // One thing the founder did with a lead: a call, a visit, a demo. Kept in leads/{id}/contacts.

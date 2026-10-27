@@ -30,6 +30,7 @@ import { useToast } from '@/hooks/use-toast';
 import { AUTHORIZED_SERVICE_MODES } from '@/lib/utils';
 import { PatronTermsManager } from '@/components/patron-terms-manager';
 import { StaffPinMigration } from '@/components/staff-pin-migration';
+import { KoopTeamManager } from '@/components/koop-team-manager';
 
 export default function AdminSystemConfigPage() {
   const firebaseApp = useFirebaseApp();
@@ -437,6 +438,8 @@ export default function AdminSystemConfigPage() {
              </div>
            </div>
         </Card>
+
+        <KoopTeamManager />
 
         <PatronTermsManager />
 

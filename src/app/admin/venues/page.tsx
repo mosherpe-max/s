@@ -74,6 +74,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useFirestore, useCollection, useMemoFirebase, useStorage, useDoc } from '@/firebase';
+import { useKoopRole } from '@/lib/use-koop-role';
 import { collection, doc, updateDoc, setDoc, deleteDoc, serverTimestamp, writeBatch, getDoc, deleteField, query, where, limit, getCountFromServer } from 'firebase/firestore';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { errorEmitter } from '@/firebase/error-emitter';
@@ -168,6 +169,7 @@ type NewVenueData = z.infer<typeof newVenueSchema>;
 
 export default function AdminVenueRegistryPage() {
   const firestore = useFirestore();
+  const { isSuperAdmin } = useKoopRole();
   const storage = useStorage();
   const { toast } = useToast();
 
@@ -689,9 +691,11 @@ export default function AdminVenueRegistryPage() {
                        <Button variant="outline" size="sm" onClick={() => handleEditVenue(v.id)} className="h-8 text-[9px] font-black uppercase tracking-widest border-2 gap-1.5 rounded-lg">
                           <Edit className="h-3 w-3" /> Manage
                        </Button>
-                       <Button variant="ghost" size="icon" onClick={() => setVenueToDelete(v.id)} className="h-8 w-8 text-muted-foreground hover:text-destructive rounded-lg">
-                          <Trash2 className="h-4 w-4" />
-                       </Button>
+                       {isSuperAdmin && (
+                         <Button variant="ghost" size="icon" onClick={() => setVenueToDelete(v.id)} aria-label="Delete venue" className="h-8 w-8 text-muted-foreground hover:text-destructive rounded-lg">
+                            <Trash2 className="h-4 w-4" />
+                         </Button>
+                       )}
                     </div>
                   </TableCell>
                 </TableRow>

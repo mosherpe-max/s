@@ -27,6 +27,12 @@ service firebase.storage {
       );
     }
 
+    // Mirrors isKoopTeam() in firestore.rules: someone the Koop admin gave a team login.
+    function isKoopTeam() {
+      return isSignedIn() && request.auth.token.get('email', null) != null &&
+        firestore.exists(/databases/(default)/documents/roles_koop_team/$(request.auth.token.email.lower()));
+    }
+
     function isValidImageUpload() {
       return request.resource.size < 8 * 1024 * 1024 &&
              request.resource.contentType.matches('image/.*');
@@ -36,14 +42,14 @@ service firebase.storage {
     // one folder per venue.
     match /menuItemImages/{sellerId}/{fileName} {
       allow read: if true;
-      allow write: if (isSuperAdmin() || isVenueOwner(sellerId)) && isValidImageUpload();
+      allow write: if (isSuperAdmin() || isKoopTeam() || isVenueOwner(sellerId)) && isValidImageUpload();
     }
 
     // Koop (super admin) starter library product photos - shared defaults
     // offered to every venue's menu template.
     match /starterLibraryImages/{fileName} {
       allow read: if true;
-      allow write: if isSuperAdmin() && isValidImageUpload();
+      allow write: if (isSuperAdmin() || isKoopTeam()) && isValidImageUpload();
     }
 
     // Print-ready marketing PDFs (cart sticker, yard sign) Koop generates
@@ -51,7 +57,7 @@ service firebase.storage {
     // but only the Koop admin's "Recreate" action may write/replace one.
     match /marketingAssets/{sellerId}/{fileName} {
       allow read: if true;
-      allow write: if isSuperAdmin();
+      allow write: if isSuperAdmin() || isKoopTeam();
     }
   }
 }
