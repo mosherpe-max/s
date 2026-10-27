@@ -1,0 +1,7 @@
+Group,Selection,Required,Option,Price Change
+"Burger Temperature","Single","Yes","Medium Rare",
+,,,"Medium",
+,,,"Well Done",
+"Burger Add-Ons","Multiple","No","Bacon",1.50
+,,,"Avocado",2.00
+,,,"Extra Cheese",1.00
