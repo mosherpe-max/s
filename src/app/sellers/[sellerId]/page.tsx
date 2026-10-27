@@ -69,7 +69,8 @@ import {
   Ban,
   SlidersHorizontal,
   Library,
-  Receipt
+  Receipt,
+  FileSpreadsheet
 } from 'lucide-react';
 import Image from 'next/image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -134,6 +135,7 @@ import { StylizedKoopLogo } from '@/components/header';
 import { PrintMarketingKit } from '@/components/print-marketing-kit';
 import { ModifierManagement } from '@/components/modifier-management';
 import { StarterItemPicker } from '@/components/starter-item-picker';
+import { MenuCsvImport } from '@/components/menu-csv-import';
 import { ActiveOrdersPanel } from '@/components/active-orders-panel';
 import { ModeStatusSwitches } from '@/components/mode-status-switches';
 import { ImageUploadDropzone } from '@/components/image-upload-dropzone';
@@ -1709,6 +1711,14 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                       trigger={
                         <Button variant="outline" className="font-black uppercase text-xs tracking-widest border-2 gap-2">
                           <Library className="h-4 w-4" /> Import From Library
+                        </Button>
+                      }
+                    />
+                    <MenuCsvImport
+                      sellerId={sellerId}
+                      trigger={
+                        <Button variant="outline" className="font-black uppercase text-xs tracking-widest border-2 gap-2">
+                          <FileSpreadsheet className="h-4 w-4" /> Import Spreadsheet
                         </Button>
                       }
                     />
