@@ -69,7 +69,7 @@ function BuyerOrderContent({ sellerId }: { sellerId: string }) {
   const { isLoading: isVenueLoading } = useDoc<Venue>(venueRef);
 
   const staffQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'sellers', sellerId, 'staff') : null), [firestore, sellerId]);
-  const { data: staffList } = useCollection<StaffMember>(staffQuery);
+  const { data: staffList, isLoading: isStaffLoading } = useCollection<StaffMember>(staffQuery);
 
   const menuItemsQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'sellers', sellerId, 'menuItems') : null), [firestore, sellerId]);
   const { data: menuItems, isLoading: areItemsLoading } = useCollection<MenuItem>(menuItemsQuery);
@@ -270,7 +270,13 @@ function BuyerOrderContent({ sellerId }: { sellerId: string }) {
     setCustomizingItem(null);
   };
 
-  const isLoading = isSellerLoading || areItemsLoading || isVenueLoading || (isConfigLoading && !solutionConfig);
+  const availableModes = (seller?.menuTypes || []).filter(t => AUTHORIZED_SERVICE_MODES.includes(t)).filter(t => isModeAvailable(t));
+
+  // A QR link opens with no service mode in the address; the effect above fills one in a moment later.
+  // Until it does, the page has no mode to show, which would read as "Service Offline" for an instant.
+  // Whether staff are on is judged from the staff list, so that has to be in before anything is decided.
+  const isChoosingMode = !menuTypeFromUrl && !!seller && !!staffList && isAccessValid && availableModes.length > 0;
+  const isLoading = isSellerLoading || areItemsLoading || isVenueLoading || isStaffLoading || (isConfigLoading && !solutionConfig) || isChoosingMode;
 
   if (isLoading) {
     return (
@@ -298,8 +304,6 @@ function BuyerOrderContent({ sellerId }: { sellerId: string }) {
       </div>
     );
   }
-
-  const availableModes = (seller?.menuTypes || []).filter(t => AUTHORIZED_SERVICE_MODES.includes(t)).filter(t => isModeAvailable(t));
 
   return (
     <div className="flex flex-col min-h-screen bg-[#F0F0F0] relative">
