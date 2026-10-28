@@ -13,6 +13,7 @@ import {
 } from "./order-timing.js";
 import { canTakeCardPayments, stripeStatusFromAccount } from "./stripe-status.js";
 import { reconcileOrderQueue, syncQueueEntry } from "./order-queue.js";
+import { DEMO_SEED_MODES, DEMO_SEED_SELLER_ID, generateDemoOrders } from "./demo-seed.js";
 import Stripe from 'stripe';
 import twilio from 'twilio';
 import webpush from 'web-push';
@@ -866,6 +867,109 @@ export const applyStarterItems = onCall({ region: 'us-central1' }, async (reques
 });
 
 /**
+ * Removes the seeded demo orders (and the daily sales locks the venue page froze from them) so a reseed or a
+ * clean-up starts from nothing. Only orders marked isDemoSeed on the demo course are touched.
+ */
+async function clearSeededDemoOrders(): Promise<number> {
+  let removed = 0;
+  for (;;) {
+    const snap = await db.collection('orders')
+      .where('sellerId', '==', DEMO_SEED_SELLER_ID).where('isDemoSeed', '==', true).limit(400).get();
+    if (snap.empty) break;
+    const batch = db.batch();
+    snap.docs.forEach(d => batch.delete(d.ref));
+    await batch.commit();
+    removed += snap.size;
+  }
+  for (;;) {
+    const snap = await db.collection('sellers').doc(DEMO_SEED_SELLER_ID).collection('dailySalesLocks').limit(400).get();
+    if (snap.empty) break;
+    const batch = db.batch();
+    snap.docs.forEach(d => batch.delete(d.ref));
+    await batch.commit();
+  }
+  return removed;
+}
+
+/**
+ * seedDemoOrders
+ * Koop admin only. Fills the demo golf course (demo-course) with a believable run of past orders for the
+ * Beverage Cart and Clubhouse (different patrons, real menu items, tips, tax, acknowledgement and delivery
+ * times) so the venue admin charts have something to show in a demo. Replaces any earlier seeded orders.
+ * Seeded orders are marked isDemoSeed, never trigger texts, pushes or timing records, and can be removed
+ * with clearDemoOrders.
+ */
+export const seedDemoOrders = onCall({ region: 'us-central1', timeoutSeconds: 300, memory: '512MiB' }, async (request) => {
+  try {
+    assertSuperAdmin(request);
+    const requested = Number(request.data?.days);
+    const days = Number.isFinite(requested) ? Math.min(90, Math.max(7, Math.round(requested))) : 60;
+
+    const sellerRef = db.collection('sellers').doc(DEMO_SEED_SELLER_ID);
+    const [sellerSnap, itemsSnap, staffSnap] = await Promise.all([
+      sellerRef.get(), sellerRef.collection('menuItems').get(), sellerRef.collection('staff').get(),
+    ]);
+    if (!sellerSnap.exists) throw new HttpsError('failed-precondition', 'The demo golf course (demo-course) was not found.');
+    const seller = sellerSnap.data() || {};
+
+    const items = itemsSnap.docs
+      .map(d => ({ id: d.id, ...d.data() } as any))
+      .filter(i => i.isAvailable !== false && typeof i.price === 'number');
+    const missing = DEMO_SEED_MODES.filter(m => items.filter(i => (i.availableOn || []).includes(m)).length < 3);
+    if (missing.length) throw new HttpsError('failed-precondition', `The demo menu needs at least 3 items on: ${missing.join(', ')}.`);
+
+    const serviceFees: Record<string, number> = {};
+    const taxRates: Record<string, number> = {};
+    DEMO_SEED_MODES.forEach(m => {
+      serviceFees[m] = seller.serviceFees?.[m] ?? seller.serviceFee ?? 0;
+      taxRates[m] = seller.taxRates?.[m] ?? seller.taxRate ?? 6;
+    });
+
+    const orders = generateDemoOrders({
+      now: new Date(), days, items, serviceFees, taxRates,
+      staffNames: staffSnap.docs.map(d => String(d.data().name || '')).filter(Boolean),
+    });
+
+    await clearSeededDemoOrders();
+    const col = db.collection('orders');
+    for (let i = 0; i < orders.length; i += 400) {
+      const batch = db.batch();
+      orders.slice(i, i + 400).forEach(o => {
+        const delivered = o.deliveredAt || o.createdAt;
+        batch.set(col.doc(o.id), {
+          ...o.data,
+          createdAt: Timestamp.fromDate(o.createdAt),
+          updatedAt: Timestamp.fromDate(delivered),
+          ...(o.acknowledgedAt ? { acknowledgedAt: Timestamp.fromDate(o.acknowledgedAt) } : {}),
+          ...(o.deliveredAt ? { deliveredAt: Timestamp.fromDate(o.deliveredAt) } : {}),
+        });
+      });
+      await batch.commit();
+    }
+    return { orders: orders.length, days };
+  } catch (err: any) {
+    logger.error("seedDemoOrders Error", err);
+    if (err instanceof HttpsError) throw err;
+    throw new HttpsError('internal', err.message || 'Failed to seed demo orders.');
+  }
+});
+
+/**
+ * clearDemoOrders
+ * Koop admin only. Removes the orders seedDemoOrders created on the demo golf course.
+ */
+export const clearDemoOrders = onCall({ region: 'us-central1', timeoutSeconds: 300 }, async (request) => {
+  try {
+    assertSuperAdmin(request);
+    return { removed: await clearSeededDemoOrders() };
+  } catch (err: any) {
+    logger.error("clearDemoOrders Error", err);
+    if (err instanceof HttpsError) throw err;
+    throw new HttpsError('internal', err.message || 'Failed to remove demo orders.');
+  }
+});
+
+/**
  * dailyOperationalReset
  */
 export const dailyOperationalReset = onSchedule({ 
@@ -906,7 +1010,7 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({
     if (configSnap.exists && configSnap.data()?.smsNotificationsEnabled === false) return;
 
     const data = after.data();
-    if (!data?.customerPhone) return;
+    if (!data?.customerPhone || data.isDemoSeed) return;
 
     const accountSid = process.env.TWILIO_ACCOUNT_SID;
     const authToken = process.env.TWILIO_AUTH_TOKEN;
@@ -1144,7 +1248,7 @@ export const notifyStaffOnNewOrder = onDocumentWritten({
   if (!after?.exists) return;
 
   const order = after.data();
-  if (!order?.sellerId || !order?.menuType) return;
+  if (!order?.sellerId || !order?.menuType || order.isDemoSeed) return;
 
   try {
     const itemCount = (order.items || []).length;
@@ -1168,6 +1272,8 @@ export const syncOrderQueue = onDocumentWritten({
   document: "orders/{orderId}",
   region: 'us-central1'
 }, async (event) => {
+  // Seeded demo orders are all finished, so they never belong in the queue.
+  if (event.data?.after?.exists && event.data.after.data()?.isDemoSeed) return;
   // Works from the order as it is now, not from this event, so events handled out of order cannot leave a stale entry.
   await syncQueueEntry(db, event.params.orderId);
 });
@@ -1202,7 +1308,7 @@ export const recordOrderTiming = onDocumentWritten({
   try {
     const before = event.data?.before?.exists ? event.data.before.data() : null;
     const after = event.data?.after?.exists ? event.data.after.data() : null;
-    if (!after || !after.sellerId) return;
+    if (!after || !after.sellerId || after.isDemoSeed) return;
 
     // A card order starts as a bare record from the payment webhook and is completed by the patron's browser,
     // so "placed" means the moment it has its details (service mode and items).

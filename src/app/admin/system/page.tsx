@@ -31,6 +31,7 @@ import { AUTHORIZED_SERVICE_MODES } from '@/lib/utils';
 import { PatronTermsManager } from '@/components/patron-terms-manager';
 import { StaffPinMigration } from '@/components/staff-pin-migration';
 import { KoopTeamManager } from '@/components/koop-team-manager';
+import { DemoDataManager } from '@/components/demo-data-manager';
 
 export default function AdminSystemConfigPage() {
   const firebaseApp = useFirebaseApp();
@@ -444,6 +445,8 @@ export default function AdminSystemConfigPage() {
         <PatronTermsManager />
 
         <StaffPinMigration />
+
+        <DemoDataManager />
 
         <div className="bg-amber-50 border-2 border-amber-200 p-6 rounded-[2rem] flex items-start gap-4">
            <AlertTriangle className="h-6 w-6 text-amber-600 shrink-0" />
