@@ -81,7 +81,6 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 import type { Seller, Venue, SolutionConfig } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -706,11 +705,11 @@ export default function AdminVenueRegistryPage() {
       </div>
 
       <Dialog open={isNewVenueOpen} onOpenChange={setIsNewVenueOpen}>
-        <DialogContent closeClassName="text-white hover:text-white/80" className="sm:max-w-[550px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
-          <DialogHeader className="p-8 bg-[#213147] text-white">
+        <DialogContent closeClassName="text-white hover:text-white/80" className="sm:max-w-[550px] max-h-[92dvh] flex flex-col gap-0 rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
+          <DialogHeader className="p-8 bg-[#213147] text-white shrink-0">
             <DialogTitle className="font-headline font-black uppercase text-xl">Venue Onboarding</DialogTitle>
           </DialogHeader>
-          <ScrollArea className="max-h-[68vh]">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
             <div className="p-8">
               <Form {...onboardingForm}>
                 <form onSubmit={onboardingForm.handleSubmit(handleCreateVenue)} className="space-y-8">
@@ -809,15 +808,15 @@ export default function AdminVenueRegistryPage() {
                 </form>
               </Form>
             </div>
-          </ScrollArea>
+          </div>
         </DialogContent>
       </Dialog>
 
       <VenueAdminLinkDialog result={newLoginResult} onClose={() => setNewLoginResult(null)} />
 
       <Dialog open={isManagementOpen} onOpenChange={setIsManagementOpen}>
-        <DialogContent closeClassName="text-white hover:text-white/80" className="sm:max-w-[550px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
-          <DialogHeader className="p-8 bg-[#213147] text-white">
+        <DialogContent closeClassName="text-white hover:text-white/80" className="sm:max-w-[550px] max-h-[92dvh] flex flex-col gap-0 rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
+          <DialogHeader className="p-8 bg-[#213147] text-white shrink-0">
             <div className="flex items-center justify-between gap-4">
               <DialogTitle className="font-headline font-black uppercase text-xl">Venue Controls</DialogTitle>
               <Badge className={cn("border-0 text-[9px] font-black uppercase tracking-widest h-6 px-3 shrink-0", launchReadyCount === launchChecklist.length ? "bg-green-500" : "bg-amber-500")}>
@@ -825,7 +824,7 @@ export default function AdminVenueRegistryPage() {
               </Badge>
             </div>
           </DialogHeader>
-          <ScrollArea className="max-h-[80vh]">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
             <div className="p-8 space-y-10">
                {/* LAUNCH READINESS CHECKLIST */}
                <div className="space-y-6">
@@ -1250,8 +1249,8 @@ export default function AdminVenueRegistryPage() {
                </div>
                </Form>
             </div>
-          </ScrollArea>
-          <div className="p-4 border-t-2 border-slate-100 bg-white">
+          </div>
+          <div className="p-4 border-t-2 border-slate-100 bg-white shrink-0">
             <Button type="button" onClick={registryForm.handleSubmit(onSaveVenueRegistry)} disabled={isProcessing} className="w-full h-14 bg-[#213147] font-black uppercase tracking-widest text-[11px] gap-2 shadow-xl rounded-2xl">
               {isProcessing ? <Loader2 className="animate-spin" /> : <Save className="h-4 w-4" />} Synchronize Registry
             </Button>

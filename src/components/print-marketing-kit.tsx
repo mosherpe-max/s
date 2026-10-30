@@ -154,7 +154,7 @@ export function PrintMarketingKit({ courseName, patronMenuUrl, venueType = 'Golf
         </div>
       </CardHeader>
       <CardContent className="p-8 space-y-6">
-        <div className={`grid grid-cols-1 gap-8 ${venueType === 'Golf Course' ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(210px,1fr))] gap-8">
           {venueType === 'Golf Course' && (
             <>
               <div className="space-y-4">
@@ -164,7 +164,7 @@ export function PrintMarketingKit({ courseName, patronMenuUrl, venueType = 'Golf
                 <Button
                   onClick={() => handleDownload('sticker', 'Cart_Sticker')}
                   disabled={downloadingKey !== null || !patronMenuUrl}
-                  className="w-full h-11 font-black uppercase text-[10px] tracking-widest gap-2"
+                  className="w-full h-auto min-h-11 py-2 whitespace-normal text-center font-black uppercase text-[10px] tracking-widest gap-2"
                 >
                   {downloadingKey === 'sticker' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
                   Golf Cart Sticker (7&quot;&times;5&quot; PDF)
@@ -177,7 +177,7 @@ export function PrintMarketingKit({ courseName, patronMenuUrl, venueType = 'Golf
                 <Button
                   onClick={() => handleDownload('sign', 'Yard_Sign')}
                   disabled={downloadingKey !== null || !patronMenuUrl}
-                  className="w-full h-11 font-black uppercase text-[10px] tracking-widest gap-2"
+                  className="w-full h-auto min-h-11 py-2 whitespace-normal text-center font-black uppercase text-[10px] tracking-widest gap-2"
                 >
                   {downloadingKey === 'sign' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
                   Yard Sign (24&quot;&times;18&quot; PDF)
@@ -194,7 +194,7 @@ export function PrintMarketingKit({ courseName, patronMenuUrl, venueType = 'Golf
               <Button
                 onClick={() => handleDownload(asset.kind, asset.filenameSuffix)}
                 disabled={downloadingKey !== null || !patronMenuUrl}
-                className="w-full h-11 font-black uppercase text-[10px] tracking-widest gap-2"
+                className="w-full h-auto min-h-11 py-2 whitespace-normal text-center font-black uppercase text-[10px] tracking-widest gap-2"
               >
                 {downloadingKey === asset.kind ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
                 {asset.label}
