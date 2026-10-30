@@ -70,7 +70,8 @@ import {
   SlidersHorizontal,
   Library,
   Receipt,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Coins
 } from 'lucide-react';
 import Image from 'next/image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -136,6 +137,7 @@ import { PrintMarketingKit } from '@/components/print-marketing-kit';
 import { ModifierManagement } from '@/components/modifier-management';
 import { StarterItemPicker } from '@/components/starter-item-picker';
 import { MenuCsvImport } from '@/components/menu-csv-import';
+import { TipsReport } from '@/components/tips-report';
 import { ActiveOrdersPanel } from '@/components/active-orders-panel';
 import { ModeStatusSwitches } from '@/components/mode-status-switches';
 import { ImageUploadDropzone } from '@/components/image-upload-dropzone';
@@ -1134,6 +1136,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     { id: "modifiers", label: "Modifiers", icon: SlidersHorizontal },
     { id: "staff", label: "Staff", icon: Users },
     { id: "sales-report", label: "Sales Report", icon: Receipt },
+    { id: "tips-report", label: "Tips Report", icon: Coins },
     { id: "patrons", label: "Patrons", icon: Users },
     { id: "marketing", label: "Marketing", icon: Megaphone },
     { id: "settings", label: "Settings", icon: SettingsIcon }
@@ -1386,6 +1389,8 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
               )}
 
               {activeNav === 'patrons' && <PatronList orders={orders} courseName={seller?.courseName} />}
+
+              {activeNav === 'tips-report' && <TipsReport orders={orders} menuTypes={seller?.menuTypes || []} courseName={seller?.courseName} />}
 
               {activeNav === 'sales-report' && (
                 <div className="space-y-6 animate-in fade-in duration-500">
