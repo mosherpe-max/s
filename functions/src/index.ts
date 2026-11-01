@@ -12,6 +12,7 @@ import {
   modeFlagPrefix, placementLocation, roundCoord, summarizeItems, suspectReasons,
 } from "./order-timing.js";
 import { canTakeCardPayments, stripeStatusFromAccount } from "./stripe-status.js";
+import { accountAction, applicationFeeCents, createDirectPaymentIntent, ensureWalletDomain, resolveVenueCustomer } from "./stripe-direct.js";
 import { reconcileOrderQueue, syncQueueEntry } from "./order-queue.js";
 import { DEMO_SEED_MODES, DEMO_SEED_SELLER_ID, generateDemoOrders } from "./demo-seed.js";
 import Stripe from 'stripe';
@@ -504,6 +505,24 @@ const SERVICE_MODE_LABELS: Record<string, string> = {
 };
 
 /**
+ * Registers Koop's ordering domain for a venue's Stripe account so Apple Pay and Google Pay appear at checkout (direct
+ * charges are made on the venue's account, so that is the account the domain has to be registered for), and records
+ * the result on the venue. Safe to repeat. Never throws: a venue that cannot register wallets can still take cards.
+ */
+async function registerWalletsFor(stripe: Stripe, venueId: string, accountId: string) {
+  try {
+    const wallets = await ensureWalletDomain(stripe, accountId, new URL(APP_BASE_URL).hostname);
+    await db.collection('venues').doc(venueId).set({
+      applePayStatus: wallets.applePay,
+      googlePayStatus: wallets.googlePay,
+      walletsCheckedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+  } catch (err: any) {
+    logger.warn(`[registerWalletsFor] ${venueId}: ${err?.message || err}`);
+  }
+}
+
+/**
  * createPaymentIntent
  */
 export const createPaymentIntent = onCall({
@@ -596,59 +615,48 @@ export const createPaymentIntent = onCall({
     const convenienceFeeCents = Math.round((convenienceFee || 0) * 100);
     const totalCents = baseCents + convenienceFeeCents;
 
-    // Koop keeps the convenience fee minus its own per-venue contribution
-    // toward Stripe's processing cost (solutionFeeFixed). The rest of that
-    // real cost lands on the venue's own balance via on_behalf_of below,
-    // rather than being deducted from the platform's balance.
-    const applicationFeeAmount = Math.max(0, convenienceFeeCents - koopStripeFeeCoverageCents);
+    // The payment is a direct charge on the venue's own Stripe account: the venue is the merchant, so Stripe's
+    // card processing fee comes out of the venue's balance, and refunds and disputes are the venue's. Koop's cut
+    // is the application fee: the convenience fee minus the cents Koop covers for the venue (solutionFeeFixed),
+    // which stays with the venue. Stripe does not hand the application fee back when the venue refunds an order.
+    const applicationFeeAmount = applicationFeeCents(convenienceFeeCents, koopStripeFeeCoverageCents, totalCents);
 
-    let stripeCustomerId = clientProvidedCustomerId;
-    let isReturningCustomer = !!stripeCustomerId;
-    if (!stripeCustomerId && buyerUid) {
-      const userDoc = await db.collection('users').doc(buyerUid).get();
-      if (userDoc.exists && userDoc.data()?.stripeCustomerId) {
-        stripeCustomerId = userDoc.data()?.stripeCustomerId;
-        isReturningCustomer = true;
-      }
-    }
-
-    if (!stripeCustomerId) {
-      const customer = await stripe.customers.create({
-        email: patronEmail || undefined,
-        name: patronName || 'Guest Patron',
-        phone: patronPhone || undefined,
-        metadata: { buyerUid: buyerUid || 'anonymous' }
-      });
-      stripeCustomerId = customer.id;
+    // A saved-card customer lives on the venue's account, so it is only good at that venue. Look for the patron's
+    // customer there (the one the browser remembered for this venue, then the one stored against their sign-in).
+    const userRef = buyerUid ? db.collection('users').doc(buyerUid) : null;
+    const storedCustomerId: string | undefined = userRef ? (await userRef.get()).data()?.stripeCustomers?.[venueStripeAccountId] : undefined;
+    const customer = await resolveVenueCustomer(stripe, venueStripeAccountId, [clientProvidedCustomerId, storedCustomerId], {
+      email: patronEmail, name: patronName, phone: patronPhone, buyerUid,
+    });
+    const stripeCustomerId = customer.id;
+    if (userRef && storedCustomerId !== stripeCustomerId) {
+      await userRef.set({ stripeCustomers: { [venueStripeAccountId]: stripeCustomerId } }, { merge: true });
     }
 
     // Only look up saved cards for a customer we already knew about - a
     // brand-new customer can't have any, and skipping the extra Stripe
     // round-trip keeps first-time checkout as fast as before.
     let savedPaymentMethod: { id: string; brand: string; last4: string } | null = null;
-    if (isReturningCustomer) {
-      const paymentMethods = await stripe.paymentMethods.list({ customer: stripeCustomerId, type: 'card', limit: 1 });
+    if (customer.returning) {
+      const paymentMethods = await stripe.paymentMethods.list({ customer: stripeCustomerId, type: 'card', limit: 1 }, { stripeAccount: venueStripeAccountId });
       const pm = paymentMethods.data[0];
       if (pm?.card) {
         savedPaymentMethod = { id: pm.id, brand: pm.card.brand, last4: pm.card.last4 };
       }
     }
 
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: totalCents,
-      currency: 'usd',
-      customer: stripeCustomerId,
-      automatic_payment_methods: { enabled: true },
-      on_behalf_of: venueStripeAccountId,
-      transfer_data: { destination: venueStripeAccountId },
-      application_fee_amount: applicationFeeAmount,
+    const paymentIntent = await createDirectPaymentIntent(stripe, {
+      accountId: venueStripeAccountId,
+      amountCents: totalCents,
+      applicationFeeCents: applicationFeeAmount,
+      customerId: stripeCustomerId,
       metadata: {
-        sellerId, 
-        buyerUid: buyerUid || 'anonymous', 
-        customerName: patronName || 'Guest', 
-        customerPhone: patronPhone || '', 
-        customerEmail: patronEmail || '' 
-      }
+        sellerId,
+        buyerUid: buyerUid || 'anonymous',
+        customerName: patronName || 'Guest',
+        customerPhone: patronPhone || '',
+        customerEmail: patronEmail || '',
+      },
     });
 
     return {
@@ -689,22 +697,30 @@ export const initializeVenueStripeOnboarding = onCall({
     const sellerDoc = await sellerRef.get();
     let stripeAccountId = sellerDoc.exists ? sellerDoc.data()?.stripeAccountId : undefined;
 
-    if (!stripeAccountId) {
+    // Venues connect a Standard Stripe account: the venue owns it, pays Stripe's card fees, handles its own refunds in
+    // its Stripe Dashboard, and Stripe carries any losses. An account made earlier as Express that never finished
+    // onboarding is replaced with a Standard one; a working account is left as it is.
+    const existing = stripeAccountId ? await stripe.accounts.retrieve(stripeAccountId).catch(() => null) : null;
+    const action = stripeAccountId ? accountAction(existing) : 'create';
+
+    if (action !== 'reuse') {
       const account = await stripe.accounts.create({
-        type: 'express',
+        type: 'standard',
         country: 'US',
         email: sellerDoc.data()?.contactEmail || email || undefined,
-        capabilities: {
-          card_payments: { requested: true },
-          transfers: { requested: true },
-        },
+        business_profile: sellerDoc.data()?.courseName ? { name: sellerDoc.data()?.courseName } : undefined,
         metadata: { venueId },
       });
       stripeAccountId = account.id;
 
       const batch = db.batch();
-      batch.set(sellerRef, { stripeAccountId, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
-      batch.set(db.collection('venues').doc(venueId), { stripeAccountId, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+      batch.set(sellerRef, { stripeAccountId, stripeOnboardingComplete: false, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+      batch.set(db.collection('venues').doc(venueId), {
+        stripeAccountId,
+        ...stripeStatusFromAccount(account),
+        stripeStatusUpdatedAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
       await batch.commit();
     }
 
@@ -1134,6 +1150,8 @@ export const handleStripeWebhook = onRequest({
         }, { merge: true });
         await batch.commit();
       }
+      // Once the venue can take card payments, make sure Apple Pay and Google Pay are set up for its account.
+      if (venueId && account.charges_enabled) await registerWalletsFor(stripe, venueId, account.id);
     }
     res.status(200).send({ received: true });
   } catch (err: any) {
@@ -1513,6 +1531,7 @@ export const refreshStripeStatus = onCall({
           stripeStatusUpdatedAt: FieldValue.serverTimestamp(),
         }, { merge: true });
         checked++;
+        if (account.charges_enabled) await registerWalletsFor(stripe, venueDoc.id, accountId);
       } catch (err: any) {
         failed.push({ venueId: venueDoc.id, message: err?.message || 'Could not reach Stripe.' });
       }

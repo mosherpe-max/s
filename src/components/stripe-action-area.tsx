@@ -12,6 +12,7 @@ import { CheckoutActionPanel } from '@/components/checkout-action-panel';
 import type { LocationChoice } from '@/components/patron-location-gate';
 import { PatronTermsAgreement } from '@/components/patron-terms-agreement';
 import type { PatronTermsState } from '@/lib/patron-terms';
+import { stripeCustomerCacheKey } from '@/lib/stripe-client';
 
 interface StripeActionAreaProps {
   clientSecret: string;
@@ -23,6 +24,8 @@ interface StripeActionAreaProps {
   patronName: string;
   patronPhone: string;
   stripeCustomerId: string | null;
+  // The venue this payment is for: a saved-card customer belongs to that venue's Stripe account.
+  sellerId: string;
   saveInfo: boolean;
   setSaveInfo: (value: boolean) => void;
   // Checks the details and the terms before paying. Returns false (after telling the patron what to fix) if not.
@@ -57,6 +60,7 @@ export function StripeActionArea({
   patronName,
   patronPhone,
   stripeCustomerId,
+  sellerId,
   saveInfo,
   setSaveInfo,
   attemptCheck,
@@ -124,7 +128,7 @@ export function StripeActionArea({
           localStorage.setItem('koop_patron_email', patronEmail);
           localStorage.setItem('koop_patron_phone', patronPhone);
           if (stripeCustomerId) {
-            localStorage.setItem('koop_stripe_customer_id', stripeCustomerId);
+            localStorage.setItem(stripeCustomerCacheKey(sellerId), stripeCustomerId);
           }
         }
 
