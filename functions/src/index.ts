@@ -12,7 +12,7 @@ import {
   modeFlagPrefix, placementLocation, roundCoord, summarizeItems, suspectReasons,
 } from "./order-timing.js";
 import { canTakeCardPayments, stripeStatusFromAccount } from "./stripe-status.js";
-import { accountAction, applicationFeeCents, createDirectPaymentIntent, ensureWalletDomain, fetchChargeFees, resolveVenueCustomer } from "./stripe-direct.js";
+import { accountAction, applicationFeeCents, createDirectPaymentIntent, ensureWalletDomain, fetchChargeFees, planRefund, refundStatusFor, resolveVenueCustomer } from "./stripe-direct.js";
 import { reconcileOrderQueue, syncQueueEntry } from "./order-queue.js";
 import { DEMO_SEED_MODES, DEMO_SEED_SELLER_ID, generateDemoOrders } from "./demo-seed.js";
 import Stripe from 'stripe';
@@ -986,6 +986,89 @@ export const clearDemoOrders = onCall({ region: 'us-central1', timeoutSeconds: 3
 });
 
 /**
+ * refundOrder
+ * The venue admin (or the Koop admin / Koop team) refunds a card order from Koop, in full or in part. The refund is made
+ * on the venue's own Stripe account, so it comes out of the venue's Stripe balance, and Koop's fee is not refunded.
+ * Stripe's own figures decide how much is left to refund (so a refund made in the venue's Stripe Dashboard counts too),
+ * and the order is updated with the running total. A full refund of an order that is still in progress also cancels it.
+ */
+export const refundOrder = onCall({
+  secrets: ["STRIPE_SECRET_KEY"],
+  region: 'us-central1',
+  timeoutSeconds: 60,
+}, async (request) => {
+  try {
+    const orderId = typeof request.data?.orderId === 'string' ? request.data.orderId.trim() : '';
+    if (!orderId) throw new HttpsError('invalid-argument', 'Missing orderId.');
+    const note = typeof request.data?.note === 'string' ? request.data.note.trim().slice(0, 200) : '';
+    const requested = request.data?.amount === undefined || request.data?.amount === null ? null : Number(request.data.amount);
+
+    const orderRef = db.collection('orders').doc(orderId);
+    const orderSnap = await orderRef.get();
+    if (!orderSnap.exists) throw new HttpsError('not-found', 'Order not found.');
+    const order = orderSnap.data() || {};
+    await assertVenueAuthorized(request, order.sellerId);
+
+    if (order.paymentMethod !== 'Digital Payment' || !order.stripePaymentIntentId) {
+      throw new HttpsError('failed-precondition', 'Only orders paid by card can be refunded here.');
+    }
+    const apiKey = process.env.STRIPE_SECRET_KEY;
+    if (!apiKey) throw new HttpsError('failed-precondition', 'Gateway not configured.');
+    const stripe = new Stripe(apiKey, { apiVersion: '2025-01-27.acacia' as any });
+
+    const sellerSnap = await db.collection('sellers').doc(order.sellerId).get();
+    const accountId: string | undefined = sellerSnap.data()?.stripeAccountId;
+    if (!accountId) throw new HttpsError('failed-precondition', "This venue's Stripe account is not connected.");
+    const opts = { stripeAccount: accountId };
+
+    const pi = await stripe.paymentIntents.retrieve(order.stripePaymentIntentId, { expand: ['latest_charge'] }, opts);
+    const charge = pi.latest_charge && typeof pi.latest_charge === 'object' ? pi.latest_charge : null;
+    if (!charge || !charge.paid) throw new HttpsError('failed-precondition', 'This payment did not go through, so there is nothing to refund.');
+
+    const plan = planRefund(charge.amount, charge.amount_refunded || 0, requested);
+    if (!plan.ok) throw new HttpsError('failed-precondition', plan.message);
+
+    let refund: Stripe.Refund;
+    try {
+      refund = await stripe.refunds.create({
+        charge: charge.id,
+        amount: plan.amountCents,
+        reason: 'requested_by_customer',
+        refund_application_fee: false, // Koop keeps its fee
+        metadata: { orderId, refundedBy: request.auth?.token.email || request.auth?.uid || '', note },
+      }, { ...opts, idempotencyKey: `koop-refund-${orderId}-${charge.amount_refunded || 0}-${plan.amountCents}` });
+    } catch (err: any) {
+      // Stripe's reason (for example the venue's balance cannot cover it) is worth showing as it is.
+      if (err?.type === 'StripeInvalidRequestError' || err?.type === 'StripeCardError') throw new HttpsError('failed-precondition', err.message);
+      throw err;
+    }
+
+    const totalRefundedCents = (charge.amount_refunded || 0) + plan.amountCents;
+    const status = refundStatusFor(totalRefundedCents, charge.amount);
+    const inProgress = ['Placed', 'Preparing', 'Out for Delivery'].includes(order.status);
+    await orderRef.set({
+      refundedAmount: totalRefundedCents / 100,
+      ...(status ? { refundStatus: status } : {}),
+      refunds: FieldValue.arrayUnion({
+        id: refund.id,
+        amount: plan.amountCents / 100,
+        at: Timestamp.now(),
+        by: request.auth?.token.email || request.auth?.uid || '',
+        note,
+      }),
+      ...(plan.fullRefund && inProgress ? { status: 'Cancelled', notes: 'Refunded in full by the venue.' } : {}),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+    return { refundId: refund.id, refundedAmount: totalRefundedCents / 100, remaining: (charge.amount - totalRefundedCents) / 100, status };
+  } catch (err: any) {
+    logger.error("refundOrder Error", err);
+    if (err instanceof HttpsError) throw err;
+    throw new HttpsError('internal', err.message || 'Could not refund the order.');
+  }
+});
+
+/**
  * dailyOperationalReset
  */
 export const dailyOperationalReset = onSchedule({ 
@@ -1149,6 +1232,21 @@ export const handleStripeWebhook = onRequest({
           }
         } catch (err: any) {
           logger.warn(`[handleStripeWebhook] could not record fees for ${pi.id}: ${err?.message || err}`);
+        }
+      }
+    } else if (event.type === 'charge.refunded') {
+      // A refund made anywhere (from Koop, or in the venue's own Stripe Dashboard): keep the order's refund totals right.
+      const charge = event.data.object as Stripe.Charge;
+      const piId = typeof charge.payment_intent === 'string' ? charge.payment_intent : charge.payment_intent?.id;
+      if (piId) {
+        const orderRef = db.collection('orders').doc(piId);
+        if ((await orderRef.get()).exists) {
+          const status = refundStatusFor(charge.amount_refunded || 0, charge.amount || 0);
+          await orderRef.set({
+            refundedAmount: (charge.amount_refunded || 0) / 100,
+            ...(status ? { refundStatus: status } : {}),
+            updatedAt: FieldValue.serverTimestamp(),
+          }, { merge: true });
         }
       }
     } else if (event.type === 'account.updated') {
