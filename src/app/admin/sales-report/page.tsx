@@ -54,7 +54,7 @@ export default function KoopSalesReportPage() {
       (orders || []).map(o => ({
         sellerId: o.sellerId,
         status: o.status,
-        total: o.total,
+        total: (o.total || 0) - (o.refundedAmount || 0), // gross sales after any refund (Koop's fee is not refunded)
         serviceFee: o.serviceFee,
         createdAtMs: o.createdAt ? o.createdAt.toMillis() : 0,
       })),

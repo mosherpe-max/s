@@ -33,7 +33,8 @@ export function TipsReport({ orders, menuTypes, courseName }: { orders: Order[] 
       date: format(o.createdAt.toDate(), 'yyyy-MM-dd'),
       menuType: o.menuType,
       paymentMethod: o.paymentMethod || '',
-      tip: o.tip || 0,
+      // A refunded order returns its tip in the same proportion as the rest of the order.
+      tip: (o.tip || 0) * (o.total > 0 ? 1 - Math.min(1, (o.refundedAmount || 0) / o.total) : 1),
       status: o.status,
       staffId: o.assignedStaffId,
       staffName: o.assignedStaffName,

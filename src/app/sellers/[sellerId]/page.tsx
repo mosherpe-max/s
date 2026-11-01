@@ -138,6 +138,7 @@ import { ModifierManagement } from '@/components/modifier-management';
 import { StarterItemPicker } from '@/components/starter-item-picker';
 import { MenuCsvImport } from '@/components/menu-csv-import';
 import { TipsReport } from '@/components/tips-report';
+import { RefundOrder } from '@/components/refund-order-dialog';
 import { ActiveOrdersPanel } from '@/components/active-orders-panel';
 import { ModeStatusSwitches } from '@/components/mode-status-switches';
 import { ImageUploadDropzone } from '@/components/image-upload-dropzone';
@@ -650,7 +651,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   // solutionFeeFixed (or an order edited after the fact) can never
   // silently rewrite a day the venue already logged in their own books.
   const dailySalesReport = useMemo(() => {
-    if (!orders || !seller) return { rows: [] as Array<{ date: string; menuType: string; netPayout: number; cardFees: number; feesEstimated: boolean; tax: number; tip: number; orderCount: number; isLocked: boolean; isToday: boolean }>, pendingLocks: [] as Omit<DailySalesLock, 'lockedAt'>[] };
+    if (!orders || !seller) return { rows: [] as Array<{ date: string; menuType: string; netPayout: number; cardFees: number; feesEstimated: boolean; refunds: number; tax: number; tip: number; orderCount: number; isLocked: boolean; isToday: boolean }>, pendingLocks: [] as Omit<DailySalesLock, 'lockedAt'>[] };
     const modes = (seller.menuTypes || []).filter(m => AUTHORIZED_SERVICE_MODES.includes(m));
     const delivered = orders.filter(o => o.status === 'Delivered' && o.createdAt);
     const todayKey = format(new Date(), 'yyyy-MM-dd');
@@ -677,9 +678,11 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       const [dateKey, menuType] = key.split('__');
       const isCurrentDay = dateKey === todayKey;
       const lock = lockByKey.get(key);
+      // Refunds are counted live, even on a locked day: one can come after the day was frozen.
+      const refunds = dayOrders.reduce((sum, o) => sum + moneyFor(o).refunded, 0);
 
       if (lock) {
-        return { date: dateKey, menuType, netPayout: lock.netPayout, cardFees: lock.cardFees ?? 0, feesEstimated: false, tax: lock.tax, tip: lock.tip, orderCount: lock.orderCount, isLocked: true, isToday: false };
+        return { date: dateKey, menuType, netPayout: lock.netPayout, cardFees: lock.cardFees ?? 0, feesEstimated: false, refunds, tax: lock.tax, tip: lock.tip, orderCount: lock.orderCount, isLocked: true, isToday: false };
       }
 
       const moneys = dayOrders.map(moneyFor);
@@ -694,7 +697,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       if (!isCurrentDay && dayOrders.length > 0) {
         pendingLocks.push({ sellerId, date: dateKey, menuType, netPayout, cardFees, tax, tip, orderCount: dayOrders.length });
       }
-      return { date: dateKey, menuType, netPayout, cardFees, feesEstimated, tax, tip, orderCount: dayOrders.length, isLocked: false, isToday: isCurrentDay };
+      return { date: dateKey, menuType, netPayout, cardFees, feesEstimated, refunds, tax, tip, orderCount: dayOrders.length, isLocked: false, isToday: isCurrentDay };
     });
 
     rows.sort((a, b) => (a.date !== b.date ? b.date.localeCompare(a.date) : AUTHORIZED_SERVICE_MODES.indexOf(a.menuType) - AUTHORIZED_SERVICE_MODES.indexOf(b.menuType)));
@@ -753,13 +756,14 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
           paymentMethod: o.paymentMethod || '',
           stripePaymentIntentId: o.stripePaymentIntentId || '',
           subtotal: o.subtotal || 0,
-          tax: o.tax || 0,
-          tip: o.tip || 0,
+          tax: money.afterRefund.tax,
+          tip: money.afterRefund.tip,
           convenienceFee: o.serviceFee || 0,
-          netPayout: money.netPayout,
+          netPayout: money.afterRefund.netPayout,
           cardFee: money.cardFee,
           cardFeeEstimated: money.cardFeeEstimated,
-          deposit: money.deposit,
+          deposit: money.afterRefund.deposit,
+          refunded: money.refunded,
           totalCollected: o.total || 0,
         };
       });
@@ -1386,7 +1390,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
               {activeNav === 'orders' && (
                 <div className="space-y-6 animate-in fade-in duration-500">
                   <div className="flex flex-wrap items-center justify-between gap-3"><div className="text-left"><h2 className="text-xl font-black uppercase text-[#213147]">Fulfillment Log</h2><p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">{fulfillmentLogOrders.length} order{fulfillmentLogOrders.length === 1 ? '' : 's'}</p></div><div className="flex flex-wrap items-center gap-3"><div className="flex gap-1 bg-slate-100 p-1 rounded-xl">{LOG_RANGES.map(r => (<Button key={r.id} type="button" variant={logRange === r.id ? 'default' : 'ghost'} size="sm" onClick={() => setLogRange(r.id)} className={cn("h-8 px-3 text-[9px] font-black uppercase tracking-widest rounded-lg", logRange === r.id ? "bg-[#213147] text-white" : "text-slate-500")}>{r.label}</Button>))}</div><div className="relative w-64"><Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" /><Input placeholder="Search ticket or name..." value={orderSearchTerm} onChange={(e) => setOrderSearchTerm(e.target.value)} className="pl-10 h-10 border-2 rounded-xl" /></div></div></div>
-                  <Card className="border-2 rounded-[2rem] overflow-hidden shadow-sm bg-white"><Table><TableHeader className="bg-slate-50"><TableRow><TableHead className="px-8 py-5 text-[10px] font-black uppercase tracking-widest">Ticket</TableHead><TableHead className="text-[10px] font-black uppercase tracking-widest">Customer</TableHead><TableHead className="text-[10px] font-black uppercase tracking-widest">Mode</TableHead><TableHead className="text-[10px] font-black uppercase tracking-widest">Status</TableHead><TableHead className="text-[10px] font-black uppercase tracking-widest text-right px-8">Net Total</TableHead></TableRow></TableHeader><TableBody>{fulfillmentLogOrders.length === 0 ? (<TableRow><TableCell colSpan={5} className="py-16 text-center text-[10px] font-black uppercase text-muted-foreground">No orders for this selection</TableCell></TableRow>) : fulfillmentLogOrders.map(o => (<TableRow key={o.id} className="group hover:bg-slate-50/50 transition-colors"><TableCell className="px-8 font-mono font-black text-primary text-xs">#{getNumericOrderId(o.id)}</TableCell><TableCell><div className="flex flex-col text-left"><span className="font-bold text-sm uppercase">{o.customerName}</span><span className="text-[9px] uppercase text-muted-foreground">{o.createdAt ? format(o.createdAt.toDate(), 'MMM d, h:mm a') : ''}</span></div></TableCell><TableCell><Badge variant="outline" className="text-[8px] font-black uppercase bg-slate-100 border-slate-200">{o.menuType}</Badge></TableCell><TableCell><Badge className={cn("text-[8px] font-black uppercase border-0", o.status === 'Delivered' ? "bg-green-500" : o.status === 'Cancelled' ? "bg-red-500" : "bg-primary animate-pulse")}>{o.status}</Badge></TableCell><TableCell className="text-right px-8 font-mono font-black text-sm">${(o.total - (o.serviceFee || 0)).toFixed(2)}</TableCell></TableRow>))}</TableBody></Table></Card>
+                  <Card className="border-2 rounded-[2rem] overflow-hidden shadow-sm bg-white"><Table><TableHeader className="bg-slate-50"><TableRow><TableHead className="px-8 py-5 text-[10px] font-black uppercase tracking-widest">Ticket</TableHead><TableHead className="text-[10px] font-black uppercase tracking-widest">Customer</TableHead><TableHead className="text-[10px] font-black uppercase tracking-widest">Mode</TableHead><TableHead className="text-[10px] font-black uppercase tracking-widest">Status</TableHead><TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Net Total</TableHead><TableHead className="text-[10px] font-black uppercase tracking-widest text-right px-8">Refund</TableHead></TableRow></TableHeader><TableBody>{fulfillmentLogOrders.length === 0 ? (<TableRow><TableCell colSpan={6} className="py-16 text-center text-[10px] font-black uppercase text-muted-foreground">No orders for this selection</TableCell></TableRow>) : fulfillmentLogOrders.map(o => (<TableRow key={o.id} className="group hover:bg-slate-50/50 transition-colors"><TableCell className="px-8 font-mono font-black text-primary text-xs">#{getNumericOrderId(o.id)}</TableCell><TableCell><div className="flex flex-col text-left"><span className="font-bold text-sm uppercase">{o.customerName}</span><span className="text-[9px] uppercase text-muted-foreground">{o.createdAt ? format(o.createdAt.toDate(), 'MMM d, h:mm a') : ''}</span></div></TableCell><TableCell><Badge variant="outline" className="text-[8px] font-black uppercase bg-slate-100 border-slate-200">{o.menuType}</Badge></TableCell><TableCell><Badge className={cn("text-[8px] font-black uppercase border-0", o.status === 'Delivered' ? "bg-green-500" : o.status === 'Cancelled' ? "bg-red-500" : "bg-primary animate-pulse")}>{o.status}</Badge></TableCell><TableCell className="text-right font-mono font-black text-sm">${(o.total - (o.serviceFee || 0)).toFixed(2)}</TableCell><TableCell className="text-right px-8"><RefundOrder order={o} /></TableCell></TableRow>))}</TableBody></Table></Card>
                 </div>
               )}
 
@@ -1458,13 +1462,14 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                           <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Card Fees</TableHead>
                           <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Tax</TableHead>
                           <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Tips</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Refunds</TableHead>
                           <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Orders</TableHead>
                           <TableHead className="text-[10px] font-black uppercase tracking-widest text-right px-8">Status</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {salesReportView.rows.length === 0 ? (
-                          <TableRow><TableCell colSpan={8} className="py-16 text-center text-[10px] font-black uppercase text-muted-foreground">No completed orders for this selection</TableCell></TableRow>
+                          <TableRow><TableCell colSpan={9} className="py-16 text-center text-[10px] font-black uppercase text-muted-foreground">No completed orders for this selection</TableCell></TableRow>
                         ) : salesReportView.rows.map(row => (
                           <TableRow key={`${row.date}__${row.menuType}`} className="group hover:bg-slate-50/50 transition-colors">
                             <TableCell className="px-8 font-bold text-sm">{format(new Date(`${row.date}T00:00:00`), 'MMM d, yyyy')}</TableCell>
@@ -1473,6 +1478,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                             <TableCell className="text-right font-mono font-bold text-sm text-muted-foreground">{row.feesEstimated ? '~' : ''}${row.cardFees.toFixed(2)}</TableCell>
                             <TableCell className="text-right font-mono font-bold text-sm text-muted-foreground">${row.tax.toFixed(2)}</TableCell>
                             <TableCell className="text-right font-mono font-bold text-sm text-muted-foreground">${row.tip.toFixed(2)}</TableCell>
+                            <TableCell className={cn("text-right font-mono font-bold text-sm", row.refunds > 0 ? "text-red-600" : "text-muted-foreground")}>{row.refunds > 0 ? `-$${row.refunds.toFixed(2)}` : '-'}</TableCell>
                             <TableCell className="text-right font-bold text-sm text-muted-foreground">{row.orderCount}</TableCell>
                             <TableCell className="text-right px-8">
                               {row.isToday ? (
@@ -1493,6 +1499,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                             <TableCell className="text-right font-mono font-black text-sm text-[#213147]">${salesReportView.totals.cardFees.toFixed(2)}</TableCell>
                             <TableCell className="text-right font-mono font-black text-sm text-[#213147]">${salesReportView.totals.tax.toFixed(2)}</TableCell>
                             <TableCell className="text-right font-mono font-black text-sm text-[#213147]">${salesReportView.totals.tip.toFixed(2)}</TableCell>
+                            <TableCell className="text-right font-mono font-black text-sm text-[#213147]">{salesReportView.totals.refunds > 0 ? `-$${salesReportView.totals.refunds.toFixed(2)}` : '-'}</TableCell>
                             <TableCell className="text-right font-black text-sm text-[#213147]">{salesReportView.totals.orderCount}</TableCell>
                             <TableCell className="px-8" />
                           </TableRow>
@@ -1525,7 +1532,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                             <TableCell className="px-6 font-mono font-black text-primary text-xs">#{row.orderNumber}</TableCell>
                             <TableCell className="text-sm font-bold whitespace-nowrap">{format(new Date(`${row.date}T00:00:00`), 'MMM d, yyyy')} <span className="text-[10px] text-muted-foreground">{row.time}</span></TableCell>
                             <TableCell><Badge variant="outline" className="text-[8px] font-black uppercase bg-slate-100 border-slate-200">{row.menuType}</Badge></TableCell>
-                            <TableCell className="text-[10px] font-black uppercase text-muted-foreground whitespace-nowrap">{paymentLabel(row.paymentMethod)}</TableCell>
+                            <TableCell className="text-[10px] font-black uppercase text-muted-foreground whitespace-nowrap">{paymentLabel(row.paymentMethod)}{row.refunded > 0 && <span className="block text-[9px] text-red-600">Refunded ${row.refunded.toFixed(2)}</span>}</TableCell>
                             <TableCell className="text-right font-mono font-black text-sm">${row.netPayout.toFixed(2)}</TableCell>
                             <TableCell className="text-right font-mono font-bold text-sm text-muted-foreground">{row.deposit === null ? '-' : `${row.cardFeeEstimated ? '~' : ''}$${row.cardFee.toFixed(2)}`}</TableCell>
                             <TableCell className="text-right font-mono font-bold text-sm text-muted-foreground">${row.tax.toFixed(2)}</TableCell>

@@ -362,6 +362,9 @@ export interface Order {
   stripePaymentIntentId?: string; // The card payment's Stripe reference, for matching deposits
   stripeFee?: number; // What Stripe charged the venue to process this card payment (dollars), recorded when the payment completes
   koopFee?: number;   // Koop's application fee on this card payment (dollars), recorded the same way
+  refundedAmount?: number; // Total refunded to the patron so far (dollars). Stripe and the venue keep their fees; Koop's fee is not refunded.
+  refundStatus?: 'Refunded' | 'Partially Refunded';
+  refunds?: { id: string; amount: number; at: Timestamp; by: string; note?: string }[];
   // Set once the "running late" staff push fires, so the scheduled check
   // never re-sends it on every pass for the same order.
   lateAlertSentAt?: Timestamp;
