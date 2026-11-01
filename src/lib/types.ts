@@ -69,7 +69,7 @@ export interface Venue {
   ownerUid: string;
   stripeAccountId?: string;
   stripeConnectId?: string;
-  solutionFeeFixed?: number; // Cents of the Stripe processing fee Koop covers per transaction; the rest is charged to the venue's Stripe balance via on_behalf_of
+  solutionFeeFixed?: number; // Cents Koop gives up from its convenience fee on each card order, so the venue keeps them toward Stripe's processing fee (Koop's application fee = convenience fee - this); Stripe charges the venue's own account the rest of its fee (direct charges)
   solutionFeePercent?: number;
   patronConvenienceFee?: number; // Master fee in cents
   serviceFees?: Record<string, number>; // Individual overrides in cents
@@ -82,6 +82,9 @@ export interface Venue {
   stripePastDue?: number;           // of those, how many are overdue
   stripeDisabledReason?: string | null;
   stripeStatusUpdatedAt?: Timestamp;
+  applePayStatus?: string | null;   // Whether Apple Pay is active for this venue's Stripe account (registered by the server)
+  googlePayStatus?: string | null;
+  walletsCheckedAt?: Timestamp;
   monthlySolutionFee?: number;
   serviceStartDate?: Timestamp;
   isFoundingPartner?: boolean;

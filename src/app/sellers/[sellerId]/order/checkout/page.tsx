@@ -21,11 +21,11 @@ import { CheckoutActionPanel } from '@/components/checkout-action-panel';
 import { useGuidedScroll } from '@/lib/use-guided-scroll';
 import { checkoutProblems, problemSummary } from '@/lib/checkout-validation';
 import { Loader2, ChevronLeft, CreditCard, Banknote, UserCircle, Check, ShoppingBag, Lock, ArrowLeft, AlertTriangle } from 'lucide-react';
-import { loadStripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { cn } from '@/lib/utils';
 import { isCardReady } from '@/lib/stripe-readiness';
+import { getStripeForAccount, stripeCustomerCacheKey } from '@/lib/stripe-client';
 import { usePatronLocationGate } from '@/components/patron-location-gate';
 import { PatronTermsAgreement } from '@/components/patron-terms-agreement';
 import { usePatronTerms } from '@/lib/patron-terms';
@@ -35,7 +35,6 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
 import Link from 'next/link';
 
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || 'pk_test_placeholder');
 
 const LOCATION_TRACKING_NOTE: Partial<Record<string, string>> = {
   'Beverage Cart': "Please allow location access — it helps our cart driver find you faster on the course.",
@@ -180,7 +179,7 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
     const cachedName = localStorage.getItem('koop_patron_name');
     const cachedEmail = localStorage.getItem('koop_patron_email');
     const cachedPhone = localStorage.getItem('koop_patron_phone');
-    const cachedCustomerId = localStorage.getItem('koop_stripe_customer_id');
+    const cachedCustomerId = localStorage.getItem(stripeCustomerCacheKey(sellerId));
 
     if (cachedName) setPatronName(cachedName);
     if (cachedEmail) setPatronEmail(cachedEmail);
@@ -196,7 +195,13 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
     if (cachedName && cachedEmail && cachedPhone) {
       setIsKnownPatron(true);
     }
-  }, []);
+  }, [sellerId]);
+
+  // The card payment is made on the venue's own Stripe account, so Stripe is loaded for that account.
+  const stripePromise = useMemo(
+    () => (seller?.stripeAccountId ? getStripeForAccount(seller.stripeAccountId) : null),
+    [seller?.stripeAccountId]
+  );
 
   useEffect(() => {
     if (
@@ -642,6 +647,7 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
                     patronName={patronName}
                     patronPhone={patronPhone}
                     stripeCustomerId={stripeCustomerId}
+                    sellerId={sellerId}
                     saveInfo={saveInfo}
                     setSaveInfo={setSaveInfo}
                     attemptCheck={attemptCheck}

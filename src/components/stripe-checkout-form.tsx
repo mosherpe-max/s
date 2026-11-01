@@ -65,9 +65,9 @@ export function StripeCheckoutForm({ onReadyStateChange, clientSecret }: StripeC
         setTimedOut(true);
       } else {
         setRetrieveStatus('ok');
-        // A destination charge (transfer_data.destination) resolves its
-        // available payment method types from BOTH the platform and the
-        // connected account's capabilities/country/currency. If that
+        // A direct charge is made on the venue's own Stripe account, so its
+        // available payment method types come from that account's
+        // capabilities, country and payment method settings. If that
         // resolves to nothing usable, the PaymentElement can have literally
         // nothing to render and never fires onReady - this is what would
         // show up here as an empty methods list.
