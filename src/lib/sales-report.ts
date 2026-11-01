@@ -23,6 +23,7 @@ export interface SalesReportTotals {
   orderCount: number;
   cardFees: number;
   refunds: number;
+  feesEstimated: boolean; // some of the card fees in these rows are estimates
 }
 
 export function filterSalesRows(rows: SalesReportRow[], mode: string, from: string, to: string): SalesReportRow[] {
@@ -46,7 +47,7 @@ export function totalSalesRows(rows: SalesReportRow[]): SalesReportTotals {
     }),
     { netPayout: 0, tax: 0, tip: 0, orderCount: 0, cardFees: 0, refunds: 0 }
   );
-  return { netPayout: cents.netPayout / 100, tax: cents.tax / 100, tip: cents.tip / 100, orderCount: cents.orderCount, cardFees: cents.cardFees / 100, refunds: cents.refunds / 100 };
+  return { netPayout: cents.netPayout / 100, tax: cents.tax / 100, tip: cents.tip / 100, orderCount: cents.orderCount, cardFees: cents.cardFees / 100, refunds: cents.refunds / 100, feesEstimated: rows.some(r => r.feesEstimated) };
 }
 
 const csvCell = (value: string | number) => `"${String(value).replace(/"/g, '""')}"`;
@@ -57,7 +58,7 @@ export function buildSalesReportCsv(rows: SalesReportRow[], totals: SalesReportT
   const lines: (string | number)[][] = [
     ['Date', 'Service Mode', 'Net Payout', 'Card Fees', 'Tax', 'Tips', 'Refunds', 'Orders', 'Status'],
     ...rows.map(r => [r.date, r.menuType, money(r.netPayout), `${r.feesEstimated ? '~' : ''}${money(r.cardFees)}`, money(r.tax), money(r.tip), r.refunds ? money(r.refunds) : '', r.orderCount, r.isToday ? 'Today (running)' : 'Locked']),
-    ['TOTAL', mode === 'All' ? 'All service modes' : mode, money(totals.netPayout), money(totals.cardFees), money(totals.tax), money(totals.tip), money(totals.refunds), totals.orderCount, ''],
+    ['TOTAL', mode === 'All' ? 'All service modes' : mode, money(totals.netPayout), `${totals.feesEstimated ? '~' : ''}${money(totals.cardFees)}`, money(totals.tax), money(totals.tip), money(totals.refunds), totals.orderCount, ''],
   ];
   return lines.map(line => line.map(csvCell).join(',')).join('\r\n');
 }
@@ -180,6 +181,7 @@ export interface SalesOrderTotals {
   refunded: number;
   totalCollected: number;
   orderCount: number;
+  cardFeeEstimated: boolean; // some of the card fees in these rows are estimates
 }
 
 export const paymentLabel = (method: string): string =>
@@ -211,6 +213,7 @@ export function totalSalesOrderRows(rows: SalesOrderRow[]): SalesOrderTotals {
     subtotal: sums.subtotal / 100, tax: sums.tax / 100, tip: sums.tip / 100,
     convenienceFee: sums.convenienceFee / 100, netPayout: sums.netPayout / 100,
     cardFee: sums.cardFee / 100, deposit: sums.deposit / 100, refunded: sums.refunded / 100,
+    cardFeeEstimated: rows.some(r => r.cardFeeEstimated),
     totalCollected: sums.totalCollected / 100, orderCount: rows.length,
   };
 }
@@ -224,7 +227,7 @@ export function buildOrderDetailCsv(rows: SalesOrderRow[], totals: SalesOrderTot
       r.cardFee === 0 && r.deposit === null ? '' : `${r.cardFeeEstimated ? '~' : ''}${money(r.cardFee)}`, money(r.netPayout), r.deposit === null ? '' : money(r.deposit), r.refunded ? money(r.refunded) : '', money(r.totalCollected),
     ]),
     [`TOTAL (${totals.orderCount} orders)`, '', '', mode === 'All' ? 'All service modes' : mode, '', '',
-      money(totals.subtotal), money(totals.tax), money(totals.tip), money(totals.convenienceFee), money(totals.cardFee), money(totals.netPayout), money(totals.deposit), money(totals.refunded), money(totals.totalCollected)],
+      money(totals.subtotal), money(totals.tax), money(totals.tip), money(totals.convenienceFee), `${totals.cardFeeEstimated ? '~' : ''}${money(totals.cardFee)}`, money(totals.netPayout), money(totals.deposit), money(totals.refunded), money(totals.totalCollected)],
   ];
   return lines.map(line => line.map(csvCell).join(',')).join('\r\n');
 }
