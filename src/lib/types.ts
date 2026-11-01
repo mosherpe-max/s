@@ -387,6 +387,7 @@ export interface DailySalesLock {
   tip: number;
   orderCount: number;
   cardFees?: number; // Stripe's processing fees on the day's card orders, already taken out of netPayout (absent on days locked before fees were tracked)
+  cardFeesEstimated?: boolean; // true when some of cardFees were estimates at the moment the day was locked
   lockedAt: Timestamp;
 }
 

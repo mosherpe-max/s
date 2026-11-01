@@ -682,7 +682,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       const refunds = dayOrders.reduce((sum, o) => sum + moneyFor(o).refunded, 0);
 
       if (lock) {
-        return { date: dateKey, menuType, netPayout: lock.netPayout, cardFees: lock.cardFees ?? 0, feesEstimated: false, refunds, tax: lock.tax, tip: lock.tip, orderCount: lock.orderCount, isLocked: true, isToday: false };
+        return { date: dateKey, menuType, netPayout: lock.netPayout, cardFees: lock.cardFees ?? 0, feesEstimated: !!lock.cardFeesEstimated, refunds, tax: lock.tax, tip: lock.tip, orderCount: lock.orderCount, isLocked: true, isToday: false };
       }
 
       const moneys = dayOrders.map(moneyFor);
@@ -695,7 +695,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       // A past day with real order data and no lock yet gets queued to be
       // frozen in Firestore - never today, which is still accruing orders.
       if (!isCurrentDay && dayOrders.length > 0) {
-        pendingLocks.push({ sellerId, date: dateKey, menuType, netPayout, cardFees, tax, tip, orderCount: dayOrders.length });
+        pendingLocks.push({ sellerId, date: dateKey, menuType, netPayout, cardFees, cardFeesEstimated: feesEstimated, tax, tip, orderCount: dayOrders.length });
       }
       return { date: dateKey, menuType, netPayout, cardFees, feesEstimated, refunds, tax, tip, orderCount: dayOrders.length, isLocked: false, isToday: isCurrentDay };
     });
@@ -1400,7 +1400,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
               {activeNav === 'sales-report' && (
                 <div className="space-y-6 animate-in fade-in duration-500">
-                  <div className="flex items-center gap-3"><div className="p-2 bg-primary/10 rounded-lg"><Receipt className="h-6 w-6 text-primary" /></div><div className="text-left"><h2 className="text-xl font-black uppercase text-[#213147]">Sales Report</h2><p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">One line per day per service mode &mdash; net of Koop's fees, for your own bookkeeping</p></div></div>
+                  <div className="flex items-center gap-3"><div className="p-2 bg-primary/10 rounded-lg"><Receipt className="h-6 w-6 text-primary" /></div><div className="text-left"><h2 className="text-xl font-black uppercase text-[#213147]">Sales Report</h2><p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">One line per day per service mode &mdash; net of card fees and Koop's fees, for your own bookkeeping</p></div></div>
                   <Card className="border-2 shadow-sm bg-white p-4">
                     <div className="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit mb-4">
                       {([['summary', 'Daily Summary'], ['orders', 'Order Detail']] as const).map(([id, label]) => (
@@ -1496,7 +1496,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                             <TableCell className="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-[#213147]">Total</TableCell>
                             <TableCell className="text-[9px] font-black uppercase text-muted-foreground">{salesMode === 'All' ? 'All modes' : salesMode}</TableCell>
                             <TableCell className="text-right font-mono font-black text-sm text-[#213147]">${salesReportView.totals.netPayout.toFixed(2)}</TableCell>
-                            <TableCell className="text-right font-mono font-black text-sm text-[#213147]">${salesReportView.totals.cardFees.toFixed(2)}</TableCell>
+                            <TableCell className="text-right font-mono font-black text-sm text-[#213147]">{salesReportView.totals.feesEstimated ? '~' : ''}${salesReportView.totals.cardFees.toFixed(2)}</TableCell>
                             <TableCell className="text-right font-mono font-black text-sm text-[#213147]">${salesReportView.totals.tax.toFixed(2)}</TableCell>
                             <TableCell className="text-right font-mono font-black text-sm text-[#213147]">${salesReportView.totals.tip.toFixed(2)}</TableCell>
                             <TableCell className="text-right font-mono font-black text-sm text-[#213147]">{salesReportView.totals.refunds > 0 ? `-$${salesReportView.totals.refunds.toFixed(2)}` : '-'}</TableCell>
@@ -1550,7 +1550,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                             <TableCell className="text-[9px] font-black uppercase text-muted-foreground">{salesMode === 'All' ? 'All modes' : salesMode}</TableCell>
                             <TableCell className="text-[9px] font-black uppercase text-muted-foreground">{salesPayment === 'All' ? 'All payments' : salesPayment}</TableCell>
                             <TableCell className="text-right font-mono font-black text-sm text-[#213147]">${salesOrderView.totals.netPayout.toFixed(2)}</TableCell>
-                            <TableCell className="text-right font-mono font-black text-sm text-[#213147]">${salesOrderView.totals.cardFee.toFixed(2)}</TableCell>
+                            <TableCell className="text-right font-mono font-black text-sm text-[#213147]">{salesOrderView.totals.cardFeeEstimated ? '~' : ''}${salesOrderView.totals.cardFee.toFixed(2)}</TableCell>
                             <TableCell className="text-right font-mono font-black text-sm text-[#213147]">${salesOrderView.totals.tax.toFixed(2)}</TableCell>
                             <TableCell className="text-right font-mono font-black text-sm text-[#213147]">${salesOrderView.totals.tip.toFixed(2)}</TableCell>
                             <TableCell className="text-right font-mono font-black text-sm text-[#213147]">${salesOrderView.totals.deposit.toFixed(2)}</TableCell>
@@ -1560,6 +1560,11 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                       )}
                     </Table>
                   </Card>
+                  )}
+                  {(salesView === 'summary' ? salesReportView.totals.feesEstimated : salesOrderView.totals.cardFeeEstimated) && (
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide text-left leading-relaxed">
+                      ~ Estimated card fee: Stripe&apos;s actual fee has not been recorded for some of these orders yet, so Koop estimates it from Stripe&apos;s standard rate. Orders paid from now on use Stripe&apos;s actual fee.
+                    </p>
                   )}
                 </div>
               )}
