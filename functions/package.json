@@ -12,7 +12,7 @@
     "test:webhook": "stripe listen --forward-to http://127.0.0.1:5001/studio-8903828989-977c5/us-central1/handleStripeWebhook"
   },
   "engines": {
-    "node": "20"
+    "node": "22"
   },
   "dependencies": {
     "firebase-admin": "^13.0.2",
