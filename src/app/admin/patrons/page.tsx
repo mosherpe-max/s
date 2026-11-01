@@ -85,7 +85,7 @@ export default function KoopPatronsPage() {
         customerPhone: o.customerPhone,
         customerEmail: o.customerEmail,
         status: o.status,
-        total: o.total,
+        total: (o.total || 0) - (o.refundedAmount || 0), // what the patron actually paid, after any refund
         serviceFee: o.serviceFee,
         createdAtMs: o.createdAt ? o.createdAt.toMillis() : 0,
       })),

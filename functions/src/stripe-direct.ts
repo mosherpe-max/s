@@ -110,3 +110,26 @@ export async function fetchChargeFees(
   }
   return null;
 }
+
+// ---------------------------------------------------------------------------------------------
+// Refunds. The venue refunds an order from Koop; the refund is made on the venue's own Stripe account (it comes out
+// of the venue's balance) and Koop's application fee is not returned. Stripe's figures are the truth for how much
+// has been refunded, so a refund made in the venue's own Stripe Dashboard is counted too.
+// ---------------------------------------------------------------------------------------------
+
+export type RefundPlan = { ok: true; amountCents: number; fullRefund: boolean } | { ok: false; message: string };
+
+// How much to refund: the amount asked for in dollars, or everything still refundable when none is given.
+export function planRefund(chargeAmountCents: number, alreadyRefundedCents: number, requestedDollars?: number | null): RefundPlan {
+  const remaining = Math.max(0, chargeAmountCents - alreadyRefundedCents);
+  if (remaining <= 0) return { ok: false, message: 'This order has already been refunded in full.' };
+  if (requestedDollars === undefined || requestedDollars === null) return { ok: true, amountCents: remaining, fullRefund: true };
+  if (typeof requestedDollars !== 'number' || !Number.isFinite(requestedDollars)) return { ok: false, message: 'Enter a refund amount.' };
+  const cents = Math.round(requestedDollars * 100);
+  if (cents < 1) return { ok: false, message: 'The refund must be at least one cent.' };
+  if (cents > remaining) return { ok: false, message: `The most that can still be refunded is $${(remaining / 100).toFixed(2)}.` };
+  return { ok: true, amountCents: cents, fullRefund: cents === remaining };
+}
+
+export const refundStatusFor = (totalRefundedCents: number, chargeAmountCents: number): 'Refunded' | 'Partially Refunded' | null =>
+  totalRefundedCents <= 0 ? null : totalRefundedCents >= chargeAmountCents ? 'Refunded' : 'Partially Refunded';

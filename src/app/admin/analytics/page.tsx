@@ -179,7 +179,7 @@ export default function KoopAnalyticsPage() {
 
   const sales = useMemo(() => buildSalesAnalytics(
     (orders || []).map(o => ({
-      sellerId: o.sellerId, status: o.status, total: o.total, serviceFee: o.serviceFee, notes: o.notes,
+      sellerId: o.sellerId, status: o.status, total: (o.total || 0) - (o.refundedAmount || 0), serviceFee: o.serviceFee, notes: o.notes,
       createdAtMs: o.createdAt ? o.createdAt.toMillis() : 0,
     })),
     venues, dateKey, from, to, includeDemo, todayKey(),
