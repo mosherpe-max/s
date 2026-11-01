@@ -83,3 +83,30 @@ export async function ensureWalletDomain(stripe: Stripe, accountId: string, doma
   }
   return { domain: domainName, applePay: pmd.apple_pay?.status ?? null, googlePay: pmd.google_pay?.status ?? null };
 }
+
+export interface ChargeFees { stripeFeeCents: number; koopFeeCents: number }
+
+// What Stripe actually charged the venue for a charge (its processing fee) and what went to Koop (the application
+// fee), read from the charge's balance transaction on the venue's account. The balance transaction can take a
+// moment to appear after the payment succeeds, so look again a few times; null means it was not there in time.
+export async function fetchChargeFees(
+  stripe: Stripe,
+  accountId: string,
+  chargeId: string,
+  options: { attempts?: number; waitMs?: number; sleep?: (ms: number) => Promise<void> } = {},
+): Promise<ChargeFees | null> {
+  const attempts = options.attempts ?? 4;
+  const waitMs = options.waitMs ?? 1500;
+  const sleep = options.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+  for (let i = 0; i < attempts; i++) {
+    const charge = await stripe.charges.retrieve(chargeId, { expand: ['balance_transaction'] }, { stripeAccount: accountId });
+    const bt = charge.balance_transaction;
+    if (bt && typeof bt === 'object') {
+      const details = bt.fee_details || [];
+      const sum = (type: string) => details.filter((d) => d.type === type).reduce((s, d) => s + d.amount, 0);
+      return { stripeFeeCents: sum('stripe_fee'), koopFeeCents: sum('application_fee') };
+    }
+    if (i < attempts - 1) await sleep(waitMs);
+  }
+  return null;
+}
