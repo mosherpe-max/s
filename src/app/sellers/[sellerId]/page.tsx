@@ -145,7 +145,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { categories } from '@/lib/types';
 import type { MenuItem, Seller, Order, StaffMember, SolutionConfig, Venue, ModifierGroup, DailySalesLock } from '@/lib/types';
 import {
-  buildOrderDetailCsv, buildSalesReportCsv, filterSalesOrderRows, filterSalesRows, paymentLabel, totalSalesOrderRows, totalSalesRows,
+  buildOrderDetailCsv, buildSalesReportCsv, filterSalesOrderRows, filterSalesRows, orderMoney, paymentLabel, totalSalesOrderRows, totalSalesRows,
   type SalesOrderRow, type SalesPaymentFilter,
 } from '@/lib/sales-report';
 import { REPORT_PRESETS, reportRange, type ReportPreset } from '@/lib/report-ranges';
@@ -633,19 +633,14 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   ), [firestore, sellerId]);
   const { data: dailySalesLocks } = useCollection<DailySalesLock>(dailySalesLocksQuery);
 
-  // The venue's own take on an order - Koop's cut is never counted here.
-  // Digital Payment orders back Koop's cut out of the recorded service fee
-  // using the venue's CURRENT solutionFeeFixed setting, mirroring exactly
-  // what createPaymentIntent (functions/src/index.ts) withholds via Stripe's
-  // application_fee_amount. Pay at Delivery never went through Stripe at
-  // all, so no Koop cut was ever taken on it.
-  const computeOrderNetPayout = (order: Order) => {
-    const serviceFee = order.serviceFee || 0;
-    if (order.paymentMethod !== 'Digital Payment') return (order.subtotal || 0) + serviceFee;
-    const solutionFeeFixedDollars = (venue?.solutionFeeFixed || 0) / 100;
-    const koopFee = Math.max(0, serviceFee - solutionFeeFixedDollars);
-    return (order.subtotal || 0) + serviceFee - koopFee;
+  // What an order is worth to the venue (see orderMoney in lib/sales-report.ts): Koop's cut and, for card orders,
+  // Stripe's processing fee are both taken out. The fee Stripe actually charged is on the order once the payment
+  // has completed; an order without it uses Koop's estimate of Stripe's rate.
+  const cardFeeEstimate = {
+    percent: solutionConfig?.stripeFeePercent ?? 2.9,
+    fixedCents: solutionConfig?.stripeFeeFixed ?? 30,
   };
+  const moneyFor = (order: Order) => orderMoney(order, (venue?.solutionFeeFixed || 0) / 100, cardFeeEstimate);
 
   // One row per (day, service mode) for the venue's own bookkeeping - net
   // payout (Koop's cut excluded), tax, and tip broken out separately.
@@ -655,7 +650,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   // solutionFeeFixed (or an order edited after the fact) can never
   // silently rewrite a day the venue already logged in their own books.
   const dailySalesReport = useMemo(() => {
-    if (!orders || !seller) return { rows: [] as Array<{ date: string; menuType: string; netPayout: number; tax: number; tip: number; orderCount: number; isLocked: boolean; isToday: boolean }>, pendingLocks: [] as Omit<DailySalesLock, 'lockedAt'>[] };
+    if (!orders || !seller) return { rows: [] as Array<{ date: string; menuType: string; netPayout: number; cardFees: number; feesEstimated: boolean; tax: number; tip: number; orderCount: number; isLocked: boolean; isToday: boolean }>, pendingLocks: [] as Omit<DailySalesLock, 'lockedAt'>[] };
     const modes = (seller.menuTypes || []).filter(m => AUTHORIZED_SERVICE_MODES.includes(m));
     const delivered = orders.filter(o => o.status === 'Delivered' && o.createdAt);
     const todayKey = format(new Date(), 'yyyy-MM-dd');
@@ -684,25 +679,28 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       const lock = lockByKey.get(key);
 
       if (lock) {
-        return { date: dateKey, menuType, netPayout: lock.netPayout, tax: lock.tax, tip: lock.tip, orderCount: lock.orderCount, isLocked: true, isToday: false };
+        return { date: dateKey, menuType, netPayout: lock.netPayout, cardFees: lock.cardFees ?? 0, feesEstimated: false, tax: lock.tax, tip: lock.tip, orderCount: lock.orderCount, isLocked: true, isToday: false };
       }
 
-      const netPayout = dayOrders.reduce((sum, o) => sum + computeOrderNetPayout(o), 0);
+      const moneys = dayOrders.map(moneyFor);
+      const netPayout = moneys.reduce((sum, m) => sum + m.netPayout, 0);
+      const cardFees = moneys.reduce((sum, m) => sum + m.cardFee, 0);
+      const feesEstimated = moneys.some(m => m.cardFeeEstimated);
       const tax = dayOrders.reduce((sum, o) => sum + (o.tax || 0), 0);
       const tip = dayOrders.reduce((sum, o) => sum + (o.tip || 0), 0);
 
       // A past day with real order data and no lock yet gets queued to be
       // frozen in Firestore - never today, which is still accruing orders.
       if (!isCurrentDay && dayOrders.length > 0) {
-        pendingLocks.push({ sellerId, date: dateKey, menuType, netPayout, tax, tip, orderCount: dayOrders.length });
+        pendingLocks.push({ sellerId, date: dateKey, menuType, netPayout, cardFees, tax, tip, orderCount: dayOrders.length });
       }
-      return { date: dateKey, menuType, netPayout, tax, tip, orderCount: dayOrders.length, isLocked: false, isToday: isCurrentDay };
+      return { date: dateKey, menuType, netPayout, cardFees, feesEstimated, tax, tip, orderCount: dayOrders.length, isLocked: false, isToday: isCurrentDay };
     });
 
     rows.sort((a, b) => (a.date !== b.date ? b.date.localeCompare(a.date) : AUTHORIZED_SERVICE_MODES.indexOf(a.menuType) - AUTHORIZED_SERVICE_MODES.indexOf(b.menuType)));
 
     return { rows, pendingLocks };
-  }, [orders, seller, venue, dailySalesLocks, sellerId]);
+  }, [orders, seller, venue, solutionConfig, dailySalesLocks, sellerId]);
 
   // Writes each newly-computed past day's lock exactly once - only days
   // missing from dailySalesLocks are ever queued above. If two sessions
@@ -745,6 +743,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       .sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis())
       .map(o => {
         const placed = o.createdAt.toDate();
+        const money = moneyFor(o);
         return {
           orderNumber: getNumericOrderId(o.id),
           orderId: o.id,
@@ -757,11 +756,14 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
           tax: o.tax || 0,
           tip: o.tip || 0,
           convenienceFee: o.serviceFee || 0,
-          netPayout: computeOrderNetPayout(o),
+          netPayout: money.netPayout,
+          cardFee: money.cardFee,
+          cardFeeEstimated: money.cardFeeEstimated,
+          deposit: money.deposit,
           totalCollected: o.total || 0,
         };
       });
-  }, [orders, venue]);
+  }, [orders, venue, solutionConfig]);
 
   const salesOrderView = useMemo(() => {
     const rows = filterSalesOrderRows(salesOrderRows, salesMode, salesFrom, salesTo, salesPayment);
@@ -1453,6 +1455,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                           <TableHead className="px-8 py-5 text-[10px] font-black uppercase tracking-widest">Date</TableHead>
                           <TableHead className="text-[10px] font-black uppercase tracking-widest">Service Mode</TableHead>
                           <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Net Payout</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Card Fees</TableHead>
                           <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Tax</TableHead>
                           <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Tips</TableHead>
                           <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Orders</TableHead>
@@ -1461,12 +1464,13 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                       </TableHeader>
                       <TableBody>
                         {salesReportView.rows.length === 0 ? (
-                          <TableRow><TableCell colSpan={7} className="py-16 text-center text-[10px] font-black uppercase text-muted-foreground">No completed orders for this selection</TableCell></TableRow>
+                          <TableRow><TableCell colSpan={8} className="py-16 text-center text-[10px] font-black uppercase text-muted-foreground">No completed orders for this selection</TableCell></TableRow>
                         ) : salesReportView.rows.map(row => (
                           <TableRow key={`${row.date}__${row.menuType}`} className="group hover:bg-slate-50/50 transition-colors">
                             <TableCell className="px-8 font-bold text-sm">{format(new Date(`${row.date}T00:00:00`), 'MMM d, yyyy')}</TableCell>
                             <TableCell><Badge variant="outline" className="text-[8px] font-black uppercase bg-slate-100 border-slate-200">{row.menuType}</Badge></TableCell>
                             <TableCell className="text-right font-mono font-black text-sm">${row.netPayout.toFixed(2)}</TableCell>
+                            <TableCell className="text-right font-mono font-bold text-sm text-muted-foreground">{row.feesEstimated ? '~' : ''}${row.cardFees.toFixed(2)}</TableCell>
                             <TableCell className="text-right font-mono font-bold text-sm text-muted-foreground">${row.tax.toFixed(2)}</TableCell>
                             <TableCell className="text-right font-mono font-bold text-sm text-muted-foreground">${row.tip.toFixed(2)}</TableCell>
                             <TableCell className="text-right font-bold text-sm text-muted-foreground">{row.orderCount}</TableCell>
@@ -1486,6 +1490,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                             <TableCell className="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-[#213147]">Total</TableCell>
                             <TableCell className="text-[9px] font-black uppercase text-muted-foreground">{salesMode === 'All' ? 'All modes' : salesMode}</TableCell>
                             <TableCell className="text-right font-mono font-black text-sm text-[#213147]">${salesReportView.totals.netPayout.toFixed(2)}</TableCell>
+                            <TableCell className="text-right font-mono font-black text-sm text-[#213147]">${salesReportView.totals.cardFees.toFixed(2)}</TableCell>
                             <TableCell className="text-right font-mono font-black text-sm text-[#213147]">${salesReportView.totals.tax.toFixed(2)}</TableCell>
                             <TableCell className="text-right font-mono font-black text-sm text-[#213147]">${salesReportView.totals.tip.toFixed(2)}</TableCell>
                             <TableCell className="text-right font-black text-sm text-[#213147]">{salesReportView.totals.orderCount}</TableCell>
@@ -1505,14 +1510,16 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                           <TableHead className="text-[10px] font-black uppercase tracking-widest">Service Mode</TableHead>
                           <TableHead className="text-[10px] font-black uppercase tracking-widest">Payment</TableHead>
                           <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Net Payout</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Card Fee</TableHead>
                           <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Tax</TableHead>
                           <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Tips</TableHead>
+                          <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Deposit</TableHead>
                           <TableHead className="text-[10px] font-black uppercase tracking-widest text-right px-6">Total Collected</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {salesOrderView.rows.length === 0 ? (
-                          <TableRow><TableCell colSpan={8} className="py-16 text-center text-[10px] font-black uppercase text-muted-foreground">No completed orders for this selection</TableCell></TableRow>
+                          <TableRow><TableCell colSpan={10} className="py-16 text-center text-[10px] font-black uppercase text-muted-foreground">No completed orders for this selection</TableCell></TableRow>
                         ) : salesOrderView.rows.map(row => (
                           <TableRow key={row.orderId} className="group hover:bg-slate-50/50 transition-colors">
                             <TableCell className="px-6 font-mono font-black text-primary text-xs">#{row.orderNumber}</TableCell>
@@ -1520,8 +1527,10 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                             <TableCell><Badge variant="outline" className="text-[8px] font-black uppercase bg-slate-100 border-slate-200">{row.menuType}</Badge></TableCell>
                             <TableCell className="text-[10px] font-black uppercase text-muted-foreground whitespace-nowrap">{paymentLabel(row.paymentMethod)}</TableCell>
                             <TableCell className="text-right font-mono font-black text-sm">${row.netPayout.toFixed(2)}</TableCell>
+                            <TableCell className="text-right font-mono font-bold text-sm text-muted-foreground">{row.deposit === null ? '-' : `${row.cardFeeEstimated ? '~' : ''}$${row.cardFee.toFixed(2)}`}</TableCell>
                             <TableCell className="text-right font-mono font-bold text-sm text-muted-foreground">${row.tax.toFixed(2)}</TableCell>
                             <TableCell className="text-right font-mono font-bold text-sm text-muted-foreground">${row.tip.toFixed(2)}</TableCell>
+                            <TableCell className="text-right font-mono font-black text-sm">{row.deposit === null ? '-' : `$${row.deposit.toFixed(2)}`}</TableCell>
                             <TableCell className="text-right px-6 font-mono font-black text-sm">${row.totalCollected.toFixed(2)}</TableCell>
                           </TableRow>
                         ))}
@@ -1534,8 +1543,10 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                             <TableCell className="text-[9px] font-black uppercase text-muted-foreground">{salesMode === 'All' ? 'All modes' : salesMode}</TableCell>
                             <TableCell className="text-[9px] font-black uppercase text-muted-foreground">{salesPayment === 'All' ? 'All payments' : salesPayment}</TableCell>
                             <TableCell className="text-right font-mono font-black text-sm text-[#213147]">${salesOrderView.totals.netPayout.toFixed(2)}</TableCell>
+                            <TableCell className="text-right font-mono font-black text-sm text-[#213147]">${salesOrderView.totals.cardFee.toFixed(2)}</TableCell>
                             <TableCell className="text-right font-mono font-black text-sm text-[#213147]">${salesOrderView.totals.tax.toFixed(2)}</TableCell>
                             <TableCell className="text-right font-mono font-black text-sm text-[#213147]">${salesOrderView.totals.tip.toFixed(2)}</TableCell>
+                            <TableCell className="text-right font-mono font-black text-sm text-[#213147]">${salesOrderView.totals.deposit.toFixed(2)}</TableCell>
                             <TableCell className="text-right px-6 font-mono font-black text-sm text-[#213147]">${salesOrderView.totals.totalCollected.toFixed(2)}</TableCell>
                           </TableRow>
                         </TableFooter>

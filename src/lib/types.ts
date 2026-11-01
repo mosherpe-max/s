@@ -57,8 +57,8 @@ export interface SolutionConfig {
   venueHealthSettings?: VenueHealthSettings;
   orderThresholds?: Record<string, OrderFulfillmentThresholds>; // Master defaults by Mode
   enabledModes?: string[]; // Globally authorized modes by Koop Admin
-  stripeFeePercent?: number; // Estimated Stripe processing fee %, deducted from Koop's application fee
-  stripeFeeFixed?: number; // Estimated Stripe fixed fee in cents, deducted from Koop's application fee
+  stripeFeePercent?: number; // Stripe's card rate (%), used only to estimate a venue's card fee in reports until the actual fee is recorded on the order
+  stripeFeeFixed?: number; // Stripe's fixed card fee in cents, used the same way
   ackTargetPercent?: number; // Goal for the share of orders acknowledged within the venue's max acknowledge time (1-100); defaults to 90
   updatedAt: Timestamp;
 }
@@ -360,6 +360,8 @@ export interface Order {
   preparedByStaffName?: string;
   paymentMethod?: PaymentMethodType;
   stripePaymentIntentId?: string; // The card payment's Stripe reference, for matching deposits
+  stripeFee?: number; // What Stripe charged the venue to process this card payment (dollars), recorded when the payment completes
+  koopFee?: number;   // Koop's application fee on this card payment (dollars), recorded the same way
   // Set once the "running late" staff push fires, so the scheduled check
   // never re-sends it on every pass for the same order.
   lateAlertSentAt?: Timestamp;
@@ -381,6 +383,7 @@ export interface DailySalesLock {
   tax: number;
   tip: number;
   orderCount: number;
+  cardFees?: number; // Stripe's processing fees on the day's card orders, already taken out of netPayout (absent on days locked before fees were tracked)
   lockedAt: Timestamp;
 }
 

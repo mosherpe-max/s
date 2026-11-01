@@ -183,10 +183,10 @@ export default function AdminSystemConfigPage() {
            {/* STRIPE PLATFORM FEE */}
            <div className="space-y-6 pt-10 border-t">
               <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">
-                <DollarSign className="h-4 w-4" /> Stripe Platform Fee
+                <DollarSign className="h-4 w-4" /> Stripe Card Fee Estimate
               </h4>
               <p className="text-[9px] text-muted-foreground uppercase font-medium max-w-lg leading-relaxed">
-                Estimated Stripe processing cost, deducted from Koop's application fee before it's collected from the patron's convenience fee. The venue's payout is unaffected.
+                Stripe's standard card rate. Card payments are charged to the venue's own Stripe account, and Stripe's actual fee is recorded on each order when the payment completes. This estimate is used only in a venue's Sales Report for orders that do not have the actual fee yet (such as older or demo orders). It does not change what anyone is charged.
               </p>
               <div className="grid grid-cols-2 gap-4">
                  <div className="space-y-1.5">

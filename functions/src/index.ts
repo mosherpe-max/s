@@ -12,7 +12,7 @@ import {
   modeFlagPrefix, placementLocation, roundCoord, summarizeItems, suspectReasons,
 } from "./order-timing.js";
 import { canTakeCardPayments, stripeStatusFromAccount } from "./stripe-status.js";
-import { accountAction, applicationFeeCents, createDirectPaymentIntent, ensureWalletDomain, resolveVenueCustomer } from "./stripe-direct.js";
+import { accountAction, applicationFeeCents, createDirectPaymentIntent, ensureWalletDomain, fetchChargeFees, resolveVenueCustomer } from "./stripe-direct.js";
 import { reconcileOrderQueue, syncQueueEntry } from "./order-queue.js";
 import { DEMO_SEED_MODES, DEMO_SEED_SELLER_ID, generateDemoOrders } from "./demo-seed.js";
 import Stripe from 'stripe';
@@ -1133,6 +1133,24 @@ export const handleStripeWebhook = onRequest({
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp()
       }, { merge: true });
+
+      // Record what Stripe actually charged the venue and what Koop received, so the venue's Sales Report shows real
+      // fees instead of an estimate. This is a direct charge, so the event comes from the venue's account.
+      const accountId = typeof event.account === 'string' ? event.account : undefined;
+      const chargeId = typeof pi.latest_charge === 'string' ? pi.latest_charge : pi.latest_charge?.id;
+      if (accountId && chargeId) {
+        try {
+          const fees = await fetchChargeFees(stripe, accountId, chargeId);
+          if (fees) {
+            await db.collection('orders').doc(pi.id).set({
+              stripeFee: fees.stripeFeeCents / 100,
+              koopFee: fees.koopFeeCents / 100,
+            }, { merge: true });
+          }
+        } catch (err: any) {
+          logger.warn(`[handleStripeWebhook] could not record fees for ${pi.id}: ${err?.message || err}`);
+        }
+      }
     } else if (event.type === 'account.updated') {
       const account = event.data.object as Stripe.Account;
       const venueId = account.metadata?.venueId;
