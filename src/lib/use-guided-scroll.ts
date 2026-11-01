@@ -5,6 +5,14 @@ import { revealElement } from '@/lib/scroll-into-view';
 
 const NON_TEXT_INPUTS = new Set(['checkbox', 'radio', 'button', 'submit', 'reset', 'range', 'file', 'image', 'color']);
 
+// Whether an on-screen keyboard is actually taking up room: the visible part of the page has shrunk well below the
+// screen. A focused field alone is not enough, because on an iPhone closing the keyboard leaves focus in Stripe's card
+// fields, and the bottom bar would then stay hidden for good. Without the visual viewport API, assume it is open.
+export function keyboardTakesRoom(visibleHeight: number | undefined, screenHeight: number, windowHeight: number): boolean {
+  if (!visibleHeight) return true;
+  return visibleHeight < 0.75 * Math.max(screenHeight, windowHeight);
+}
+
 // Something the patron types into (Stripe's card fields are iframes, so those count too).
 export function isTypingTarget(el: Element | null): el is HTMLElement {
   if (!el) return false;
@@ -20,11 +28,12 @@ const USER_SCROLL_QUIET_MS = 1000;
 //    finishes opening;
 //  - goTo(element) brings the next section into view when a step is finished, unless the patron has just scrolled
 //    on their own (they stay in charge);
-//  - keyboardOpen is true while a field has focus on a touch device, so a bottom bar can get out of the way of the
-//    on-screen keyboard (a desktop browser has no keyboard to make room for).
+//  - keyboardOpen is true while a field has focus on a touch device and the on-screen keyboard is taking up room, so
+//    a bottom bar can get out of its way (a desktop browser has no keyboard to make room for).
 export function useGuidedScroll(options: { topInsetSelector?: string } = {}): { goTo: (el: HTMLElement | null) => void; keyboardOpen: boolean } {
   const { topInsetSelector } = options;
   const [typing, setTyping] = useState(false);
+  const [roomTaken, setRoomTaken] = useState(true);
   const lastUserScrollRef = useRef(0);
   const insetSelectorRef = useRef(topInsetSelector);
   insetSelectorRef.current = topInsetSelector;
@@ -53,9 +62,11 @@ export function useGuidedScroll(options: { topInsetSelector?: string } = {}): { 
       // Once now, then again as the keyboard animates open (its timing differs between phones).
       timers = [0, 300, 700].map(ms => setTimeout(reveal, ms));
     };
-    const onViewportResize = () => { if (isTypingTarget(document.activeElement)) reveal(); };
+    const measure = () => setRoomTaken(keyboardTakesRoom(window.visualViewport?.height, window.screen?.height ?? 0, window.innerHeight));
+    const onViewportResize = () => { measure(); if (isTypingTarget(document.activeElement)) reveal(); };
     const markUserScroll = () => { lastUserScrollRef.current = Date.now(); };
 
+    measure();
     document.addEventListener('focusin', onFocusIn);
     document.addEventListener('focusout', refresh);
     window.addEventListener('blur', refresh);     // focus moving into a Stripe iframe
@@ -81,5 +92,5 @@ export function useGuidedScroll(options: { topInsetSelector?: string } = {}): { 
     setTimeout(() => revealElement(el, { topInset: topInset(), margin: 12 }), 120);
   }, [topInset]);
 
-  return { goTo, keyboardOpen: typing };
+  return { goTo, keyboardOpen: typing && roomTaken };
 }
