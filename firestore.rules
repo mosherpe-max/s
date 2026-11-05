@@ -236,6 +236,25 @@ service cloud.firestore {
                           'preparedByStaffId', 'preparedByStaffName', 'refreshRequestedAt', 'updatedAt'
                         ])) ||
 
+                       // A staff member signed in for this venue can ask for a card order to be refunded: once, with one of the
+                       // listed reasons, in their own name. They cannot change it afterwards, and only the venue admin can refund.
+                       (isStaffOf(resource.data.sellerId) &&
+                        resource.data.paymentMethod == 'Digital Payment' &&
+                        !('refundRequest' in resource.data) &&
+                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['refundRequest']) &&
+                        request.resource.data.refundRequest.keys().hasOnly(['status', 'reason', 'note', 'requestedByStaffId', 'requestedByStaffName', 'requestedAt']) &&
+                        request.resource.data.refundRequest.status == 'Requested' &&
+                        request.resource.data.refundRequest.reason in [
+                          'Wrong or missing item', 'Quality problem', 'Never delivered or patron not found',
+                          'Took too long', 'Ordered by mistake', 'Other'
+                        ] &&
+                        (!('note' in request.resource.data.refundRequest) ||
+                          (request.resource.data.refundRequest.note is string && request.resource.data.refundRequest.note.size() <= 300)) &&
+                        request.resource.data.refundRequest.requestedByStaffId == request.auth.token.get('staffId', null) &&
+                        request.resource.data.refundRequest.requestedByStaffName is string &&
+                        request.resource.data.refundRequest.requestedByStaffName.size() <= 80 &&
+                        request.resource.data.refundRequest.requestedAt == request.time) ||
+
                        // The patron who placed it can only move where it should be brought...
                        (isSignedIn() && resource.data.buyerProfileId == request.auth.uid &&
                         request.resource.data.diff(resource.data).affectedKeys().hasOnly([

@@ -8,6 +8,7 @@ import { useEffect, useState, useMemo, useRef, use } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { OrderCard } from '@/components/order-card';
+import { StaffRefundRequest } from '@/components/staff-refund-request';
 import type { Order, Seller, StaffMember, SolutionConfig, OrderFulfillmentThresholds } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -545,6 +546,7 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
                           <TableHead className="text-[9px] font-black uppercase text-right">Dur</TableHead>
                           <TableHead className="text-[9px] font-black uppercase text-right">Order</TableHead>
                           <TableHead className="text-[9px] font-black uppercase text-right">Tip</TableHead>
+                          <TableHead className="text-[9px] font-black uppercase text-right">Refund</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -569,6 +571,9 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
                             </TableCell>
                             <TableCell className="text-right font-bold text-[10px] text-[#213147]">${o.total.toFixed(2)}</TableCell>
                             <TableCell className="text-right font-black text-[10px] text-green-600">${(o.tip || 0).toFixed(2)}</TableCell>
+                            <TableCell className="text-right">
+                              <StaffRefundRequest order={o} staffId={currentStaffId} staffName={currentStaffName} compact />
+                            </TableCell>
                           </TableRow>
                           );
                         })}
@@ -606,6 +611,7 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
                     onUnclaim={handleUnclaimOrder}
                     onRefreshLocation={handleRefreshLocation}
                     currentStaffId={currentStaffId}
+                    currentStaffName={currentStaffName}
                     thresholds={primarySeller?.orderThresholds?.[order.menuType] || solutionConfig?.orderThresholds?.[order.menuType]}
                     smsEnabled={solutionConfig?.smsNotificationsEnabled !== false}
                   />

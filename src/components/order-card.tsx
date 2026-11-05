@@ -9,6 +9,7 @@ import { Clock, AlertTriangle, ChevronRight, CheckCircle2, Truck, Timer, Satelli
 import { Badge } from './ui/badge';
 import { cn, getNumericOrderId } from '@/lib/utils';
 import { formatHole } from '@/lib/patron-location';
+import { StaffRefundRequest } from '@/components/staff-refund-request';
 
 interface OrderCardProps {
   order: Order;
@@ -18,6 +19,7 @@ interface OrderCardProps {
   onUnclaim?: (id: string) => void;
   onRefreshLocation?: (id: string) => void;
   currentStaffId?: string;
+  currentStaffName?: string;
   thresholds?: OrderFulfillmentThresholds;
   now: number;
   smsEnabled?: boolean;
@@ -49,6 +51,7 @@ export function OrderCard({
   onUnclaim,
   onRefreshLocation,
   currentStaffId,
+  currentStaffName,
   thresholds,
   now,
   smsEnabled
@@ -233,6 +236,11 @@ export function OrderCard({
             <MapPin className="h-2.5 w-2.5" />
             Refresh Patron Location
           </Button>
+        )}
+        {currentStaffId && (order.paymentMethod === 'Digital Payment') && (
+          <div className="flex w-full justify-end">
+            <StaffRefundRequest order={order} staffId={currentStaffId} staffName={currentStaffName || 'Staff'} compact />
+          </div>
         )}
         <div className="flex gap-1.5 w-full">
           {(onClaim || onUnclaim) && order.status !== 'Delivered' && order.status !== 'Cancelled' && (
