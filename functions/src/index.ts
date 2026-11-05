@@ -12,6 +12,7 @@ import {
   modeFlagPrefix, placementLocation, roundCoord, summarizeItems, suspectReasons,
 } from "./order-timing.js";
 import { canTakeCardPayments, stripeStatusFromAccount } from "./stripe-status.js";
+import { isRefundReason, REFUND_REASONS } from "./refund-reasons.js";
 import { accountAction, applicationFeeCents, createDirectPaymentIntent, ensureWalletDomain, fetchChargeFees, planRefund, refundStatusFor, resolveVenueCustomer } from "./stripe-direct.js";
 import { reconcileOrderQueue, syncQueueEntry } from "./order-queue.js";
 import { DEMO_SEED_MODES, DEMO_SEED_SELLER_ID, generateDemoOrders } from "./demo-seed.js";
@@ -991,6 +992,8 @@ export const clearDemoOrders = onCall({ region: 'us-central1', timeoutSeconds: 3
  * on the venue's own Stripe account, so it comes out of the venue's Stripe balance, and Koop's fee is not refunded.
  * Stripe's own figures decide how much is left to refund (so a refund made in the venue's Stripe Dashboard counts too),
  * and the order is updated with the running total. A full refund of an order that is still in progress also cancels it.
+ * Every refund needs a reason from the fixed list. If a staff member had asked for this refund, the request is marked
+ * approved.
  */
 export const refundOrder = onCall({
   secrets: ["STRIPE_SECRET_KEY"],
@@ -1001,6 +1004,8 @@ export const refundOrder = onCall({
     const orderId = typeof request.data?.orderId === 'string' ? request.data.orderId.trim() : '';
     if (!orderId) throw new HttpsError('invalid-argument', 'Missing orderId.');
     const note = typeof request.data?.note === 'string' ? request.data.note.trim().slice(0, 200) : '';
+    const reason = request.data?.reason;
+    if (!isRefundReason(reason)) throw new HttpsError('invalid-argument', `Choose a reason for the refund: ${REFUND_REASONS.join('; ')}.`);
     const requested = request.data?.amount === undefined || request.data?.amount === null ? null : Number(request.data.amount);
 
     const orderRef = db.collection('orders').doc(orderId);
@@ -1035,7 +1040,7 @@ export const refundOrder = onCall({
         amount: plan.amountCents,
         reason: 'requested_by_customer',
         refund_application_fee: false, // Koop keeps its fee
-        metadata: { orderId, refundedBy: request.auth?.token.email || request.auth?.uid || '', note },
+        metadata: { orderId, refundedBy: request.auth?.token.email || request.auth?.uid || '', reason, note },
       }, { ...opts, idempotencyKey: `koop-refund-${orderId}-${charge.amount_refunded || 0}-${plan.amountCents}` });
     } catch (err: any) {
       // Stripe's reason (for example the venue's balance cannot cover it) is worth showing as it is.
@@ -1054,8 +1059,12 @@ export const refundOrder = onCall({
         amount: plan.amountCents / 100,
         at: Timestamp.now(),
         by: request.auth?.token.email || request.auth?.uid || '',
+        reason,
         note,
       }),
+      ...(order.refundRequest?.status === 'Requested' ? {
+        refundRequest: { status: 'Approved', resolvedAt: Timestamp.now(), resolvedBy: request.auth?.token.email || request.auth?.uid || '' },
+      } : {}),
       ...(plan.fullRefund && inProgress ? { status: 'Cancelled', notes: 'Refunded in full by the venue.' } : {}),
       updatedAt: FieldValue.serverTimestamp(),
     }, { merge: true });
@@ -1065,6 +1074,46 @@ export const refundOrder = onCall({
     logger.error("refundOrder Error", err);
     if (err instanceof HttpsError) throw err;
     throw new HttpsError('internal', err.message || 'Could not refund the order.');
+  }
+});
+
+/**
+ * declineRefundRequest
+ * The venue admin (or the Koop admin / Koop team) closes a staff member's refund request without refunding. The note is
+ * internal: staff only see that the request is closed.
+ */
+export const declineRefundRequest = onCall({
+  region: 'us-central1',
+  timeoutSeconds: 30,
+}, async (request) => {
+  try {
+    const orderId = typeof request.data?.orderId === 'string' ? request.data.orderId.trim() : '';
+    if (!orderId) throw new HttpsError('invalid-argument', 'Missing orderId.');
+    const note = typeof request.data?.note === 'string' ? request.data.note.trim().slice(0, 200) : '';
+
+    const orderRef = db.collection('orders').doc(orderId);
+    const orderSnap = await orderRef.get();
+    if (!orderSnap.exists) throw new HttpsError('not-found', 'Order not found.');
+    const order = orderSnap.data() || {};
+    await assertVenueAuthorized(request, order.sellerId);
+
+    if (order.refundRequest?.status !== 'Requested') {
+      throw new HttpsError('failed-precondition', 'There is no open refund request on this order.');
+    }
+    await orderRef.set({
+      refundRequest: {
+        status: 'Declined',
+        resolvedAt: Timestamp.now(),
+        resolvedBy: request.auth?.token.email || request.auth?.uid || '',
+        resolutionNote: note,
+      },
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+    return { ok: true };
+  } catch (err: any) {
+    logger.error("declineRefundRequest Error", err);
+    if (err instanceof HttpsError) throw err;
+    throw new HttpsError('internal', err.message || 'Could not close the refund request.');
   }
 });
 

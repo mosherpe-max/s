@@ -364,7 +364,20 @@ export interface Order {
   koopFee?: number;   // Koop's application fee on this card payment (dollars), recorded the same way
   refundedAmount?: number; // Total refunded to the patron so far (dollars). Stripe and the venue keep their fees; Koop's fee is not refunded.
   refundStatus?: 'Refunded' | 'Partially Refunded';
-  refunds?: { id: string; amount: number; at: Timestamp; by: string; note?: string }[];
+  refunds?: { id: string; amount: number; at: Timestamp; by: string; reason?: string; note?: string }[];
+  // A staff member's request for the venue admin to refund this card order. The admin approves it by refunding the
+  // order, or declines it; staff never see the admin's note.
+  refundRequest?: {
+    status: 'Requested' | 'Approved' | 'Declined';
+    reason: string;
+    note?: string;
+    requestedByStaffId: string;
+    requestedByStaffName: string;
+    requestedAt: Timestamp;
+    resolvedAt?: Timestamp;
+    resolvedBy?: string;
+    resolutionNote?: string;
+  };
   // Set once the "running late" staff push fires, so the scheduled check
   // never re-sends it on every pass for the same order.
   lateAlertSentAt?: Timestamp;

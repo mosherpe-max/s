@@ -215,8 +215,8 @@ const itemSchema = z.object({
 
 type ItemFormData = z.infer<typeof itemSchema>;
 
-function NavButton({ id, label, icon: Icon, active, onClick, sidebarOpen }: { 
-  id: string, label: string, icon: any, active: boolean, onClick: (id: string) => void, sidebarOpen: boolean 
+function NavButton({ id, label, icon: Icon, active, onClick, sidebarOpen, badge }: { 
+  id: string, label: string, icon: any, active: boolean, onClick: (id: string) => void, sidebarOpen: boolean, badge?: number
 }) {
   return (
     <button
@@ -228,6 +228,12 @@ function NavButton({ id, label, icon: Icon, active, onClick, sidebarOpen }: {
     >
       <Icon className={cn("h-5 w-5 shrink-0", active ? "text-primary" : "group-hover:text-white")} />
       {sidebarOpen && <span className={cn("text-[10px] font-black uppercase tracking-widest leading-none", active ? "text-primary" : "")}>{label}</span>}
+      {!!badge && badge > 0 && (
+        <span
+          aria-label={`${badge} refund request${badge === 1 ? '' : 's'} waiting`}
+          className={cn("bg-amber-500 text-white text-[9px] font-black rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center", sidebarOpen ? "ml-auto" : "absolute top-1 right-1")}
+        >{badge}</span>
+      )}
       {active && <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-r-full" />}
     </button>
   );
@@ -327,6 +333,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   const [itemToDelete, setItemToDelete] = useState<MenuItem | null>(null);
   const [orderSearchTerm, setOrderSearchTerm] = useState('');
   const [logRange, setLogRange] = useState<LogRange>('today');
+  const [pendingRefundsOnly, setPendingRefundsOnly] = useState(false);
   const [activeModeTab, setActiveModeTab] = useState('');
   const [isStaffFormOpen, setIsStaffFormOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
@@ -721,14 +728,20 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
   // NOTE: hooks must stay above the loading early return further down this component.
   // Fulfillment Log rows: the chosen date range, then the search, newest first.
+  // Orders a staff member has asked to have refunded that the venue admin hasn't answered yet, whatever the date range.
+  const pendingRefundRequests = useMemo(
+    () => (orders || []).filter(o => o.refundRequest?.status === 'Requested'),
+    [orders]
+  );
+
   const fulfillmentLogOrders = useMemo(() => {
     const start = logRangeStart(logRange).getTime();
     const term = orderSearchTerm.toLowerCase();
     return (orders || [])
-      .filter(o => o.createdAt && o.createdAt.toMillis() >= start)
+      .filter(o => o.createdAt && (pendingRefundsOnly && pendingRefundRequests.length > 0 ? o.refundRequest?.status === 'Requested' : o.createdAt.toMillis() >= start))
       .filter(o => o.customerName.toLowerCase().includes(term) || getNumericOrderId(o.id).includes(orderSearchTerm))
       .sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
-  }, [orders, logRange, orderSearchTerm]);
+  }, [orders, logRange, orderSearchTerm, pendingRefundsOnly, pendingRefundRequests]);
 
   // The report as the venue has filtered it: chosen service mode and date range, with a
   // total for each dollar column. Dates are 'yyyy-MM-dd', so plain string comparison
@@ -1159,6 +1172,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
           active={activeNav === item.id} 
           onClick={setActiveNav} 
           sidebarOpen={sidebarOpen} 
+          badge={item.id === 'orders' ? pendingRefundRequests.length : undefined}
         />
       ))}
     </nav>
@@ -1389,7 +1403,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
               {activeNav === 'orders' && (
                 <div className="space-y-6 animate-in fade-in duration-500">
-                  <div className="flex flex-wrap items-center justify-between gap-3"><div className="text-left"><h2 className="text-xl font-black uppercase text-[#213147]">Fulfillment Log</h2><p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">{fulfillmentLogOrders.length} order{fulfillmentLogOrders.length === 1 ? '' : 's'}</p></div><div className="flex flex-wrap items-center gap-3"><div className="flex gap-1 bg-slate-100 p-1 rounded-xl">{LOG_RANGES.map(r => (<Button key={r.id} type="button" variant={logRange === r.id ? 'default' : 'ghost'} size="sm" onClick={() => setLogRange(r.id)} className={cn("h-8 px-3 text-[9px] font-black uppercase tracking-widest rounded-lg", logRange === r.id ? "bg-[#213147] text-white" : "text-slate-500")}>{r.label}</Button>))}</div><div className="relative w-64"><Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" /><Input placeholder="Search ticket or name..." value={orderSearchTerm} onChange={(e) => setOrderSearchTerm(e.target.value)} className="pl-10 h-10 border-2 rounded-xl" /></div></div></div>
+                  <div className="flex flex-wrap items-center justify-between gap-3"><div className="text-left"><h2 className="text-xl font-black uppercase text-[#213147]">Fulfillment Log</h2><p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">{fulfillmentLogOrders.length} order{fulfillmentLogOrders.length === 1 ? '' : 's'}</p></div><div className="flex flex-wrap items-center gap-3">{pendingRefundRequests.length > 0 && (<Button type="button" variant={pendingRefundsOnly ? 'default' : 'outline'} size="sm" onClick={() => setPendingRefundsOnly(v => !v)} className={cn("h-10 px-3 text-[9px] font-black uppercase tracking-widest rounded-xl border-2", pendingRefundsOnly ? "bg-amber-500 hover:bg-amber-600 text-white border-amber-500" : "border-amber-300 text-amber-700")}>{pendingRefundsOnly ? 'Show all orders' : `Refund requests (${pendingRefundRequests.length})`}</Button>)}<div className="flex gap-1 bg-slate-100 p-1 rounded-xl">{LOG_RANGES.map(r => (<Button key={r.id} type="button" variant={logRange === r.id ? 'default' : 'ghost'} size="sm" onClick={() => setLogRange(r.id)} className={cn("h-8 px-3 text-[9px] font-black uppercase tracking-widest rounded-lg", logRange === r.id ? "bg-[#213147] text-white" : "text-slate-500")}>{r.label}</Button>))}</div><div className="relative w-64"><Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" /><Input placeholder="Search ticket or name..." value={orderSearchTerm} onChange={(e) => setOrderSearchTerm(e.target.value)} className="pl-10 h-10 border-2 rounded-xl" /></div></div></div>
                   <Card className="border-2 rounded-[2rem] overflow-hidden shadow-sm bg-white"><Table><TableHeader className="bg-slate-50"><TableRow><TableHead className="px-8 py-5 text-[10px] font-black uppercase tracking-widest">Ticket</TableHead><TableHead className="text-[10px] font-black uppercase tracking-widest">Customer</TableHead><TableHead className="text-[10px] font-black uppercase tracking-widest">Mode</TableHead><TableHead className="text-[10px] font-black uppercase tracking-widest">Status</TableHead><TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Net Total</TableHead><TableHead className="text-[10px] font-black uppercase tracking-widest text-right px-8">Refund</TableHead></TableRow></TableHeader><TableBody>{fulfillmentLogOrders.length === 0 ? (<TableRow><TableCell colSpan={6} className="py-16 text-center text-[10px] font-black uppercase text-muted-foreground">No orders for this selection</TableCell></TableRow>) : fulfillmentLogOrders.map(o => (<TableRow key={o.id} className="group hover:bg-slate-50/50 transition-colors"><TableCell className="px-8 font-mono font-black text-primary text-xs">#{getNumericOrderId(o.id)}</TableCell><TableCell><div className="flex flex-col text-left"><span className="font-bold text-sm uppercase">{o.customerName}</span><span className="text-[9px] uppercase text-muted-foreground">{o.createdAt ? format(o.createdAt.toDate(), 'MMM d, h:mm a') : ''}</span></div></TableCell><TableCell><Badge variant="outline" className="text-[8px] font-black uppercase bg-slate-100 border-slate-200">{o.menuType}</Badge></TableCell><TableCell><Badge className={cn("text-[8px] font-black uppercase border-0", o.status === 'Delivered' ? "bg-green-500" : o.status === 'Cancelled' ? "bg-red-500" : "bg-primary animate-pulse")}>{o.status}</Badge></TableCell><TableCell className="text-right font-mono font-black text-sm">${(o.total - (o.serviceFee || 0)).toFixed(2)}</TableCell><TableCell className="text-right px-8"><RefundOrder order={o} /></TableCell></TableRow>))}</TableBody></Table></Card>
                 </div>
               )}
