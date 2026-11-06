@@ -13,6 +13,7 @@ import {
 } from "./order-timing.js";
 import { canTakeCardPayments, stripeStatusFromAccount } from "./stripe-status.js";
 import { isRefundReason, REFUND_REASONS } from "./refund-reasons.js";
+import { refundSmsBody } from "./refund-text.js";
 import { accountAction, applicationFeeCents, createDirectPaymentIntent, ensureWalletDomain, fetchChargeFees, planRefund, refundStatusFor, resolveVenueCustomer } from "./stripe-direct.js";
 import { reconcileOrderQueue, syncQueueEntry } from "./order-queue.js";
 import { DEMO_SEED_MODES, DEMO_SEED_SELLER_ID, generateDemoOrders } from "./demo-seed.js";
@@ -1143,7 +1144,8 @@ export const manualOperationalReset = onCall({ region: 'us-central1' }, async (r
 
 /**
  * onGuestOrderStatusUpdate
- * Dispatches SMS updates via Twilio for key fulfillment stages.
+ * Dispatches SMS updates via Twilio for key fulfillment stages, and when a card payment is refunded (from Koop or from
+ * the venue's own Stripe Dashboard: both raise the order's refundedAmount).
  */
 export const onGuestOrderStatusUpdate = onDocumentWritten({ 
   document: "orders/{orderId}", 
@@ -1182,6 +1184,19 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({
         }
       }
       
+      // 1b. REFUND ALERT (a status text for the same write takes priority)
+      if (!body) {
+        const refundedNowCents = Math.round((Number(data.refundedAmount || 0) - Number(beforeData.refundedAmount || 0)) * 100);
+        if (refundedNowCents > 0) {
+          body = refundSmsBody({
+            orderNumber: getNumericOrderId(event.params.orderId),
+            refundedNowCents,
+            totalRefundedCents: Math.round(Number(data.refundedAmount || 0) * 100),
+            orderTotalCents: Math.round(Number(data.total || 0) * 100),
+          });
+        }
+      }
+
       // 2. MANUAL "PIN" REQUEST
       // Using value-based comparison for the timestamp object to detect any new Pin hit
       const oldReq = beforeData.refreshRequestedAt;
