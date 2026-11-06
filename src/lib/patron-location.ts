@@ -31,7 +31,8 @@ export function getLocationFixSteps(): string[] {
       'Open the Settings app.',
       'Tap Privacy & Security, then Location Services.',
       'Find Safari Websites (or Koop if you use it from your Home Screen) and choose While Using the App.',
-      'Come back to this page and tap Try again.',
+      'Back in Safari, tap the aA button in the address bar, then Website Settings, then Location, and choose Allow. (Safari remembers a "Don\'t Allow" for each website, even after Location Services is turned on.)',
+      'Reload this page, then tap Try again.',
     ];
   }
   return [
