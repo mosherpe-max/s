@@ -45,8 +45,11 @@ export function LocationBlockedCard({
           </select>
         </label>
       )}
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <Button size="sm" onClick={onRetry} className="h-9 px-3 font-black uppercase text-[10px] gap-2"><RefreshCcw className="h-3 w-3" /> Try again</Button>
+        <Button size="sm" variant="outline" onClick={() => window.location.reload()} className="h-9 px-3 bg-white border-red-200 text-red-600 font-black uppercase text-[10px]">
+          Reload page
+        </Button>
         <Button size="sm" variant="outline" onClick={() => setShowSteps((v) => !v)} className="h-9 px-3 bg-white border-red-200 text-red-600 font-black uppercase text-[10px]">
           {showSteps ? 'Hide steps' : 'How to turn it on'}
         </Button>
