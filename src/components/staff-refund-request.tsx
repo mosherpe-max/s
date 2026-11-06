@@ -16,11 +16,13 @@ import { Textarea } from '@/components/ui/textarea';
 
 // Staff can ask the venue admin to refund a card order, with a reason. They cannot refund anything themselves: the venue
 // admin decides. Staff only ever see a neutral status; the admin's reason for declining stays private.
-export function StaffRefundRequest({ order, staffId, staffName, compact = false }: {
+export function StaffRefundRequest({ order, staffId, staffName, compact = false, short = false }: {
   order: Order;
   staffId?: string;
   staffName?: string;
   compact?: boolean;
+  // Shorter button label, for narrow table cells.
+  short?: boolean;
 }) {
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -72,9 +74,10 @@ export function StaffRefundRequest({ order, staffId, staffName, compact = false 
         variant="outline"
         size="sm"
         onClick={() => { setReason(''); setNote(''); setOpen(true); }}
+        aria-label="Request refund"
         className={`border-2 font-black uppercase tracking-widest gap-1 ${compact ? 'h-7 text-[8px]' : 'h-9 text-[9px]'}`}
       >
-        <Undo2 className="h-3 w-3" /> Request Refund
+        <Undo2 className="h-3 w-3" /> {short ? 'Refund' : 'Request Refund'}
       </Button>
       <Dialog open={open} onOpenChange={(o) => { if (!saving) setOpen(o); }}>
         <DialogContent className="max-w-md text-left">
