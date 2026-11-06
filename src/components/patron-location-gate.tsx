@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Loader2, MapPin, Satellite } from 'lucide-react';
+import { ChevronRight, Loader2, MapPin, Satellite } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
@@ -143,7 +143,16 @@ function LocationGateDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <Button onClick={shareLocation} disabled={checking} className="w-full h-12 font-black uppercase tracking-widest text-xs gap-2">
+        {/* Once a hole is picked the red button is "Continue", so share-location steps back to grey. */}
+        <Button
+          onClick={shareLocation}
+          disabled={checking}
+          variant={hole ? 'outline' : 'default'}
+          className={cn(
+            'w-full h-12 font-black uppercase tracking-widest text-xs gap-2',
+            hole && 'border-2 border-slate-200 bg-slate-100 text-slate-500 hover:bg-slate-100 hover:text-slate-600'
+          )}
+        >
           {checking ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}
           Share my location
         </Button>
@@ -197,13 +206,18 @@ function LocationGateDialog({
             </button>
           )}
           <Button
-            variant="outline"
+            variant={hole ? 'default' : 'outline'}
             disabled={!hole}
             onClick={() => hole && onResolve({ hole })}
-            className="w-full h-11 border-2 font-black uppercase tracking-widest text-xs"
+            className={cn('w-full border-2 font-black uppercase tracking-widest text-xs gap-1', hole ? 'h-12 shadow-md' : 'h-11')}
           >
-            {hole ? `Continue from ${formatHole(hole)}` : 'Pick your hole'}
+            {hole ? <>Continue from {formatHole(hole)} <ChevronRight className="h-4 w-4" /></> : 'Pick your hole'}
           </Button>
+          {hole && (
+            <p className="text-center text-[10px] font-bold uppercase tracking-widest text-primary">
+              Tap Continue to place your order
+            </p>
+          )}
         </div>
 
         <button type="button" onClick={() => onResolve(null)} className="w-full text-center text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-destructive">
