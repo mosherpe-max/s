@@ -546,7 +546,6 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
                           <TableHead className="text-[9px] font-black uppercase text-right">Dur</TableHead>
                           <TableHead className="text-[9px] font-black uppercase text-right">Order</TableHead>
                           <TableHead className="text-[9px] font-black uppercase text-right">Tip</TableHead>
-                          <TableHead className="text-[9px] font-black uppercase text-right">Refund</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -562,6 +561,7 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
                             <TableCell>
                               <p className="font-bold text-[10px] uppercase truncate max-w-[80px]">{o.customerName}</p>
                               <p className="text-[8px] text-muted-foreground uppercase">{o.deliveredAt ? format(o.deliveredAt.toDate(), 'h:mm a') : ''}</p>
+                              <div className="mt-1"><StaffRefundRequest order={o} staffId={currentStaffId} staffName={currentStaffName} compact short /></div>
                             </TableCell>
                             <TableCell className={cn("text-right font-bold text-[10px]", isAckOver && "text-destructive")}>
                               {ackSeconds !== null ? `${ackSeconds}s` : '--'}
@@ -571,9 +571,6 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
                             </TableCell>
                             <TableCell className="text-right font-bold text-[10px] text-[#213147]">${o.total.toFixed(2)}</TableCell>
                             <TableCell className="text-right font-black text-[10px] text-green-600">${(o.tip || 0).toFixed(2)}</TableCell>
-                            <TableCell className="text-right">
-                              <StaffRefundRequest order={o} staffId={currentStaffId} staffName={currentStaffName} compact />
-                            </TableCell>
                           </TableRow>
                           );
                         })}
