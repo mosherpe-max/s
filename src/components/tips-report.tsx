@@ -42,6 +42,12 @@ export function TipsReport({ orders, menuTypes, courseName }: { orders: Order[] 
     })), [orders]);
 
   const report = useMemo(() => buildTipReport(tipOrders, { mode, from, to, staffKey }), [tipOrders, mode, from, to, staffKey]);
+  // Today's payout view: every service mode and every staff member, whatever the filters below are set to.
+  const today = useMemo(() => {
+    const day = format(new Date(), 'yyyy-MM-dd');
+    return { day, report: buildTipReport(tipOrders, { mode: 'All', from: day, to: day, staffKey: 'All' }) };
+  }, [tipOrders]);
+  const topTips = Math.max(0, ...today.report.byStaff.map(s => s.tips));
   const average = report.totalTippedOrders > 0 ? report.totalTips / report.totalTippedOrders : 0;
   const rowCount = view === 'day' ? report.byDay.length : report.byStaff.length;
   // A filtered-out person must not leave the picker pointing at nobody.
@@ -78,6 +84,44 @@ export function TipsReport({ orders, menuTypes, courseName }: { orders: Order[] 
           <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Card tips by the staff member who delivered the order</p>
         </div>
       </div>
+
+      <Card className="border-2 shadow-sm bg-white p-4 text-left" data-testid="tips-today">
+        <div className="flex flex-wrap items-end justify-between gap-2 mb-3">
+          <div>
+            <h3 className="text-sm font-black uppercase tracking-widest text-[#213147]">Today&apos;s Tips</h3>
+            <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">
+              {format(new Date(), 'EEEE, MMM d')} · card tips by staff member, all service modes
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="text-2xl font-black text-[#213147] leading-none">{usd(today.report.totalTips)}</p>
+            <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mt-1">Total to pay out today</p>
+          </div>
+        </div>
+        {today.report.byStaff.length === 0 ? (
+          <p className="py-6 text-center text-[10px] font-black uppercase text-muted-foreground opacity-50">No delivered orders yet today</p>
+        ) : (
+          <ul className="space-y-2.5">
+            {today.report.byStaff.map(s => (
+              <li key={s.staffKey} className="grid grid-cols-[minmax(0,9rem)_1fr_auto] sm:grid-cols-[minmax(0,12rem)_1fr_auto] items-center gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-xs font-black uppercase text-[#213147]">{s.staffName}</p>
+                  <p className="truncate text-[9px] font-bold uppercase text-muted-foreground">{s.tippedOrders} tipped of {s.orders} order{s.orders === 1 ? '' : 's'}</p>
+                </div>
+                <div className="h-3 rounded-full bg-slate-100 overflow-hidden" aria-hidden="true">
+                  <div className="h-full rounded-full bg-primary" style={{ width: topTips > 0 ? `${Math.max(2, (s.tips / topTips) * 100)}%` : '0%' }} />
+                </div>
+                <p className="w-20 text-right font-mono text-sm font-black text-[#213147]">{usd(s.tips)}</p>
+              </li>
+            ))}
+          </ul>
+        )}
+        {today.report.notCounted.orders > 0 && (
+          <p className="mt-3 text-[10px] font-bold text-amber-700 leading-relaxed">
+            Not included: {usd(today.report.notCounted.tips)} in tips on {today.report.notCounted.orders} order{today.report.notCounted.orders === 1 ? '' : 's'} paid another way today. Those did not go through Koop.
+          </p>
+        )}
+      </Card>
 
       <Card className="border-2 shadow-sm bg-white p-4">
         <div className="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit mb-4">
