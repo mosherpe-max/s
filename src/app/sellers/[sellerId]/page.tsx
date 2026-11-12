@@ -71,7 +71,8 @@ import {
   Library,
   Receipt,
   FileSpreadsheet,
-  Coins
+  Coins,
+  TrendingUp
 } from 'lucide-react';
 import Image from 'next/image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -138,6 +139,8 @@ import { ModifierManagement } from '@/components/modifier-management';
 import { StarterItemPicker } from '@/components/starter-item-picker';
 import { MenuCsvImport } from '@/components/menu-csv-import';
 import { TipsReport } from '@/components/tips-report';
+import { SeasonDataPanel } from '@/components/season-data-panel';
+import { koopMonthlySales, missingRoundsMonth, type SeasonRecord } from '@/lib/season-data';
 import { RefundOrder } from '@/components/refund-order-dialog';
 import { ActiveOrdersPanel } from '@/components/active-orders-panel';
 import { ModeStatusSwitches } from '@/components/mode-status-switches';
@@ -215,8 +218,8 @@ const itemSchema = z.object({
 
 type ItemFormData = z.infer<typeof itemSchema>;
 
-function NavButton({ id, label, icon: Icon, active, onClick, sidebarOpen, badge }: { 
-  id: string, label: string, icon: any, active: boolean, onClick: (id: string) => void, sidebarOpen: boolean, badge?: number
+function NavButton({ id, label, icon: Icon, active, onClick, sidebarOpen, badge, badgeLabel }: { 
+  id: string, label: string, icon: any, active: boolean, onClick: (id: string) => void, sidebarOpen: boolean, badge?: number, badgeLabel?: string
 }) {
   return (
     <button
@@ -230,7 +233,7 @@ function NavButton({ id, label, icon: Icon, active, onClick, sidebarOpen, badge 
       {sidebarOpen && <span className={cn("text-[10px] font-black uppercase tracking-widest leading-none", active ? "text-primary" : "")}>{label}</span>}
       {!!badge && badge > 0 && (
         <span
-          aria-label={`${badge} refund request${badge === 1 ? '' : 's'} waiting`}
+          aria-label={badgeLabel || `${badge} item${badge === 1 ? '' : 's'} waiting`}
           className={cn("bg-amber-500 text-white text-[9px] font-black rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center", sidebarOpen ? "ml-auto" : "absolute top-1 right-1")}
         >{badge}</span>
       )}
@@ -374,6 +377,10 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
   const ordersQuery = useMemoFirebase(() => (firestore ? query(collection(firestore, 'orders'), where('sellerId', '==', sellerId)) : null), [firestore, sellerId]);
   const { data: orders } = useCollection<Order>(ordersQuery);
+
+  // Rounds and sales entered for the dollars-per-round chart; here only to show the "add last month's rounds" reminder.
+  const seasonRecordsQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'sellers', sellerId, 'seasonData') : null), [firestore, sellerId]);
+  const { data: seasonRecords } = useCollection<SeasonRecord>(seasonRecordsQuery);
 
   const staffListQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'sellers', sellerId, 'staff') : null), [firestore, sellerId]);
   const { data: staffList } = useCollection<StaffMember>(staffListQuery);
@@ -733,6 +740,14 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     () => (orders || []).filter(o => o.refundRequest?.status === 'Requested'),
     [orders]
   );
+
+  const roundsReminder = useMemo(() => {
+    const koop = koopMonthlySales((orders || []).filter(o => o.createdAt).map(o => ({
+      date: format(o.createdAt.toDate(), 'yyyy-MM-dd'), menuType: o.menuType, status: o.status, subtotal: o.subtotal || 0,
+      total: o.total || 0, refundedAmount: o.refundedAmount, isDemoSeed: (o as Order & { isDemoSeed?: boolean }).isDemoSeed,
+    })));
+    return missingRoundsMonth(seasonRecords || [], koop) ? 1 : 0;
+  }, [orders, seasonRecords]);
 
   const fulfillmentLogOrders = useMemo(() => {
     const start = logRangeStart(logRange).getTime();
@@ -1156,6 +1171,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     { id: "staff", label: "Staff", icon: Users },
     { id: "sales-report", label: "Sales Report", icon: Receipt },
     { id: "tips-report", label: "Tips Report", icon: Coins },
+    { id: "dollars-per-round", label: "Dollars per Round", icon: TrendingUp },
     { id: "patrons", label: "Patrons", icon: Users },
     { id: "marketing", label: "Marketing", icon: Megaphone },
     { id: "settings", label: "Settings", icon: SettingsIcon }
@@ -1172,7 +1188,8 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
           active={activeNav === item.id} 
           onClick={setActiveNav} 
           sidebarOpen={sidebarOpen} 
-          badge={item.id === 'orders' ? pendingRefundRequests.length : undefined}
+          badge={item.id === 'orders' ? pendingRefundRequests.length : item.id === 'dollars-per-round' ? roundsReminder : undefined}
+          badgeLabel={item.id === 'orders' ? `${pendingRefundRequests.length} refund request${pendingRefundRequests.length === 1 ? '' : 's'} waiting` : item.id === 'dollars-per-round' ? "Last month's rounds are missing" : undefined}
         />
       ))}
     </nav>
@@ -1410,6 +1427,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
 
               {activeNav === 'patrons' && <PatronList orders={orders} courseName={seller?.courseName} />}
 
+              {activeNav === 'dollars-per-round' && <SeasonDataPanel sellerId={sellerId} orders={orders || []} />}
               {activeNav === 'tips-report' && <TipsReport orders={orders} menuTypes={seller?.menuTypes || []} courseName={seller?.courseName} />}
 
               {activeNav === 'sales-report' && (

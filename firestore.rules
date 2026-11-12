@@ -201,6 +201,25 @@ service cloud.firestore {
         allow create: if isSuperAdmin() || isVenueOwner(sellerId);
         allow update, delete: if isSuperAdmin();
       }
+
+      // Rounds played and (for past seasons) Bev cart sales, for the dollars-per-round chart. One record per day,
+      // week (starting on the date) or month (the 1st), named kind_yyyy-MM-dd so a period can only be there once.
+      // The venue's own admin and the Koop team can read and change them; staff and patrons cannot see them.
+      match /seasonData/{recordId} {
+        allow read: if isSuperAdmin() || isVenueOwner(sellerId);
+        allow create, update: if (isSuperAdmin() || isVenueOwner(sellerId)) &&
+          request.resource.data.keys().hasOnly(['kind', 'start', 'rounds', 'bevCartSales', 'updatedAt', 'updatedBy']) &&
+          request.resource.data.kind in ['day', 'week', 'month'] &&
+          request.resource.data.start is string &&
+          request.resource.data.start.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$') &&
+          recordId == request.resource.data.kind + '_' + request.resource.data.start &&
+          ('rounds' in request.resource.data || 'bevCartSales' in request.resource.data) &&
+          (!('rounds' in request.resource.data) ||
+            (request.resource.data.rounds is number && request.resource.data.rounds >= 0 && request.resource.data.rounds <= 1000000)) &&
+          (!('bevCartSales' in request.resource.data) ||
+            (request.resource.data.bevCartSales is number && request.resource.data.bevCartSales >= 0 && request.resource.data.bevCartSales <= 100000000));
+        allow delete: if isSuperAdmin() || isVenueOwner(sellerId);
+      }
     }
 
     match /orders/{orderId} {

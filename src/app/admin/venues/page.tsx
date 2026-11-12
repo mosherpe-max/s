@@ -32,7 +32,8 @@ import {
   Printer,
   CreditCard,
   Wallet,
-  Users
+  Users,
+  TrendingUp
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -90,6 +91,7 @@ import { StarterItemPicker } from '@/components/starter-item-picker';
 import { StarterModifierPicker } from '@/components/starter-modifier-picker';
 import { PrintMarketingKit } from '@/components/print-marketing-kit';
 import { fetchAsDataUrl } from '@/lib/print-assets';
+import { SeasonDataPanel } from '@/components/season-data-panel';
 import { buildVenueChecklist, venueSetupProgress, venueTypeLockReason, DEFAULT_PAYMENT_METHODS } from '@/lib/venue-setup';
 import { stripeAttention } from '@/lib/stripe-readiness';
 import { useRefreshStripeStatus } from '@/lib/use-refresh-stripe-status';
@@ -173,6 +175,7 @@ export default function AdminVenueRegistryPage() {
   const { toast } = useToast();
 
   const [isManagementOpen, setIsManagementOpen] = useState(false);
+  const [isSeasonDataOpen, setIsSeasonDataOpen] = useState(false);
   const { createLogin } = useVenueAdminActions();
   const [newLoginResult, setNewLoginResult] = useState<VenueAdminLink | null>(null);
   const [isNewVenueOpen, setIsNewVenueOpen] = useState(false);
@@ -814,6 +817,15 @@ export default function AdminVenueRegistryPage() {
 
       <VenueAdminLinkDialog result={newLoginResult} onClose={() => setNewLoginResult(null)} />
 
+      <Dialog open={isSeasonDataOpen} onOpenChange={setIsSeasonDataOpen}>
+        <DialogContent className="sm:max-w-4xl max-h-[92dvh] overflow-y-auto rounded-[2rem] border-2 shadow-2xl text-left">
+          <DialogHeader className="text-left">
+            <DialogTitle className="font-headline font-black uppercase text-xl">{currentSeller?.courseName || 'Venue'} · Season Data</DialogTitle>
+          </DialogHeader>
+          {isSeasonDataOpen && selectedVenue && <SeasonDataPanel sellerId={selectedVenue.venueId} />}
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={isManagementOpen} onOpenChange={setIsManagementOpen}>
         <DialogContent closeClassName="text-white hover:text-white/80" className="sm:max-w-[550px] max-h-[92dvh] flex flex-col gap-0 rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
           <DialogHeader className="p-8 bg-[#213147] text-white shrink-0">
@@ -846,6 +858,19 @@ export default function AdminVenueRegistryPage() {
                       </div>
                     ))}
                   </div>
+               </div>
+
+               {/* SEASON DATA (optional, not part of Launch Ready) */}
+               <div className="space-y-3 rounded-xl border-2 border-slate-100 p-4">
+                  <Label className="text-[11px] font-black uppercase tracking-[0.3em] text-primary flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4" /> Season Data
+                  </Label>
+                  <p className="text-[10px] font-bold text-muted-foreground leading-relaxed">
+                    Last season&apos;s Bev cart sales and rounds, and rounds going forward, for the dollars-per-round chart. Optional: it does not affect Launch Ready.
+                  </p>
+                  <Button type="button" variant="outline" onClick={() => setIsSeasonDataOpen(true)} className="h-10 border-2 font-black uppercase text-[10px] tracking-widest gap-2">
+                    <TrendingUp className="h-4 w-4" /> Open dollars per round
+                  </Button>
                </div>
 
                <Form {...registryForm}>
