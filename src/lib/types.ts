@@ -46,6 +46,7 @@ export interface SolutionConfig {
   dailyResetHour?: number; // 0-23
   staffIdleTimeoutMinutes?: number; // Backgrounded staff terminal auto-signout threshold; defaults to 30
   smsNotificationsEnabled?: boolean;
+  smsTemplates?: Partial<Record<'preparing' | 'outForDelivery' | 'delivered' | 'findMe' | 'refundFull' | 'refundPartial', string>>; // Koop admin's rewording of the patron texts; a message not here uses its default (see lib/sms-templates.ts)
   patronGpsRefreshIntervalSeconds?: number; // Frequency of location broadcasts from the patron's own device (order tracking map)
   driverGpsPollIntervalSeconds?: number; // Frequency staff/driver devices poll and broadcast their own position
   patronGpsStaleThresholdSeconds?: number;

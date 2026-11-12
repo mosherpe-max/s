@@ -1,11 +1,9 @@
-// The text message a patron gets when part or all of their card payment is refunded.
+// Which refund text applies, and the amount it names. The wording itself is in sms-templates.ts.
 const usd = (cents: number) => `$${(cents / 100).toFixed(2)}`;
 
-export function refundSmsBody(opts: { orderNumber: string; refundedNowCents: number; totalRefundedCents: number; orderTotalCents: number }): string {
-  const { orderNumber, refundedNowCents, totalRefundedCents, orderTotalCents } = opts;
-  const timing = 'It usually takes 5 to 10 business days to show on your card.';
-  const fullyRefunded = orderTotalCents > 0 && totalRefundedCents >= orderTotalCents;
-  return fullyRefunded
-    ? `Koop: your order #${orderNumber} was refunded in full (${usd(totalRefundedCents)}). ${timing}`
-    : `Koop: ${usd(refundedNowCents)} of your order #${orderNumber} was refunded. ${timing}`;
+// "Refunded in full" with everything refunded so far when the order is now fully refunded, otherwise the partial
+// message with just this refund's amount.
+export function refundSmsParts(opts: { refundedNowCents: number; totalRefundedCents: number; orderTotalCents: number }): { key: 'refundFull' | 'refundPartial'; amount: string } {
+  const fully = opts.orderTotalCents > 0 && opts.totalRefundedCents >= opts.orderTotalCents;
+  return fully ? { key: 'refundFull', amount: usd(opts.totalRefundedCents) } : { key: 'refundPartial', amount: usd(opts.refundedNowCents) };
 }
