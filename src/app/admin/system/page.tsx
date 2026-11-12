@@ -29,6 +29,8 @@ import type { SolutionConfig } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { AUTHORIZED_SERVICE_MODES } from '@/lib/utils';
 import { PatronTermsManager } from '@/components/patron-terms-manager';
+import { SmsTemplatesEditor } from '@/components/sms-templates-editor';
+import type { SmsTemplateKey } from '@/lib/sms-templates';
 import { StaffPinMigration } from '@/components/staff-pin-migration';
 import { KoopTeamManager } from '@/components/koop-team-manager';
 import { DemoDataManager } from '@/components/demo-data-manager';
@@ -49,6 +51,20 @@ export default function AdminSystemConfigPage() {
       [field]: value, 
       updatedAt: serverTimestamp() 
     }).then(() => toast({ title: "System Config Updated" }));
+  };
+
+  // One message at a time, by field path, so saving one never overwrites another; null puts the default back.
+  const handleSaveSmsTemplate = async (key: SmsTemplateKey, text: string | null) => {
+    if (!firestore || !config) return;
+    try {
+      await updateDoc(doc(firestore, 'solution', 'config'), {
+        [`smsTemplates.${key}`]: text === null ? deleteField() : text,
+        updatedAt: serverTimestamp(),
+      });
+      toast({ title: 'Text message saved', description: text === null ? 'Back to the default wording.' : 'It will be used for the next text sent.' });
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: 'Could not save', description: e?.message || 'Please try again.' });
+    }
   };
 
   const handleManualReset = async () => {
@@ -177,6 +193,8 @@ export default function AdminSystemConfigPage() {
                       className="data-[state=checked]:bg-green-500"
                    />
                 </div>
+
+                <SmsTemplatesEditor saved={config?.smsTemplates} onSave={handleSaveSmsTemplate} />
              </div>
            </div>
 

@@ -13,7 +13,8 @@ import {
 } from "./order-timing.js";
 import { canTakeCardPayments, stripeStatusFromAccount } from "./stripe-status.js";
 import { isRefundReason, REFUND_REASONS } from "./refund-reasons.js";
-import { refundSmsBody } from "./refund-text.js";
+import { refundSmsParts } from "./refund-text.js";
+import { pickSmsTemplate, renderSmsTemplate, templateUsesField, type SmsTemplateKey } from "./sms-templates.js";
 import { accountAction, applicationFeeCents, createDirectPaymentIntent, ensureWalletDomain, fetchChargeFees, planRefund, refundStatusFor, resolveVenueCustomer } from "./stripe-direct.js";
 import { reconcileOrderQueue, syncQueueEntry } from "./order-queue.js";
 import { DEMO_SEED_MODES, DEMO_SEED_SELLER_ID, generateDemoOrders } from "./demo-seed.js";
@@ -1158,6 +1159,7 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({
   try {
     const configSnap = await db.collection('solution').doc('config').get();
     if (configSnap.exists && configSnap.data()?.smsNotificationsEnabled === false) return;
+    const overrides = configSnap.data()?.smsTemplates;
 
     const data = after.data();
     if (!data?.customerPhone || data.isDemoSeed) return;
@@ -1170,17 +1172,27 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({
     const client = twilio(accountSid, authToken);
     let body = "";
     const link = `${APP_BASE_URL}/orders/${event.params.orderId}`;
+    // The wording is the Koop admin's (System settings) or the default; fields like {link} are filled in here.
+    const compose = async (key: SmsTemplateKey, extra: { amount?: string } = {}) => {
+      const template = pickSmsTemplate(overrides, key);
+      let venue = '';
+      if (templateUsesField(template, 'venue')) {
+        const seller = data.sellerId ? await db.collection('sellers').doc(data.sellerId).get() : null;
+        venue = seller?.data()?.courseName || '';
+      }
+      return renderSmsTemplate(template, { link, venue, order: getNumericOrderId(event.params.orderId), ...extra });
+    };
     const beforeData = event.data?.before?.exists ? event.data.before.data() : null;
 
     if (beforeData) {
       // 1. STATUS CHANGE ALERTS
       if (data.status !== beforeData.status) {
         if (data.status === 'Preparing') {
-          body = `Order confirmed! We're getting it ready: ${link}`;
+          body = await compose('preparing');
         } else if (data.status === 'Out for Delivery') {
-          body = `Order out for delivery! Track live: ${link}`;
+          body = await compose('outForDelivery');
         } else if (data.status === 'Delivered') {
-          body = `Order delivered! Enjoy your time at the venue: ${link}`;
+          body = await compose('delivered');
         }
       }
       
@@ -1188,12 +1200,12 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({
       if (!body) {
         const refundedNowCents = Math.round((Number(data.refundedAmount || 0) - Number(beforeData.refundedAmount || 0)) * 100);
         if (refundedNowCents > 0) {
-          body = refundSmsBody({
-            orderNumber: getNumericOrderId(event.params.orderId),
+          const refund = refundSmsParts({
             refundedNowCents,
             totalRefundedCents: Math.round(Number(data.refundedAmount || 0) * 100),
             orderTotalCents: Math.round(Number(data.total || 0) * 100),
           });
+          body = await compose(refund.key, { amount: refund.amount });
         }
       }
 
@@ -1209,7 +1221,7 @@ export const onGuestOrderStatusUpdate = onDocumentWritten({
       );
 
       if (!body && isNewPinRequest) {
-        body = `Hey! Your Koop order is on the way — tap to help us find you: ${link}`;
+        body = await compose('findMe');
       }
     }
 
