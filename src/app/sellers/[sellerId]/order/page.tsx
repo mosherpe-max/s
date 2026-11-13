@@ -21,7 +21,8 @@ import {
   AlertTriangle,
   Info,
   ShoppingCart,
-  Zap,
+  Truck,
+  UtensilsCrossed,
   X,
   ChevronRight,
   ArrowLeft,
@@ -33,15 +34,16 @@ import { cn, AUTHORIZED_SERVICE_MODES } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 
 const serviceTypeIcons: Record<string, any> = {
-  'Beverage Cart': Zap,
-  'Clubhouse': Zap,
+  'Beverage Cart': Truck,
+  'Clubhouse': UtensilsCrossed,
   'Lane Delivery': MapPin,
 };
 
-const SERVICE_INSTRUCTIONS: Record<string, string> = {
-  'Beverage Cart': 'Drinks & snacks delivered on course — a small convenience fee applies.',
-  'Clubhouse': 'Food & drinks delivered on course — a small convenience fee applies.',
-  'Lane Delivery': 'Food & drinks delivered to your lane — a small convenience fee applies.',
+// One short line under each service mode's name, so a golfer can tell what each one is without tapping.
+const SERVICE_BLURBS: Record<string, string> = {
+  'Beverage Cart': 'Drinks & snacks to you',
+  'Clubhouse': 'Kitchen food & drinks',
+  'Lane Delivery': 'Food & drinks to your lane',
 };
 
 function BuyerOrderContent({ sellerId }: { sellerId: string }) {
@@ -142,9 +144,18 @@ function BuyerOrderContent({ sellerId }: { sellerId: string }) {
         && !!current.availableOn?.includes(selectedMenuType)
         && !current.outOfStockModes?.includes(selectedMenuType);
     };
+    // The same basket ordered more than once is suggested once (the most recent), so the list isn't repeats.
+    const basketOf = (order: Order) => order.items.map((i) => `${i.cartId}x${i.quantity}`).sort().join('|');
+    const seen = new Set<string>();
     return [...pastOrders]
       .filter((order) => order.items.every(isStillOrderable))
       .sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0))
+      .filter((order) => {
+        const basket = basketOf(order);
+        if (seen.has(basket)) return false;
+        seen.add(basket);
+        return true;
+      })
       .slice(0, 2);
   }, [pastOrders, menuItems, selectedMenuType]);
 
@@ -339,27 +350,45 @@ function BuyerOrderContent({ sellerId }: { sellerId: string }) {
             </Button>
           </div>
 
-          <div className="flex wrap gap-2">
-            {(seller?.menuTypes || [])
-              .filter(t => AUTHORIZED_SERVICE_MODES.includes(t))
-              .map((type) => {
-                const Icon = serviceTypeIcons[type] || Store;
-                const available = availableModes.includes(type);
-                const isSelected = selectedMenuType === type;
-                return (
-                  <button key={type} disabled={!available} onClick={() => updateMenuType(type)} className={cn("flex items-center gap-2 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all shadow-lg", isSelected ? "bg-primary text-white scale-105" : (available ? "bg-white/10 text-white hover:bg-white/20" : "bg-white/5 text-white/20 grayscale cursor-not-allowed border border-white/5"))}>
-                    <Icon className="h-3.5 w-3.5" /> {type}
-                  </button>
-                );
-              })}
-          </div>
+          {(() => {
+            const modes = (seller?.menuTypes || []).filter(t => AUTHORIZED_SERVICE_MODES.includes(t));
+            return (
+              <div className={cn("grid gap-2 w-full", modes.length > 1 ? "grid-cols-2" : "grid-cols-1")} role="tablist" aria-label="Service mode">
+                {modes.map((type) => {
+                  const Icon = serviceTypeIcons[type] || Store;
+                  const available = availableModes.includes(type);
+                  const isSelected = selectedMenuType === type;
+                  return (
+                    <button
+                      key={type}
+                      role="tab"
+                      aria-selected={isSelected}
+                      disabled={!available}
+                      onClick={() => updateMenuType(type)}
+                      className={cn(
+                        "text-left rounded-2xl px-3 py-2.5 transition-all border-2 min-w-0",
+                        !available
+                          ? cn("bg-white/5 text-white/30 grayscale cursor-not-allowed", isSelected ? "border-white/40" : "border-white/5")
+                          : isSelected ? "bg-primary border-primary text-white shadow-lg" : "bg-white/5 border-white/15 text-white hover:bg-white/10"
+                      )}
+                    >
+                      <span className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest"><Icon className="h-4 w-4 shrink-0" /> <span className="truncate">{type}</span></span>
+                      <span className={cn("block mt-1 text-[11px] font-semibold leading-snug", !available ? "text-white/40" : isSelected ? "text-white/90" : "text-white/60")}>
+                        {available ? (SERVICE_BLURBS[type] || '') : 'Closed right now'}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })()}
 
-          <div className="space-y-1.5">
-            <p className="text-[10px] font-black uppercase tracking-[0.1em] text-white flex items-center gap-1.5">
-              <Info className="h-2.5 w-2.5 shrink-0 text-primary" />
-              {availableModes.includes(selectedMenuType) ? (SERVICE_INSTRUCTIONS[selectedMenuType] || 'Select items to begin your order') : 'Service currently unavailable.'}
-            </p>
-          </div>
+          <p className="text-[11px] font-semibold text-white/80 flex items-start gap-1.5 leading-snug">
+            <Info className="h-3.5 w-3.5 shrink-0 text-amber-300 mt-px" />
+            {availableModes.includes(selectedMenuType)
+              ? <span><span className="font-black text-white">A small convenience fee</span> applies to each order.</span>
+              : <span>Service currently unavailable.</span>}
+          </p>
 
           {/* REORDER - past orders at this venue, for this service mode, before Track Active Order */}
           {reorderSuggestions.length > 0 && (
