@@ -235,7 +235,7 @@ export default function LoginPage() {
               ) : (isSolutionAdmin || isInternalStaff || isVenueManager) ? (
                 <div className="space-y-4">
                   <div className="p-5 bg-primary/10 border-2 border-primary/20 rounded-2xl flex flex-col items-center text-center gap-2">
-                    {isVenueManager ? <Store className="h-10 w-10 text-primary" /> : isInternalStaff ? <Target className="h-10 w-10 text-indigo-600" /> : <ShieldCheck className="h-10 w-10 text-primary" />}
+                    {isVenueManager ? <Store className="h-10 w-10 text-primary" /> : isInternalStaff ? <Target className="h-10 w-10 text-[#213147]" /> : <ShieldCheck className="h-10 w-10 text-primary" />}
                     <h3 className="font-headline font-bold text-primary uppercase">INTERNAL VERIFIED</h3>
                     <p className="text-xs text-muted-foreground">
                       {isSolutionAdmin ? 'Solution Management Console' : isVenueManager ? `Venue Manager: ${sellerRole?.courseName}` : 'Sales Professional Workspace'}
@@ -250,25 +250,25 @@ export default function LoginPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <div className="p-5 bg-indigo-50 border-2 border-indigo-100 rounded-2xl space-y-3">
-                    <div className="flex items-center gap-2 text-indigo-600">
+                  <div className="p-5 bg-[#213147]/5 border-2 border-[#213147]/15 rounded-2xl space-y-3">
+                    <div className="flex items-center gap-2 text-[#213147]">
                       <ShieldCheck className="h-4 w-4" />
                       <p className="text-[10px] font-black uppercase tracking-widest">Solution Role Required</p>
                     </div>
-                    <p className="text-xs text-indigo-800 font-medium leading-relaxed">
+                    <p className="text-xs text-[#213147] font-medium leading-relaxed">
                       This portal is reserved for internal KOOP operations. External partners should use the direct dashboard URLs.
                     </p>
-                    <div className="bg-white p-3 rounded-lg border-2 border-indigo-100 space-y-2">
+                    <div className="bg-white p-3 rounded-lg border-2 border-[#213147]/15 space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="text-[9px] font-black uppercase text-muted-foreground">Solution Identity</span>
                         <Button variant="ghost" size="icon" className="h-6 w-6" onClick={copyUid}><Copy className="h-3 w-3" /></Button>
                       </div>
-                      <code className="text-[10px] font-mono font-black break-all text-indigo-600">{user.uid}</code>
+                      <code className="text-[10px] font-mono font-black break-all text-[#213147]">{user.uid}</code>
                     </div>
                     {isSuperAdmin && (
                       <Button 
                         onClick={handleSetupAdmin} 
-                        className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 shadow-lg gap-3"
+                        className="w-full h-12 bg-[#213147] hover:bg-[#213147]/90 shadow-lg gap-3"
                         disabled={isAdminSettingUp}
                       >
                         {isAdminSettingUp ? <Loader2 className="h-5 w-5 animate-spin" /> : <Zap className="h-5 w-5" />}

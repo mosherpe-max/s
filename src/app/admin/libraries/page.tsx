@@ -294,7 +294,7 @@ export default function GlobalLibrariesPage() {
                       <TableCell><Badge variant="outline" className="text-[8px] font-black uppercase bg-slate-100">{item.category}</Badge></TableCell>
                       <TableCell>
                         <div className="flex gap-1">
-                          {(item.venueType || []).map(v => <Badge key={v} className="bg-indigo-600 text-white text-[7px] font-black uppercase h-4 px-1.5">{v}</Badge>)}
+                          {(item.venueType || []).map(v => <Badge key={v} className="bg-[#213147] text-white text-[7px] font-black uppercase h-4 px-1.5">{v}</Badge>)}
                         </div>
                       </TableCell>
                       <TableCell><Badge className="bg-[#213147] text-white text-[8px] font-black uppercase">{SERVICE_MODE_LABELS[item.serviceMode] || item.serviceMode}</Badge></TableCell>
@@ -340,7 +340,7 @@ export default function GlobalLibrariesPage() {
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1">
-                          {(mod.venueType || []).map(v => <Badge key={v} className="bg-indigo-600 text-white text-[7px] font-black uppercase h-4 px-1.5">{v}</Badge>)}
+                          {(mod.venueType || []).map(v => <Badge key={v} className="bg-[#213147] text-white text-[7px] font-black uppercase h-4 px-1.5">{v}</Badge>)}
                         </div>
                       </TableCell>
                       <TableCell><Badge variant="outline" className="text-[8px] font-black uppercase bg-slate-100">{mod.selectionType}</Badge></TableCell>
