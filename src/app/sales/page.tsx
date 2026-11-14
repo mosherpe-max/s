@@ -94,8 +94,8 @@ export default function SalesCRMPage() {
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl pb-20 text-left">
       <header className="flex justify-between items-center mb-8">
-        <h1 className="font-headline text-3xl font-bold uppercase tracking-tight text-indigo-600">MY PIPELINE</h1>
-        <Button onClick={() => { setSelectedProspect(null); form.reset(); setIsProspectDialogOpen(true); }} className="bg-indigo-600 font-black uppercase text-[10px] tracking-widest px-6 h-11"><Plus className="mr-2 h-4 w-4" /> Add Prospect</Button>
+        <h1 className="font-headline text-3xl font-bold uppercase tracking-tight text-[#213147]">MY PIPELINE</h1>
+        <Button onClick={() => { setSelectedProspect(null); form.reset(); setIsProspectDialogOpen(true); }} className="bg-[#213147] hover:bg-[#213147]/90 font-black uppercase text-[10px] tracking-widest px-6 h-11"><Plus className="mr-2 h-4 w-4" /> Add Prospect</Button>
       </header>
 
       <div className="border-2 rounded-[2.5rem] overflow-hidden shadow-sm bg-white">

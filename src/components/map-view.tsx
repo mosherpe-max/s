@@ -177,9 +177,9 @@ function MapInternal({ buyerLocation, sellerLocation, showPrimaryMarker, primary
 
 
   return (
-    <div className="relative w-full h-full bg-[#1a2d44]">
+    <div className="relative w-full h-full bg-[#213147]">
       {!apiIsLoaded && (
-        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-[#1a2d44] text-white gap-4">
+        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-[#213147] text-white gap-4">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/40">Initializing Satellite Data...</p>
         </div>
@@ -288,7 +288,7 @@ export function MapView(props: MapViewProps) {
 
   if (isKeyUnset) {
     return (
-      <div className="w-full h-full flex flex-col items-center justify-center bg-[#1a2d44] text-white p-8 text-center border-4 border-white/5">
+      <div className="w-full h-full flex flex-col items-center justify-center bg-[#213147] text-white p-8 text-center border-4 border-white/5">
         <AlertCircle className="h-12 w-12 text-red-500 mb-6 drop-shadow-xl" />
         <h3 className="font-headline font-black uppercase text-lg mb-2 tracking-tight">Map Service Unavailable</h3>
         <p className="text-[10px] text-white/50 max-w-xs leading-relaxed uppercase font-black tracking-widest">
