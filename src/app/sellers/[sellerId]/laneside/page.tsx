@@ -510,19 +510,19 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
             </Button>
             <Dialog open={isHistoryOpen} onOpenChange={setIsHistoryOpen}>
               <DialogTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-7 rounded-full text-indigo-600 font-black uppercase text-[9px] tracking-widest gap-1.5 hover:bg-indigo-50">
+                <Button variant="ghost" size="sm" className="h-7 rounded-full text-[#213147] font-black uppercase text-[9px] tracking-widest gap-1.5 hover:bg-slate-100">
                   <History className="h-3 w-3" /> History
                 </Button>
               </DialogTrigger>
               <DialogContent closeClassName={CLOSE_ON_DARK} className="sm:max-w-[550px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl">
-                <DialogHeader className="p-6 bg-indigo-600 text-white">
+                <DialogHeader className="p-6 bg-[#213147] text-white">
                   <DialogTitle className="font-headline font-black uppercase tracking-tight text-white flex items-center gap-2">
                     <History className="h-5 w-5" /> Your Today's Orders
                   </DialogTitle>
                 </DialogHeader>
                 <div className="flex-shrink-0 p-4 bg-slate-50 border-b flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Badge className="bg-indigo-100 text-indigo-700 border-0 h-6 uppercase text-[9px] font-black">{personalHistory.length} Delivered</Badge>
+                    <Badge className="bg-[#213147]/10 text-[#213147] border-0 h-6 uppercase text-[9px] font-black">{personalHistory.length} Delivered</Badge>
                     <p className="text-[10px] font-bold text-muted-foreground uppercase">{currentStaffName}</p>
                   </div>
                   <div className="flex items-center gap-1.5">

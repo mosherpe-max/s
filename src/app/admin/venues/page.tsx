@@ -1107,7 +1107,7 @@ export default function AdminVenueRegistryPage() {
                         sellerId={selectedVenue.venueId}
                         venueType={currentVenueType}
                         trigger={
-                          <Button variant="outline" className="w-full h-14 gap-2 border-2 rounded-2xl border-indigo-100 text-indigo-600 hover:bg-indigo-50">
+                          <Button variant="outline" className="w-full h-14 gap-2 border-2 rounded-2xl border-[#213147]/15 text-[#213147] hover:bg-[#213147]/5">
                             <Tags className="h-4 w-4" />
                             <span className="text-[10px] font-black uppercase tracking-widest">Import Modifiers</span>
                           </Button>

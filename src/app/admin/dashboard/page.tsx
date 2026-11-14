@@ -57,7 +57,7 @@ export default function AdminDashboardPage() {
     <div className="p-8 animate-in fade-in duration-500 text-left">
       <div className="max-w-7xl mx-auto space-y-8 pb-20">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <KPICard label="Total Venues" value={venues?.length || 0} sub="Onboarded Partners" icon={Store} colorClass="bg-indigo-600" />
+          <KPICard label="Total Venues" value={venues?.length || 0} sub="Onboarded Partners" icon={Store} colorClass="bg-[#213147]" />
           <KPICard label="Active Markets" value={2} sub="Regional Clusters" icon={MapPin} colorClass="bg-green-600" />
           <KPICard label="System Health" value="100%" sub="All Feeds Live" icon={Activity} colorClass="bg-emerald-500" />
           <KPICard label="Total Prospects" value={leads?.length || 0} sub="In Sales Pipeline" icon={Target} colorClass="bg-primary" />

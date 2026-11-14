@@ -29,10 +29,10 @@ function Target({ x, y }: { x: number; y: number }) {
 function GolfArt() {
   return (
     <svg viewBox="0 0 400 180" preserveAspectRatio="xMidYMid slice" className="block w-full h-full">
-      <rect width="400" height="180" fill="#17233a" />
-      <ellipse cx="270" cy="70" rx="150" ry="62" fill="#1d3a4d" />
-      <ellipse cx="110" cy="140" rx="90" ry="34" fill="#1d3a4d" />
-      <ellipse cx="190" cy="105" rx="26" ry="14" fill="#2a4f6b" />
+      <rect width="400" height="180" fill="#213147" />
+      <ellipse cx="270" cy="70" rx="150" ry="62" fill="#27485a" />
+      <ellipse cx="110" cy="140" rx="90" ry="34" fill="#27485a" />
+      <ellipse cx="190" cy="105" rx="26" ry="14" fill="#345d78" />
       <path d="M70 145 C 140 150, 170 70, 250 78 S 300 60, 318 52" fill="none" stroke="#9fb0c7" strokeWidth="2.5" strokeDasharray="2 8" strokeLinecap="round" />
       <Target x={318} y={52} />
       <g transform="translate(62 148)">
@@ -49,8 +49,8 @@ function BowlingArt() {
   const lanes = [22, 75, 128];
   return (
     <svg viewBox="0 0 400 180" preserveAspectRatio="xMidYMid slice" className="block w-full h-full">
-      <rect width="400" height="180" fill="#17233a" />
-      <g fill="#26405a">
+      <rect width="400" height="180" fill="#213147" />
+      <g fill="#304e67">
         {lanes.map((y) => (
           <rect key={y} x="20" y={y} width="360" height="30" rx="4" />
         ))}
@@ -88,7 +88,7 @@ function Door({
       href={href}
       className="group flex flex-col bg-white text-[#213147] rounded-[10px] overflow-hidden border-2 border-transparent transition-all duration-200 hover:-translate-y-1 hover:border-[#E50000] motion-reduce:transition-none motion-reduce:hover:translate-y-0"
     >
-      <div className="bg-[#17233a] aspect-[20/9]" aria-hidden="true">{art}</div>
+      <div className="bg-[#213147] aspect-[20/9]" aria-hidden="true">{art}</div>
       <div className="flex flex-col gap-2.5 flex-1 px-6 pt-5 pb-6">
         <h2 className={`${condensed} font-bold text-[2.3rem] leading-none uppercase tracking-[0.01em]`}>{title}</h2>
         <p className="font-semibold text-[1.1rem] text-[#E50000]">{line}</p>
@@ -110,7 +110,7 @@ function SoonDoor({
 }) {
   return (
     <div className="flex flex-col bg-white text-[#213147] rounded-[10px] overflow-hidden border-2 border-transparent">
-      <div className="bg-[#17233a] aspect-[20/9]" aria-hidden="true">{art}</div>
+      <div className="bg-[#213147] aspect-[20/9]" aria-hidden="true">{art}</div>
       <div className="flex flex-col gap-2.5 flex-1 px-6 pt-5 pb-6">
         <h2 className={`${condensed} font-bold text-[2.3rem] leading-none uppercase tracking-[0.01em]`}>{title}</h2>
         <p className="font-semibold text-[1.1rem] text-[#E50000]">{line}</p>
