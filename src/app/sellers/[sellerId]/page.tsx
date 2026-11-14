@@ -75,7 +75,7 @@ import {
   TrendingUp
 } from 'lucide-react';
 import Image from 'next/image';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { CLOSE_ON_DARK, Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -1216,7 +1216,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                 <Menu className="h-6 w-6 text-white" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="w-72 bg-[#213147] border-0 p-0 text-white">
+            <SheetContent side="left" closeClassName={CLOSE_ON_DARK} className="w-72 bg-[#213147] border-0 p-0 text-white">
               <SheetHeader className="p-6 border-b border-white/5 text-left">
                 <StylizedKoopLogo size="md" />
                 <SheetTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-primary mt-2">Venue Control</SheetTitle>
@@ -2205,7 +2205,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       </div>
 
       <Dialog open={isItemFormOpen} onOpenChange={setIsItemFormOpen}>
-        <DialogContent closeClassName="text-white hover:text-white/80" className="sm:max-w-[450px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left max-h-[90vh] flex flex-col">
+        <DialogContent closeClassName={CLOSE_ON_DARK} className="sm:max-w-[450px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left max-h-[90vh] flex flex-col">
           <DialogHeader className="p-8 bg-[#213147] text-white shrink-0">
             <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">
               {editingItem ? 'Edit Product' : 'New Product'}
@@ -2353,7 +2353,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
       </Dialog>
 
       <Dialog open={isStaffFormOpen} onOpenChange={setIsStaffFormOpen}>
-        <DialogContent closeClassName="text-white hover:text-white/80" className="sm:max-w-[450px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
+        <DialogContent closeClassName={CLOSE_ON_DARK} className="sm:max-w-[450px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
           <DialogHeader className="p-8 bg-[#213147] text-white">
             <DialogTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">
               {editingStaff ? 'Edit Personnel' : 'Add Fulfillment Staff'}

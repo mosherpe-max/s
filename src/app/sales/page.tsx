@@ -11,7 +11,7 @@ import {
   Save,
   Loader2
 } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { CLOSE_ON_DARK, Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -122,7 +122,7 @@ export default function SalesCRMPage() {
       </div>
 
       <Dialog open={isProspectDialogOpen} onOpenChange={setIsProspectDialogOpen}>
-        <DialogContent className="sm:max-w-[650px] rounded-[2.5rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
+        <DialogContent closeClassName={CLOSE_ON_DARK} className="sm:max-w-[650px] rounded-[2.5rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
           <DialogHeader className="p-8 bg-indigo-600 text-white">
             <DialogTitle className="font-headline font-black uppercase text-xl">Manage Prospect</DialogTitle>
           </DialogHeader>

@@ -7,7 +7,7 @@ import { useCollection, useFirebaseApp, useFirestore, useMemoFirebase } from '@/
 import type { StarterMenuItem } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { CLOSE_ON_DARK, Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Switch } from '@/components/ui/switch';
 import { Library, Loader2 } from 'lucide-react';
@@ -95,7 +95,7 @@ export function StarterItemPicker({ sellerId, venueType, mode, modeLabel, trigge
   return (
     <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setSelected(new Set()); }}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent closeClassName="text-white hover:text-white/80" className="sm:max-w-[600px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
+      <DialogContent closeClassName={CLOSE_ON_DARK} className="sm:max-w-[600px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
         <DialogHeader className="p-8 bg-[#213147] text-white">
           <DialogTitle className="font-headline font-black uppercase text-xl flex items-center gap-2">
             <Library className="h-5 w-5" /> {mode ? <>Import Items &mdash; {modeLabel}</> : 'Import From Library'}

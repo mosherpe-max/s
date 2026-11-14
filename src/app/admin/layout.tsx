@@ -1,5 +1,6 @@
 'use client';
 
+import { CLOSE_ON_DARK } from '@/components/ui/dialog';
 import React, { useState, useEffect } from 'react';
 import { 
   LayoutDashboard, 
@@ -144,7 +145,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon" className="md:hidden"><Menu className="h-6 w-6 text-white" /></Button>
               </SheetTrigger>
-              <SheetContent side="left" className="w-72 bg-[#213147] border-0 p-0 text-white">
+              <SheetContent side="left" closeClassName={CLOSE_ON_DARK} className="w-72 bg-[#213147] border-0 p-0 text-white">
                 <SheetHeader className="p-6 border-b border-white/5 text-left">
                   <StylizedKoopLogo size="md" />
                   <SheetTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-primary mt-2">Solution Control</SheetTitle>

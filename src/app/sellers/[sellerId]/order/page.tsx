@@ -1,5 +1,6 @@
 'use client';
 
+import { CLOSE_ON_DARK } from '@/components/ui/dialog';
 import { useState, use, useEffect, useMemo, Suspense } from 'react';
 import { isCategoryVisible } from '@/lib/category-visibility';
 import { isModePaused } from '@/lib/mode-status';
@@ -11,7 +12,7 @@ import { BuyerMenu } from '@/components/buyer-menu';
 import { ModifierSelector } from '@/components/modifier-selector';
 import { Button } from '@/components/ui/button';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetClose } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -23,7 +24,6 @@ import {
   ShoppingCart,
   Truck,
   UtensilsCrossed,
-  X,
   ChevronRight,
   ArrowLeft,
   Lock,
@@ -515,12 +515,11 @@ function BuyerOrderContent({ sellerId }: { sellerId: string }) {
       )}
 
       <Sheet open={!!customizingItem} onOpenChange={(o) => !o && setCustomizingItem(null)}>
-        <SheetContent side="bottom" className="rounded-t-[2.5rem] h-[90vh] flex flex-col p-0 overflow-hidden outline-none">
+        <SheetContent side="bottom" closeClassName={CLOSE_ON_DARK} className="rounded-t-[2.5rem] h-[90vh] flex flex-col p-0 overflow-hidden outline-none">
           <SheetHeader className="px-6 py-5 border-b bg-[#213147] text-white shrink-0 text-left">
             <div className="max-w-xl mx-auto w-full flex flex-col items-start relative pr-10">
               <SheetTitle className="font-headline font-black uppercase tracking-tight text-white text-xl">Customize Item</SheetTitle>
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/50">{customizingItem?.name}</p>
-              <SheetClose className="absolute right-0 top-0 text-white/40 hover:text-white"><X className="h-6 w-6" /></SheetClose>
             </div>
           </SheetHeader>
           {customizingItem && <ModifierSelector item={customizingItem} onConfirm={handleConfirmModifiers} onCancel={() => setCustomizingItem(null)} />}

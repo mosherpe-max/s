@@ -8,7 +8,7 @@ import type { StarterModifierGroup } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { CLOSE_ON_DARK, Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tags, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -71,7 +71,7 @@ export function StarterModifierPicker({ sellerId, venueType, trigger, onImported
   return (
     <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setSelected(new Set()); }}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent closeClassName="text-white hover:text-white/80" className="sm:max-w-[500px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
+      <DialogContent closeClassName={CLOSE_ON_DARK} className="sm:max-w-[500px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
         <DialogHeader className="p-8 bg-[#213147] text-white">
           <DialogTitle className="font-headline font-black uppercase text-xl flex items-center gap-2">
             <Tags className="h-5 w-5" /> Import Modifiers

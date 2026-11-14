@@ -1,5 +1,6 @@
 'use client';
 
+import { CLOSE_ON_DARK } from '@/components/ui/dialog';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { isMarketingPath } from '@/lib/marketing-paths';
@@ -106,7 +107,7 @@ function GlobalNavigator() {
           <Menu className="h-6 w-6" />
         </Button>
       </SheetTrigger>
-      <SheetContent side="right" className="w-[300px] sm:w-[400px] p-0 border-l-4 border-primary/20 bg-[#213147] text-white">
+      <SheetContent side="right" closeClassName={CLOSE_ON_DARK} className="w-[300px] sm:w-[400px] p-0 border-l-4 border-primary/20 bg-[#213147] text-white">
         <SheetHeader className="p-6 border-b border-white/5 text-left">
           <StylizedKoopLogo size="md" />
           <SheetTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-primary mt-2">Global Navigator</SheetTitle>

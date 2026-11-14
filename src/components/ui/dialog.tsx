@@ -29,6 +29,11 @@ const DialogOverlay = React.forwardRef<
 ))
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
 
+// The close X for a dialog or sheet whose header is dark (Koop blue, indigo). The default X is dark and 70% opaque, so it
+// all but disappears there. This makes it white, fully opaque, on a soft round chip that is also a bigger thing to tap.
+// The negative margins keep the icon exactly where the default X sits.
+export const CLOSE_ON_DARK = "text-white opacity-100 rounded-full bg-white/15 p-1.5 -mt-1.5 -mr-1.5 hover:bg-white/25 hover:text-white"
+
 interface DialogContentProps
   extends React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> {
   // Lets a colored (e.g. brand-blue) dialog header opt its close icon into a
