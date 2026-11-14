@@ -33,7 +33,7 @@ import { categories, type StarterMenuItem, type StarterModifierGroup } from '@/l
 import { seedGlobalStarterMenuLibrary } from '@/lib/seed-data';
 import { ImageUploadDropzone } from '@/components/image-upload-dropzone';
 import { useToast } from '@/hooks/use-toast';
-import {
+import { CLOSE_ON_DARK,
   Dialog,
   DialogContent,
   DialogHeader,
@@ -362,7 +362,7 @@ export default function GlobalLibrariesPage() {
 
       {/* ITEM DIALOG */}
       <Dialog open={isItemDialogOpen} onOpenChange={(o) => { setIsItemDialogOpen(o); if (!o) setEditingItem(null); }}>
-        <DialogContent closeClassName="text-white hover:text-white/80" className="sm:max-w-[550px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left max-h-[90vh] flex flex-col">
+        <DialogContent closeClassName={CLOSE_ON_DARK} className="sm:max-w-[550px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left max-h-[90vh] flex flex-col">
           <DialogHeader className="p-8 bg-[#213147] text-white shrink-0">
             <DialogTitle className="font-headline font-black uppercase text-xl">{editingItem ? 'Edit Product Template' : 'New Product Template'}</DialogTitle>
           </DialogHeader>
@@ -466,7 +466,7 @@ export default function GlobalLibrariesPage() {
 
       {/* MOD DIALOG */}
       <Dialog open={isModDialogOpen} onOpenChange={(o) => { setIsModDialogOpen(o); if (!o) setEditingMod(null); }}>
-        <DialogContent closeClassName="text-white hover:text-white/80" className="sm:max-w-[450px] max-h-[92vh] overflow-y-auto rounded-[2rem] p-0 border-2 shadow-2xl text-left">
+        <DialogContent closeClassName={CLOSE_ON_DARK} className="sm:max-w-[450px] max-h-[92vh] overflow-y-auto rounded-[2rem] p-0 border-2 shadow-2xl text-left">
           <DialogHeader className="p-8 bg-[#213147] text-white">
             <DialogTitle className="font-headline font-black uppercase text-xl">Modifier Template</DialogTitle>
           </DialogHeader>

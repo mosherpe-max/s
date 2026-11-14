@@ -8,7 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { CLOSE_ON_DARK, Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form';
@@ -216,7 +216,7 @@ export function ModifierManagement({ sellerId, venueType }: ModifierManagementPr
       </Card>
 
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <DialogContent closeClassName="text-white hover:text-white/80" className="max-w-lg rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left max-h-[90vh] flex flex-col">
+        <DialogContent closeClassName={CLOSE_ON_DARK} className="max-w-lg rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left max-h-[90vh] flex flex-col">
           <DialogHeader className="p-8 bg-[#213147] text-white shrink-0">
             <DialogTitle className="font-headline font-black uppercase text-xl">{editingGroup ? 'Edit Modifier Group' : 'New Modifier Group'}</DialogTitle>
           </DialogHeader>

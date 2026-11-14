@@ -13,7 +13,7 @@ import {
 } from '@/lib/menu-import';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { CLOSE_ON_DARK, Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -229,7 +229,7 @@ export function MenuCsvImport({ sellerId, trigger }: { sellerId: string; trigger
     <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) reset(); }}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent
-        closeClassName="text-white hover:text-white/80"
+        closeClassName={CLOSE_ON_DARK}
         className="sm:max-w-[760px] max-h-[92dvh] flex flex-col gap-0 rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left"
       >
         <DialogHeader className="p-6 sm:p-8 bg-[#213147] text-white text-left shrink-0">

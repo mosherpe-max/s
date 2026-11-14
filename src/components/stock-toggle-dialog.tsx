@@ -3,7 +3,7 @@
 import { collection, doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import type { MenuItem } from '@/lib/types';
-import {
+import { CLOSE_ON_DARK,
   Dialog,
   DialogContent,
   DialogHeader,
@@ -58,7 +58,7 @@ export function StockToggleDialog({ sellerId, mode, open, onOpenChange }: StockT
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl flex flex-col max-h-[80vh]">
+      <DialogContent closeClassName={CLOSE_ON_DARK} className="sm:max-w-[500px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl flex flex-col max-h-[80vh]">
         <DialogHeader className="p-6 bg-[#213147] text-white shrink-0">
           <DialogTitle className="font-headline font-black uppercase tracking-tight text-white flex items-center gap-2">
             <Ban className="h-5 w-5" /> 86 an Item

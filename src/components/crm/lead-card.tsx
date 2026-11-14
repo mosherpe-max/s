@@ -10,7 +10,7 @@ import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { CLOSE_ON_DARK, Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -218,7 +218,7 @@ export function LeadCard({ lead, open, onOpenChange, onSaved }: {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent closeClassName="text-white hover:text-white/80" onOpenAutoFocus={(e) => { if (!lead) { e.preventDefault(); setTimeout(() => form.setFocus('venueName'), 0); } }} className="sm:max-w-[820px] max-h-[92dvh] flex flex-col gap-0 rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
+      <DialogContent closeClassName={CLOSE_ON_DARK} onOpenAutoFocus={(e) => { if (!lead) { e.preventDefault(); setTimeout(() => form.setFocus('venueName'), 0); } }} className="sm:max-w-[820px] max-h-[92dvh] flex flex-col gap-0 rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
         <DialogHeader className="shrink-0 p-6 bg-[#213147] text-white space-y-1">
           <DialogTitle className="font-headline font-black uppercase text-xl">{lead ? lead.venueName : 'New Lead'}</DialogTitle>
           {lead && <p className="text-[10px] font-bold uppercase tracking-widest text-white/60">{lead.venueType} · {lead.city}{lead.city && lead.state ? ', ' : ''}{lead.state}</p>}

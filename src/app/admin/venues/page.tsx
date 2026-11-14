@@ -42,7 +42,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { VenueAdminLinkDialog, VenueAdminLogins, useVenueAdminActions, type VenueAdminLink } from '@/components/venue-admin-logins';
 import { Checkbox } from '@/components/ui/checkbox';
-import { 
+import { CLOSE_ON_DARK, 
   Dialog, 
   DialogContent, 
   DialogHeader, 
@@ -708,7 +708,7 @@ export default function AdminVenueRegistryPage() {
       </div>
 
       <Dialog open={isNewVenueOpen} onOpenChange={setIsNewVenueOpen}>
-        <DialogContent closeClassName="text-white hover:text-white/80" className="sm:max-w-[550px] max-h-[92dvh] flex flex-col gap-0 rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
+        <DialogContent closeClassName={CLOSE_ON_DARK} className="sm:max-w-[550px] max-h-[92dvh] flex flex-col gap-0 rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
           <DialogHeader className="p-8 bg-[#213147] text-white shrink-0">
             <DialogTitle className="font-headline font-black uppercase text-xl">Venue Onboarding</DialogTitle>
           </DialogHeader>
@@ -827,7 +827,7 @@ export default function AdminVenueRegistryPage() {
       </Dialog>
 
       <Dialog open={isManagementOpen} onOpenChange={setIsManagementOpen}>
-        <DialogContent closeClassName="text-white hover:text-white/80" className="sm:max-w-[550px] max-h-[92dvh] flex flex-col gap-0 rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
+        <DialogContent closeClassName={CLOSE_ON_DARK} className="sm:max-w-[550px] max-h-[92dvh] flex flex-col gap-0 rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
           <DialogHeader className="p-8 bg-[#213147] text-white shrink-0">
             <div className="flex items-center justify-between gap-4">
               <DialogTitle className="font-headline font-black uppercase text-xl">Venue Controls</DialogTitle>
