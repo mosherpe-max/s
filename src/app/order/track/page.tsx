@@ -341,7 +341,7 @@ function OrderTrackingContent() {
                   "text-[10px] font-black uppercase tracking-widest",
                   isSignalStale ? "text-red-700" : "text-green-700"
                 )}>
-                  Location update {secondsSinceUpdate}s ago
+                  Location update {secondsSinceUpdate} <span className="normal-case">{secondsSinceUpdate === 1 ? 'sec' : 'secs'}</span> ago
                 </p>
                 <p className={cn(
                   "text-[8px] font-bold uppercase",
