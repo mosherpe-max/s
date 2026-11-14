@@ -5,11 +5,12 @@ import type { Order, OrderFulfillmentThresholds } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from './ui/card';
 import { Separator } from './ui/separator';
 import { Button } from './ui/button';
-import { Clock, AlertTriangle, ChevronRight, CheckCircle2, Truck, Timer, Satellite, User, UserPlus, UserMinus, Repeat, MapPin, MessageSquare } from 'lucide-react';
+import { Clock, AlertTriangle, ChevronRight, CheckCircle2, Truck, Timer, Satellite, User, UserPlus, UserMinus, Repeat, MapPin, MessageSquare, MoreHorizontal, Undo2 } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { cn, getNumericOrderId } from '@/lib/utils';
 import { formatHole } from '@/lib/patron-location';
-import { StaffRefundRequest } from '@/components/staff-refund-request';
+import { RefundRequestDialog, isCardOrder, refundStatusOf } from '@/components/staff-refund-request';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
 
 interface OrderCardProps {
   order: Order;
@@ -57,6 +58,10 @@ export function OrderCard({
   smsEnabled
 }: OrderCardProps) {
   const statusInfo = getStatusConfig(order.status);
+  const [refundOpen, setRefundOpen] = useState(false);
+  const refundStatus = refundStatusOf(order);
+  // Staff can ask for a refund on a card order from the order's menu, until a request exists.
+  const canMenuRefund = !!currentStaffId && isCardOrder(order);
   
   // Calculate Order Duration
   const orderTime = order.createdAt?.toDate?.()?.getTime() || now;
@@ -147,8 +152,33 @@ export function OrderCard({
                Mine
              </Badge>
            )}
+           {canMenuRefund && (
+             <DropdownMenu modal={false}>
+               <DropdownMenuTrigger asChild>
+                 <Button type="button" variant="ghost" size="icon" aria-label="Order actions" className="h-6 w-6 -mr-1 shrink-0 rounded-full text-slate-500 hover:bg-slate-100">
+                   <MoreHorizontal className="h-4 w-4" />
+                 </Button>
+               </DropdownMenuTrigger>
+               <DropdownMenuContent align="end" className="min-w-[11rem]">
+                 <DropdownMenuItem
+                   disabled={!!refundStatus}
+                   onSelect={() => setRefundOpen(true)}
+                   className="gap-2 text-[11px] font-black uppercase tracking-widest"
+                 >
+                   <Undo2 className="h-3.5 w-3.5" /> {refundStatus ? refundStatus.label : 'Request refund'}
+                 </DropdownMenuItem>
+               </DropdownMenuContent>
+             </DropdownMenu>
+           )}
         </div>
       </CardHeader>
+
+      {/* Only when there is something to say about a refund, so most cards spend no height on it. */}
+      {refundStatus && (
+        <div role="status" className={cn("px-2.5 py-1 text-[9px] font-black uppercase tracking-widest border-b flex items-center gap-1.5", refundStatus.tone)}>
+          <Undo2 className="h-3 w-3" /> {refundStatus.label}
+        </div>
+      )}
 
       {/* COMPACT CONTENT */}
       <CardContent className="p-2.5 flex-1 space-y-2">
@@ -237,11 +267,6 @@ export function OrderCard({
             Refresh Patron Location
           </Button>
         )}
-        {currentStaffId && (order.paymentMethod === 'Digital Payment') && (
-          <div className="flex w-full justify-end">
-            <StaffRefundRequest order={order} staffId={currentStaffId} staffName={currentStaffName || 'Staff'} compact />
-          </div>
-        )}
         <div className="flex gap-1.5 w-full">
           {(onClaim || onUnclaim) && order.status !== 'Delivered' && order.status !== 'Cancelled' && (
             isAssignedToMe ? (
@@ -282,6 +307,9 @@ export function OrderCard({
           </Button>
         </div>
       </CardFooter>
+      {canMenuRefund && (
+        <RefundRequestDialog order={order} staffId={currentStaffId} staffName={currentStaffName || 'Staff'} open={refundOpen} onOpenChange={setRefundOpen} />
+      )}
     </Card>
   );
 }
