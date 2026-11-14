@@ -123,7 +123,7 @@ export default function SalesCRMPage() {
 
       <Dialog open={isProspectDialogOpen} onOpenChange={setIsProspectDialogOpen}>
         <DialogContent closeClassName={CLOSE_ON_DARK} className="sm:max-w-[650px] rounded-[2.5rem] p-0 overflow-hidden border-2 shadow-2xl text-left">
-          <DialogHeader className="p-8 bg-indigo-600 text-white">
+          <DialogHeader className="p-8 bg-[#213147] text-white">
             <DialogTitle className="font-headline font-black uppercase text-xl">Manage Prospect</DialogTitle>
           </DialogHeader>
           <div className="p-8">

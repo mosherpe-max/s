@@ -515,7 +515,7 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
                 </Button>
               </DialogTrigger>
               <DialogContent closeClassName={CLOSE_ON_DARK} className="sm:max-w-[550px] rounded-[2rem] p-0 overflow-hidden border-2 shadow-2xl">
-                <DialogHeader className="p-6 bg-indigo-600 text-white">
+                <DialogHeader className="p-6 bg-[#213147] text-white">
                   <DialogTitle className="font-headline font-black uppercase tracking-tight text-white flex items-center gap-2">
                     <History className="h-5 w-5" /> Your Today's Orders
                   </DialogTitle>
