@@ -246,7 +246,9 @@ export function missingRoundsMonth(records: SeasonRecord[], koop: Map<string, Ko
 
 export interface ParsedSeasonRows { records: SeasonRecord[]; errors: string[] }
 
-function splitCsvLine(line: string): string[] {
+// The delimiter is a tab when the first line has one (a paste from Excel or Sheets, where a comma inside a number is a
+// thousands separator), otherwise a comma.
+function splitCsvLine(line: string, delimiter: ',' | '\t' = ','): string[] {
   const cells: string[] = [];
   let cur = '';
   let quoted = false;
@@ -257,11 +259,23 @@ function splitCsvLine(line: string): string[] {
       else if (ch === '"') quoted = false;
       else cur += ch;
     } else if (ch === '"') quoted = true;
-    else if (ch === ',' || ch === '\t') { cells.push(cur.trim()); cur = ''; }
+    else if (ch === delimiter) { cells.push(cur.trim()); cur = ''; }
     else cur += ch;
   }
   cells.push(cur.trim());
   return cells;
+}
+
+// A row with more values than columns usually has a number with a thousands comma that was not put in quotes, like
+// $1,250.50 split into "$1" and "250.50". Join such pairs back together, only as far as needed to fit the columns.
+function rejoinThousands(cells: string[], columns: number): string[] {
+  const out = cells.slice();
+  while (out.length > columns) {
+    const at = out.findIndex((c, i) => i > 0 && i < out.length - 1 && /^\$?\d{1,3}$/.test(c) && /^\d{3}(\.\d+)?$/.test(out[i + 1]));
+    if (at < 0) break;
+    out.splice(at, 2, `${out[at]},${out[at + 1]}`);
+  }
+  return out;
 }
 
 // Accepts yyyy-MM-dd, M/D/YYYY, M/D/YY, and (for months) yyyy-MM or M/YYYY. Returns yyyy-MM-dd, or null.
@@ -303,12 +317,15 @@ export function parseSeasonCsv(text: string): ParsedSeasonRows {
   const errors: string[] = [];
   if (lines.length === 0) return { records: [], errors: ['Nothing to import.'] };
 
+  const delimiter: ',' | '\t' = lines[0].includes('\t') ? '\t' : ',';
   let cols = { date: 0, sales: 1, rounds: 2, type: -1 };
   let defaultKind: SeasonKind = 'day';
   let first = 0;
-  const head = splitCsvLine(lines[0]).map(c => c.toLowerCase());
+  let columns = 3;
+  const head = splitCsvLine(lines[0], delimiter).map(c => c.toLowerCase());
   if (head.some(c => /[a-z]/.test(c)) && !head.some(c => parseSeasonDate(c, 'day'))) {
     first = 1;
+    columns = head.length;
     const find = (re: RegExp) => head.findIndex(c => re.test(c));
     const dateCol = find(/^(date|day|week|month|start|period)/);
     cols = { date: dateCol >= 0 ? dateCol : 0, sales: find(/sales|bev|cart|revenue/), rounds: find(/round/), type: find(/^(type|kind|period type)$/) };
@@ -317,8 +334,9 @@ export function parseSeasonCsv(text: string): ParsedSeasonRows {
   }
 
   for (let i = first; i < lines.length; i++) {
-    const row = splitCsvLine(lines[i]);
     const label = `Line ${i + 1}`;
+    const row = rejoinThousands(splitCsvLine(lines[i], delimiter), columns);
+    if (row.length > columns) { errors.push(`${label}: has ${row.length} values but there are ${columns} columns. Put quotes around any number that has a comma in it, or leave the comma out.`); continue; }
     let kind: SeasonKind = defaultKind;
     if (cols.type >= 0 && row[cols.type]) {
       const k = kindFromWord(row[cols.type]);

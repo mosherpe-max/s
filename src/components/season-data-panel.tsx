@@ -431,6 +431,21 @@ function CsvImport({ sellerId }: { sellerId: string }) {
           {saving && <Loader2 className="h-4 w-4 animate-spin" />} Import {parsed && parsed.records.length > 0 ? `${parsed.records.length} row${parsed.records.length === 1 ? '' : 's'}` : ''}
         </Button>
       </div>
+      {parsed && parsed.records.length > 0 && (
+        <div className="rounded-lg border-2 border-slate-100 overflow-hidden">
+          <p className="bg-slate-50 px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-muted-foreground">How the first rows were read. Check the numbers before importing.</p>
+          {parsed.records.slice(0, 5).map(r => (
+            <div key={`${r.kind}_${r.start}`} className="grid grid-cols-[4rem_5.5rem_1fr_1fr_auto] gap-2 px-3 py-1.5 border-t border-slate-100 text-[11px] font-bold text-[#213147]">
+              <span className="uppercase text-[9px] text-muted-foreground self-center">{r.kind === 'week' ? 'Week' : r.kind === 'month' ? 'Month' : 'Day'}</span>
+              <span className="font-mono">{r.start}</span>
+              <span>{r.bevCartSales !== undefined ? usd(r.bevCartSales) : 'no sales'}</span>
+              <span>{r.rounds !== undefined ? `${r.rounds.toLocaleString()} rounds` : 'no rounds'}</span>
+              <span className="text-muted-foreground">{r.bevCartSales !== undefined && r.rounds ? `${usd(r.bevCartSales / r.rounds)} per round` : ''}</span>
+            </div>
+          ))}
+          {parsed.records.length > 5 && <p className="px-3 py-1.5 border-t border-slate-100 text-[10px] font-bold text-muted-foreground">and {parsed.records.length - 5} more</p>}
+        </div>
+      )}
       {parsed && parsed.errors.length > 0 && (
         <ul className="space-y-0.5 rounded-lg border-2 border-amber-200 bg-amber-50 p-3 text-[11px] font-bold text-amber-800">
           {parsed.errors.slice(0, 8).map(e => <li key={e}>{e}</li>)}
