@@ -76,7 +76,7 @@ function BowlerPhone() {
       <div className="px-2.5 py-1.5 text-[#55637a] text-[8.5px]">Ordering for Lane 12. Delivered to your lane.</div>
       <div className="grid grid-cols-2 gap-2 px-2.5 pt-1.5 pb-2.5">
         <MenuItem price="$14.00" name="Pitcher of draft" tint="linear-gradient(135deg, #8b1e3f, #c94a6a)" />
-        <MenuItem price="$12.00" name="Boneless wings" tint="linear-gradient(135deg, #1e4fa0, #4f86d6)" />
+        <MenuItem price="$12.00" name="Boneless wings" tint="linear-gradient(135deg, #213147, #3b5778)" />
       </div>
     </Phone>
   );
