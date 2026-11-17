@@ -12,6 +12,7 @@ import { useEffect, useState, useMemo, useRef, use } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { OrderCard } from '@/components/order-card';
+import { thumbsUpSince } from '@/lib/ratings';
 import { StaffRefundRequest } from '@/components/staff-refund-request';
 import type { Order, Seller, StaffMember, SolutionConfig, OrderFulfillmentThresholds } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -21,7 +22,7 @@ import { Focus, Package, LogOut, Truck, ChevronLeft, LayoutDashboard, ShieldAler
 import { StockToggleDialog } from '@/components/stock-toggle-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { isToday, differenceInSeconds, differenceInMinutes, format } from 'date-fns';
+import { startOfDay, isToday, differenceInSeconds, differenceInMinutes, format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError, type SecurityRuleContext } from '@/firebase/errors';
@@ -370,6 +371,9 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
     };
   }, [allOrders]);
 
+  // This staff member's thumbs up from patrons on orders they delivered today.
+  const thumbsUpToday = useMemo(() => thumbsUpSince(allOrders || [], currentStaffId, startOfDay(new Date()).getTime()), [allOrders, currentStaffId]);
+
   useStaffAlertSound();
 
   // NEW ORDER ALERT LOGIC
@@ -542,6 +546,11 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
           <div className="flex flex-col items-center">
             <span className="text-[8px] font-black uppercase text-muted-foreground">Daily Tips</span>
             <span className="text-xs font-bold">${metrics?.dailyTips.toFixed(2) || '0.00'}</span>
+          </div>
+          <div className="h-6 w-px bg-muted" />
+          <div className="flex flex-col items-center">
+            <span className="text-[8px] font-black uppercase text-muted-foreground">Thumbs Up</span>
+            <span className="text-xs font-bold">{thumbsUpToday}</span>
           </div>
         </div>
         <div className="flex items-center gap-2">

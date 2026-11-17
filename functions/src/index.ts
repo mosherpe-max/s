@@ -14,6 +14,7 @@ import {
 import { canTakeCardPayments, stripeStatusFromAccount } from "./stripe-status.js";
 import { isRefundReason, REFUND_REASONS } from "./refund-reasons.js";
 import { refundSmsParts } from "./refund-text.js";
+import { planRating, validateRatingInput } from "./ratings.js";
 import { pickSmsTemplate, renderSmsTemplate, templateUsesField, type SmsTemplateKey } from "./sms-templates.js";
 import { accountAction, applicationFeeCents, createDirectPaymentIntent, ensureWalletDomain, fetchChargeFees, planRefund, refundStatusFor, resolveVenueCustomer } from "./stripe-direct.js";
 import { reconcileOrderQueue, syncQueueEntry } from "./order-queue.js";
@@ -1076,6 +1077,44 @@ export const refundOrder = onCall({
     logger.error("refundOrder Error", err);
     if (err instanceof HttpsError) throw err;
     throw new HttpsError('internal', err.message || 'Could not refund the order.');
+  }
+});
+
+/**
+ * rateOrder
+ * A patron gives a delivered order a thumbs up or down (a down needs a reason and can have a comment). It is a function
+ * rather than a direct write because the patron may open the tracking link in a different browser than the one that
+ * ordered, so they cannot be matched to the order by sign-in; the long random order id in the link is the key, as it is
+ * for viewing the order. Once per order, and only within 48 hours of delivery.
+ */
+export const rateOrder = onCall({
+  region: 'us-central1',
+  timeoutSeconds: 30,
+}, async (request) => {
+  try {
+    const orderId = typeof request.data?.orderId === 'string' ? request.data.orderId.trim() : '';
+    if (!orderId) throw new HttpsError('invalid-argument', 'Missing orderId.');
+    const input = validateRatingInput(request.data);
+    if (!input.ok) throw new HttpsError('invalid-argument', input.message);
+
+    const orderRef = db.collection('orders').doc(orderId);
+    await db.runTransaction(async (tx) => {
+      const snap = await tx.get(orderRef);
+      if (!snap.exists) throw new HttpsError('not-found', 'Order not found.');
+      const order = snap.data() || {};
+      const plan = planRating({
+        status: order.status,
+        hasRating: !!order.rating?.score,
+        deliveredAtMs: order.deliveredAt?.toMillis?.() ?? null,
+      }, Date.now());
+      if (!plan.ok) throw new HttpsError(plan.code, plan.message);
+      tx.update(orderRef, { rating: { ...input.value, ratedAt: Timestamp.now() } });
+    });
+    return { ok: true };
+  } catch (err: any) {
+    if (err instanceof HttpsError) throw err;
+    logger.error("rateOrder Error", err);
+    throw new HttpsError('internal', err.message || 'Could not save your rating.');
   }
 });
 

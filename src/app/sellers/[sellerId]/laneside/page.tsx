@@ -8,6 +8,7 @@ import { useEffect, useState, useMemo, useRef, use } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { OrderCard } from '@/components/order-card';
+import { thumbsUpSince } from '@/lib/ratings';
 import { StaffRefundRequest } from '@/components/staff-refund-request';
 import type { Order, Seller, StaffMember, SolutionConfig, OrderFulfillmentThresholds } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -17,7 +18,7 @@ import { Package, LogOut, MapPin, LayoutList, ChevronLeft, ShieldAlert, History,
 import { StockToggleDialog } from '@/components/stock-toggle-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { isToday, differenceInSeconds, differenceInMinutes, format } from 'date-fns';
+import { startOfDay, isToday, differenceInSeconds, differenceInMinutes, format } from 'date-fns';
 import { cn, SUPER_ADMIN_ID, isStaffSessionStale, isStaffSessionIdle, getNumericOrderId } from '@/lib/utils';
 import Link from 'next/link';
 import { CLOSE_ON_DARK,
@@ -346,6 +347,9 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
     };
   }, [allOrders]);
 
+  // This staff member's thumbs up from patrons on orders they delivered today.
+  const thumbsUpToday = useMemo(() => thumbsUpSince(allOrders || [], currentStaffId, startOfDay(new Date()).getTime()), [allOrders, currentStaffId]);
+
   useStaffAlertSound();
 
   // NEW ORDER ALERT LOGIC
@@ -486,6 +490,11 @@ export default function LaneSideServerDashboardPage({ params }: { params: Promis
           <div className="flex flex-col items-center">
             <span className="text-[8px] font-black uppercase text-muted-foreground">Daily Tips</span>
             <span className="text-xs font-bold">${metrics?.dailyTips.toFixed(2) || '0.00'}</span>
+          </div>
+          <div className="h-6 w-px bg-muted" />
+          <div className="flex flex-col items-center">
+            <span className="text-[8px] font-black uppercase text-muted-foreground">Thumbs Up</span>
+            <span className="text-xs font-bold">{thumbsUpToday}</span>
           </div>
         </div>
         <div className="flex items-center gap-2">

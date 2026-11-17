@@ -72,7 +72,9 @@ import {
   Receipt,
   FileSpreadsheet,
   Coins,
-  TrendingUp
+  TrendingUp,
+  ThumbsUp,
+  ThumbsDown
 } from 'lucide-react';
 import Image from 'next/image';
 import { CLOSE_ON_DARK, Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -140,6 +142,9 @@ import { StarterItemPicker } from '@/components/starter-item-picker';
 import { MenuCsvImport } from '@/components/menu-csv-import';
 import { TipsReport } from '@/components/tips-report';
 import { SeasonDataPanel } from '@/components/season-data-panel';
+import { RatingsPanel } from '@/components/ratings-panel';
+import { DashboardAttention, SatisfactionCard } from '@/components/dashboard-attention';
+import { needsAttention } from '@/lib/ratings';
 import { koopMonthlySales, missingRoundsMonth, type SeasonRecord } from '@/lib/season-data';
 import { RefundOrder } from '@/components/refund-order-dialog';
 import { ActiveOrdersPanel } from '@/components/active-orders-panel';
@@ -736,6 +741,9 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
   // NOTE: hooks must stay above the loading early return further down this component.
   // Fulfillment Log rows: the chosen date range, then the search, newest first.
   // Orders a staff member has asked to have refunded that the venue admin hasn't answered yet, whatever the date range.
+  // Thumbs-down ratings nobody has followed up on yet (the count on the Ratings menu item).
+  const ratingsToFollowUp = useMemo(() => needsAttention(orders || []).length, [orders]);
+
   const pendingRefundRequests = useMemo(
     () => (orders || []).filter(o => o.refundRequest?.status === 'Requested'),
     [orders]
@@ -1165,6 +1173,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "analytics", label: "Analytics", icon: BarChart3 },
     { id: "orders", label: "Fulfillment Log", icon: ClipboardCheck },
+    { id: "ratings", label: "Ratings", icon: ThumbsUp },
     { id: "modes", label: "Service Modes", icon: Zap },
     { id: "menu", label: "Menu Items", icon: UtensilsCrossed },
     { id: "modifiers", label: "Modifiers", icon: SlidersHorizontal },
@@ -1188,8 +1197,8 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
           active={activeNav === item.id} 
           onClick={setActiveNav} 
           sidebarOpen={sidebarOpen} 
-          badge={item.id === 'orders' ? pendingRefundRequests.length : item.id === 'dollars-per-round' ? roundsReminder : undefined}
-          badgeLabel={item.id === 'orders' ? `${pendingRefundRequests.length} refund request${pendingRefundRequests.length === 1 ? '' : 's'} waiting` : item.id === 'dollars-per-round' ? "Last month's rounds are missing" : undefined}
+          badge={item.id === 'orders' ? pendingRefundRequests.length : item.id === 'ratings' ? ratingsToFollowUp : item.id === 'dollars-per-round' ? roundsReminder : undefined}
+          badgeLabel={item.id === 'orders' ? `${pendingRefundRequests.length} refund request${pendingRefundRequests.length === 1 ? '' : 's'} waiting` : item.id === 'ratings' ? `${ratingsToFollowUp} rating${ratingsToFollowUp === 1 ? '' : 's'} to follow up` : item.id === 'dollars-per-round' ? "Last month's rounds are missing" : undefined}
         />
       ))}
     </nav>
@@ -1286,6 +1295,11 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                       </CardContent>
                     </Card>
                   )}
+                  <DashboardAttention
+                    orders={orders || []}
+                    onOpenRefunds={() => { setPendingRefundsOnly(true); setActiveNav('orders'); }}
+                    onOpenRatings={() => setActiveNav('ratings')}
+                  />
                   <div className="space-y-6">
                      <div className="flex items-center gap-3">
                         <div className="p-2 bg-primary/10 rounded-lg"><Activity className="h-6 w-6 text-primary" /></div>
@@ -1321,6 +1335,7 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                         })}
                      />
                   </div>
+                  <SatisfactionCard orders={orders || []} onOpen={() => setActiveNav('ratings')} />
                   <div className="space-y-6">
                     <div className="flex items-center gap-3"><div className="p-2 bg-[#213147]/5 rounded-lg text-[#213147]"><BarChart3 className="h-6 w-6" /></div><div className="text-left"><h2 className="text-xl font-black uppercase text-[#213147]">Revenue Overview</h2><p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">7-Day Stacked Performance</p></div></div>
                     <Card className="border-2 shadow-sm"><CardContent className="pt-8 h-[400px]"><ResponsiveContainer width="100%" height="100%"><BarChart data={analyticsData.dailyRevenue}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 900 }} /><YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 900 }} tickFormatter={(v) => `$${v}`} /><Tooltip formatter={(v: number) => [`$${v.toFixed(2)}`]} /><Legend iconType="circle" />{analyticsData.modes.map((mode) => (<Bar key={mode} dataKey={mode} stackId="a" fill={getModeColor(mode)} radius={[0, 0, 0, 0]} barSize={40} />))}</BarChart></ResponsiveContainer></CardContent></Card>
@@ -1421,12 +1436,13 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
               {activeNav === 'orders' && (
                 <div className="space-y-6 animate-in fade-in duration-500">
                   <div className="flex flex-wrap items-center justify-between gap-3"><div className="text-left"><h2 className="text-xl font-black uppercase text-[#213147]">Fulfillment Log</h2><p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">{fulfillmentLogOrders.length} order{fulfillmentLogOrders.length === 1 ? '' : 's'}</p></div><div className="flex flex-wrap items-center gap-3">{pendingRefundRequests.length > 0 && (<Button type="button" variant={pendingRefundsOnly ? 'default' : 'outline'} size="sm" onClick={() => setPendingRefundsOnly(v => !v)} className={cn("h-10 px-3 text-[9px] font-black uppercase tracking-widest rounded-xl border-2", pendingRefundsOnly ? "bg-amber-500 hover:bg-amber-600 text-white border-amber-500" : "border-amber-300 text-amber-700")}>{pendingRefundsOnly ? 'Show all orders' : `Refund requests (${pendingRefundRequests.length})`}</Button>)}<div className="flex gap-1 bg-slate-100 p-1 rounded-xl">{LOG_RANGES.map(r => (<Button key={r.id} type="button" variant={logRange === r.id ? 'default' : 'ghost'} size="sm" onClick={() => setLogRange(r.id)} className={cn("h-8 px-3 text-[9px] font-black uppercase tracking-widest rounded-lg", logRange === r.id ? "bg-[#213147] text-white" : "text-slate-500")}>{r.label}</Button>))}</div><div className="relative w-64"><Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" /><Input placeholder="Search ticket or name..." value={orderSearchTerm} onChange={(e) => setOrderSearchTerm(e.target.value)} className="pl-10 h-10 border-2 rounded-xl" /></div></div></div>
-                  <Card className="border-2 rounded-[2rem] overflow-hidden shadow-sm bg-white"><Table><TableHeader className="bg-slate-50"><TableRow><TableHead className="px-8 py-5 text-[10px] font-black uppercase tracking-widest">Ticket</TableHead><TableHead className="text-[10px] font-black uppercase tracking-widest">Customer</TableHead><TableHead className="text-[10px] font-black uppercase tracking-widest">Mode</TableHead><TableHead className="text-[10px] font-black uppercase tracking-widest">Status</TableHead><TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Net Total</TableHead><TableHead className="text-[10px] font-black uppercase tracking-widest text-right px-8">Refund</TableHead></TableRow></TableHeader><TableBody>{fulfillmentLogOrders.length === 0 ? (<TableRow><TableCell colSpan={6} className="py-16 text-center text-[10px] font-black uppercase text-muted-foreground">No orders for this selection</TableCell></TableRow>) : fulfillmentLogOrders.map(o => (<TableRow key={o.id} className="group hover:bg-slate-50/50 transition-colors"><TableCell className="px-8 font-mono font-black text-primary text-xs">#{getNumericOrderId(o.id)}</TableCell><TableCell><div className="flex flex-col text-left"><span className="font-bold text-sm uppercase">{o.customerName}</span><span className="text-[9px] uppercase text-muted-foreground">{o.createdAt ? format(o.createdAt.toDate(), 'MMM d, h:mm a') : ''}</span></div></TableCell><TableCell><Badge variant="outline" className="text-[8px] font-black uppercase bg-slate-100 border-slate-200">{o.menuType}</Badge></TableCell><TableCell><Badge className={cn("text-[8px] font-black uppercase border-0", o.status === 'Delivered' ? "bg-green-500" : o.status === 'Cancelled' ? "bg-red-500" : "bg-primary animate-pulse")}>{o.status}</Badge></TableCell><TableCell className="text-right font-mono font-black text-sm">${(o.total - (o.serviceFee || 0)).toFixed(2)}</TableCell><TableCell className="text-right px-8"><RefundOrder order={o} /></TableCell></TableRow>))}</TableBody></Table></Card>
+                  <Card className="border-2 rounded-[2rem] overflow-hidden shadow-sm bg-white"><Table><TableHeader className="bg-slate-50"><TableRow><TableHead className="px-8 py-5 text-[10px] font-black uppercase tracking-widest">Ticket</TableHead><TableHead className="text-[10px] font-black uppercase tracking-widest">Customer</TableHead><TableHead className="text-[10px] font-black uppercase tracking-widest">Mode</TableHead><TableHead className="text-[10px] font-black uppercase tracking-widest">Status</TableHead><TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Net Total</TableHead><TableHead className="text-[10px] font-black uppercase tracking-widest text-right px-8">Refund</TableHead></TableRow></TableHeader><TableBody>{fulfillmentLogOrders.length === 0 ? (<TableRow><TableCell colSpan={6} className="py-16 text-center text-[10px] font-black uppercase text-muted-foreground">No orders for this selection</TableCell></TableRow>) : fulfillmentLogOrders.map(o => (<TableRow key={o.id} className="group hover:bg-slate-50/50 transition-colors"><TableCell className="px-8 font-mono font-black text-primary text-xs">#{getNumericOrderId(o.id)}</TableCell><TableCell><div className="flex flex-col text-left"><span className="font-bold text-sm uppercase">{o.customerName}</span><span className="text-[9px] uppercase text-muted-foreground">{o.createdAt ? format(o.createdAt.toDate(), 'MMM d, h:mm a') : ''}</span></div></TableCell><TableCell><Badge variant="outline" className="text-[8px] font-black uppercase bg-slate-100 border-slate-200">{o.menuType}</Badge></TableCell><TableCell><Badge className={cn("text-[8px] font-black uppercase border-0", o.status === 'Delivered' ? "bg-green-500" : o.status === 'Cancelled' ? "bg-red-500" : "bg-primary animate-pulse")}>{o.status}</Badge>{o.rating?.score && (<span title={o.rating.score === 'up' ? 'Rated thumbs up' : `Thumbs down: ${o.rating.reason || ''}${o.rating.comment ? ` - ${o.rating.comment}` : ''}`} className={cn("ml-2 inline-flex align-middle", o.rating.score === 'up' ? "text-green-600" : "text-red-600")}>{o.rating.score === 'up' ? <ThumbsUp className="h-3.5 w-3.5" aria-label="Rated thumbs up" /> : <ThumbsDown className="h-3.5 w-3.5" aria-label="Rated thumbs down" />}</span>)}</TableCell><TableCell className="text-right font-mono font-black text-sm">${(o.total - (o.serviceFee || 0)).toFixed(2)}</TableCell><TableCell className="text-right px-8"><RefundOrder order={o} /></TableCell></TableRow>))}</TableBody></Table></Card>
                 </div>
               )}
 
               {activeNav === 'patrons' && <PatronList orders={orders} courseName={seller?.courseName} />}
 
+              {activeNav === 'ratings' && <RatingsPanel orders={orders || []} />}
               {activeNav === 'dollars-per-round' && <SeasonDataPanel sellerId={sellerId} orders={orders || []} />}
               {activeNav === 'tips-report' && <TipsReport orders={orders} menuTypes={seller?.menuTypes || []} courseName={seller?.courseName} />}
 
