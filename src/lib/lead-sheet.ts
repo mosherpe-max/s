@@ -45,6 +45,7 @@ export function buildLeadSheet(lead: Lead, contacts: LeadContact[], today: strin
       heading: 'Contact',
       rows: [
         { label: 'Contact Name', value: lead.contactName || '' },
+        { label: 'Title', value: lead.contactTitle || '' },
         { label: 'Phone', value: lead.phone || '' },
         { label: 'Email', value: lead.email || '' },
       ],

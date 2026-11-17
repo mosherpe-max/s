@@ -19,7 +19,7 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import type { Lead, LeadContact, LeadContactType } from '@/lib/types';
-import { CONTACT_TYPES, LEAD_STAGES, POS_SUGGESTIONS, firstYearValue, latestDate } from '@/lib/crm';
+import { CONTACT_TYPES, LEAD_STAGES, POS_SUGGESTIONS, TITLE_SUGGESTIONS, firstYearValue, latestDate } from '@/lib/crm';
 import { leadFormSchema, leadFormToFields, leadToFormValues, type LeadFormValues } from '@/lib/crm-form';
 import { US_STATES } from '@/lib/us-states';
 import { buildLeadSheet, leadSheetFileName, renderLeadSheetPdf } from '@/lib/lead-sheet';
@@ -282,9 +282,16 @@ export function LeadCard({ lead, open, onOpenChange, onSaved }: {
 
                     <section className="space-y-4">
                       <Label className="text-[10px] font-black uppercase tracking-widest text-primary">Contact</Label>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <FormField control={form.control} name="contactName" render={({ field }) => (
                           <FormItem><FormLabel className={labelClass}>Contact Name</FormLabel><FormControl><Input {...field} className={inputClass} /></FormControl></FormItem>
+                        )} />
+                        <FormField control={form.control} name="contactTitle" render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className={labelClass}>Title</FormLabel>
+                            <FormControl><Input {...field} list="crm-title-options" autoComplete="off" placeholder="For example General Manager" className={inputClass} /></FormControl>
+                            <datalist id="crm-title-options">{TITLE_SUGGESTIONS[venueType].map(o => <option key={o} value={o} />)}</datalist>
+                          </FormItem>
                         )} />
                         <FormField control={form.control} name="phone" render={({ field }) => (
                           <FormItem><FormLabel className={labelClass}>Phone</FormLabel><FormControl><Input {...field} type="tel" className={inputClass} /></FormControl></FormItem>

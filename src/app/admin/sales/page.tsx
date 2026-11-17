@@ -168,7 +168,7 @@ export default function AdminSalesCRMPage() {
                       </TableCell>
                       <TableCell>
                         <p className="font-bold text-xs">{lead.contactName || '—'}</p>
-                        <p className="text-[9px] text-muted-foreground">{lead.phone || lead.email || ''}</p>
+                        <p className="text-[9px] text-muted-foreground">{[lead.contactTitle, lead.phone || lead.email].filter(Boolean).join(' · ')}</p>
                       </TableCell>
                       <TableCell onClick={(e) => e.stopPropagation()}>
                         <Select value={lead.stage} onValueChange={(v) => changeStage(lead, v as LeadStage)}>

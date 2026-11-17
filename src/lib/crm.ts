@@ -68,6 +68,7 @@ export function filterLeads(
       (l.city || '').toLowerCase().includes(t) ||
       (l.county || '').toLowerCase().includes(t) ||
       (l.contactName || '').toLowerCase().includes(t) ||
+      (l.contactTitle || '').toLowerCase().includes(t) ||
       (l.email || '').toLowerCase().includes(t) ||
       (l.posSystem || '').toLowerCase().includes(t) ||
       (digits.length >= 3 && (l.phone || '').replace(/\D/g, '').includes(digits))
@@ -79,6 +80,12 @@ export function filterLeads(
 export const POS_SUGGESTIONS: Record<Lead['venueType'], string[]> = {
   'Golf Course': ['Square', 'Toast', 'Clover', 'Lightspeed', 'GolfNow', 'ForeUP', 'Club Prophet', 'Northstar', 'Jonas', 'PAR Brink', 'NCR Aloha', 'Oracle Micros', 'Heartland', 'Cash register only'],
   'Bowling Center': ['Square', 'Toast', 'Clover', 'Lightspeed', 'Bowl.com', 'QubicaAMF Conqueror', 'Brunswick Vector', 'NCR Aloha', 'Heartland', 'Cash register only'],
+};
+
+// Job titles offered as suggestions while typing. Anything else can be typed in.
+export const TITLE_SUGGESTIONS: Record<Lead['venueType'], string[]> = {
+  'Golf Course': ['General Manager', 'Owner', 'Head Golf Professional', 'Director of Golf', 'Director of Food & Beverage', 'Food & Beverage Manager', 'Club Manager', 'Golf Course Superintendent', 'Assistant Golf Professional', 'Operations Manager'],
+  'Bowling Center': ['Owner', 'General Manager', 'Center Manager', 'Food & Beverage Manager', 'Operations Manager', 'League Director'],
 };
 
 // 'quiet' puts the leads that have gone longest without a contact first, and leads never contacted before those.
