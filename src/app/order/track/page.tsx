@@ -33,6 +33,7 @@ import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { FEE_DISCLOSURES, getDisclosureCategory } from '@/config/fee-disclosures';
 import { differenceInSeconds } from 'date-fns';
+import { OrderRatingCard } from '@/components/order-rating-card';
 import { LocationBlockedCard } from '@/components/location-blocked-card';
 import { formatHole, getHoleOptions } from '@/lib/patron-location';
 
@@ -315,6 +316,8 @@ function OrderTrackingContent() {
       {/* 3. DETAILS & CONTROLS */}
       <div className="p-4 space-y-4 max-w-2xl mx-auto w-full pb-24 flex-1">
         
+        {isDelivered && <OrderRatingCard order={order} />}
+
         {!isDelivered && isGolf && (locationBlocked || (!!order.deliveryHole && !order.deliveryLocation)) && (
           <LocationBlockedCard
             onRetry={handleManualRefresh}

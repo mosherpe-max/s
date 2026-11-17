@@ -13,7 +13,7 @@ export const SMS_MAX_LENGTH = 320;
 export const DEFAULT_SMS_TEMPLATES: Record<SmsTemplateKey, string> = {
   preparing: "Order confirmed! We're getting it ready: {link}",
   outForDelivery: 'Order out for delivery! Track live: {link}',
-  delivered: 'Order delivered! Enjoy your time at the venue: {link}',
+  delivered: 'Order delivered! Enjoy your time at the venue. How did we do? {link}',
   findMe: 'Hey! Your Koop order is on the way — tap to help us find you: {link}',
   refundFull: 'Koop: your order #{order} was refunded in full ({amount}). It usually takes 5 to 10 business days to show on your card.',
   refundPartial: 'Koop: {amount} of your order #{order} was refunded. It usually takes 5 to 10 business days to show on your card.',

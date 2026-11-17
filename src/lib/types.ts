@@ -368,6 +368,17 @@ export interface Order {
   refunds?: { id: string; amount: number; at: Timestamp; by: string; reason?: string; note?: string }[];
   // A staff member's request for the venue admin to refund this card order. The admin approves it by refunding the
   // order, or declines it; staff never see the admin's note.
+  // The patron's thumbs up or down after delivery (saved by the rateOrder function). A thumbs down needs a reason and
+  // shows in the venue admin's Needs attention list until someone marks it handled.
+  rating?: {
+    score: 'up' | 'down';
+    reason?: string;
+    comment?: string;
+    ratedAt: Timestamp;
+    handledAt?: Timestamp;
+    handledBy?: string;
+    handledNote?: string;
+  };
   refundRequest?: {
     status: 'Requested' | 'Approved' | 'Declined';
     reason: string;
