@@ -1295,11 +1295,6 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                       </CardContent>
                     </Card>
                   )}
-                  <DashboardAttention
-                    orders={orders || []}
-                    onOpenRefunds={() => { setPendingRefundsOnly(true); setActiveNav('orders'); }}
-                    onOpenRatings={() => setActiveNav('ratings')}
-                  />
                   <div className="space-y-6">
                      <div className="flex items-center gap-3">
                         <div className="p-2 bg-primary/10 rounded-lg"><Activity className="h-6 w-6 text-primary" /></div>
@@ -1308,7 +1303,6 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                            <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Real-Time Mode Performance & Control</p>
                         </div>
                      </div>
-                     <ActiveOrdersPanel orders={orders || []} seller={seller} solutionConfig={solutionConfig} />
                      <LiveOperationsOverview
                         goal={ackTargetPercent}
                         rows={analyticsData.modes.map((mode): ModeOverviewRow => {
@@ -1334,8 +1328,16 @@ export default function VenueAdminPage({ params }: { params: Promise<{ sellerId:
                            };
                         })}
                      />
+                     <ActiveOrdersPanel orders={orders || []} seller={seller} solutionConfig={solutionConfig} />
                   </div>
-                  <SatisfactionCard orders={orders || []} onOpen={() => setActiveNav('ratings')} />
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+                    <DashboardAttention
+                      orders={orders || []}
+                      onOpenRefunds={() => { setPendingRefundsOnly(true); setActiveNav('orders'); }}
+                      onOpenRatings={() => setActiveNav('ratings')}
+                    />
+                    <SatisfactionCard orders={orders || []} onOpen={() => setActiveNav('ratings')} />
+                  </div>
                   <div className="space-y-6">
                     <div className="flex items-center gap-3"><div className="p-2 bg-[#213147]/5 rounded-lg text-[#213147]"><BarChart3 className="h-6 w-6" /></div><div className="text-left"><h2 className="text-xl font-black uppercase text-[#213147]">Revenue Overview</h2><p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">7-Day Stacked Performance</p></div></div>
                     <Card className="border-2 shadow-sm"><CardContent className="pt-8 h-[400px]"><ResponsiveContainer width="100%" height="100%"><BarChart data={analyticsData.dailyRevenue}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 900 }} /><YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 900 }} tickFormatter={(v) => `$${v}`} /><Tooltip formatter={(v: number) => [`$${v.toFixed(2)}`]} /><Legend iconType="circle" />{analyticsData.modes.map((mode) => (<Bar key={mode} dataKey={mode} stackId="a" fill={getModeColor(mode)} radius={[0, 0, 0, 0]} barSize={40} />))}</BarChart></ResponsiveContainer></CardContent></Card>

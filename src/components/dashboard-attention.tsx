@@ -15,7 +15,8 @@ const SHOWN = 3;
 const usd = (n: number) => `$${n.toFixed(2)}`;
 
 // Venue admin Dashboard: what needs a person today. Staff refund requests (refund or decline right here) and
-// thumbs-down ratings waiting for a follow-up. Always shown, so an empty dashboard reads as "all clear".
+// thumbs-down ratings waiting for a follow-up. A card shows only while it has something waiting; when neither does,
+// one slim "All clear" line stands in, so a quiet day leaves the room to live operations.
 export function DashboardAttention({ orders, onOpenRefunds, onOpenRatings }: { orders: Order[]; onOpenRefunds: () => void; onOpenRatings: () => void }) {
   const refunds = useMemo(
     () => orders.filter(o => o.refundRequest?.status === 'Requested')
@@ -24,9 +25,18 @@ export function DashboardAttention({ orders, onOpenRefunds, onOpenRatings }: { o
   );
   const lowRatings = useMemo(() => needsAttention(orders), [orders]);
 
+  if (refunds.length === 0 && lowRatings.length === 0) {
+    return (
+      <Card className="border-2 bg-white px-5 py-4 text-left flex items-center gap-3" data-testid="dashboard-attention">
+        <Badge className="border-0 bg-green-100 text-green-700 text-[9px] font-black uppercase gap-1 shrink-0"><Check className="h-3 w-3" /> All clear</Badge>
+        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">No refund requests or ratings to follow up</p>
+      </Card>
+    );
+  }
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 text-left" data-testid="dashboard-attention">
-      <AttentionCard
+    <div className="space-y-6 text-left" data-testid="dashboard-attention">
+      {refunds.length > 0 && <AttentionCard
         title="Refund requests"
         icon={<Undo2 className="h-4 w-4" />}
         count={refunds.length}
@@ -47,9 +57,9 @@ export function DashboardAttention({ orders, onOpenRefunds, onOpenRatings }: { o
             <RefundOrder order={o} />
           </li>
         ))}
-      </AttentionCard>
+      </AttentionCard>}
 
-      <AttentionCard
+      {lowRatings.length > 0 && <AttentionCard
         title="Ratings to follow up"
         icon={<ThumbsDown className="h-4 w-4" />}
         count={lowRatings.length}
@@ -69,7 +79,7 @@ export function DashboardAttention({ orders, onOpenRefunds, onOpenRatings }: { o
             </p>
           </li>
         ))}
-      </AttentionCard>
+      </AttentionCard>}
     </div>
   );
 }

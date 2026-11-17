@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Clock } from 'lucide-react';
 import type { Order, Seller, SolutionConfig } from '@/lib/types';
 import { getNumericOrderId, cn } from '@/lib/utils';
@@ -15,6 +16,8 @@ interface ActiveOrdersPanelProps {
 }
 
 const ACTIVE_STATUSES: Order['status'][] = ['Placed', 'Preparing', 'Out for Delivery'];
+// Past this many, the board shows the oldest and offers "Show all", so a rush never pushes the rest of the page away.
+const SHOWN = 8;
 const DEFAULT_THRESHOLDS = { maxOrderAcknowledgeSeconds: 120, warningOrderProcessingMinutes: 15, maxOrderProcessingMinutes: 25 };
 
 /**
@@ -27,6 +30,7 @@ const DEFAULT_THRESHOLDS = { maxOrderAcknowledgeSeconds: 120, warningOrderProces
  */
 export function ActiveOrdersPanel({ orders, seller, solutionConfig }: ActiveOrdersPanelProps) {
   const [now, setNow] = useState(() => Date.now());
+  const [showAll, setShowAll] = useState(false);
 
   // Matches the existing 15s live-tracking cadence used elsewhere (e.g.
   // bevcart's own `now` state) rather than a per-second clock - duration is
@@ -42,6 +46,8 @@ export function ActiveOrdersPanel({ orders, seller, solutionConfig }: ActiveOrde
   const activeOrders = orders
     .filter(o => ACTIVE_STATUSES.includes(o.status))
     .sort((a, b) => (a.createdAt?.toMillis?.() || 0) - (b.createdAt?.toMillis?.() || 0));
+  const hidden = showAll ? 0 : Math.max(0, activeOrders.length - SHOWN);
+  const visibleOrders = hidden ? activeOrders.slice(0, SHOWN) : activeOrders;
 
   return (
     <Card className="border-2 rounded-[2rem] overflow-hidden shadow-sm bg-white">
@@ -56,7 +62,7 @@ export function ActiveOrdersPanel({ orders, seller, solutionConfig }: ActiveOrde
           </TableRow>
         </TableHeader>
         <TableBody>
-          {activeOrders.map(order => {
+          {visibleOrders.map(order => {
             const thresholds = seller?.orderThresholds?.[order.menuType] || solutionConfig?.orderThresholds?.[order.menuType] || DEFAULT_THRESHOLDS;
             const elapsedMinutes = order.createdAt ? Math.max(0, Math.floor((now - order.createdAt.toDate().getTime()) / 60000)) : 0;
             const isOverMax = elapsedMinutes >= thresholds.maxOrderProcessingMinutes;
@@ -97,6 +103,16 @@ export function ActiveOrdersPanel({ orders, seller, solutionConfig }: ActiveOrde
           )}
         </TableBody>
       </Table>
+      {(hidden > 0 || (showAll && activeOrders.length > SHOWN)) && (
+        <div className="px-8 py-3 border-t bg-slate-50/60 flex items-center justify-between gap-3">
+          <span className="text-[10px] font-bold text-muted-foreground">
+            {hidden > 0 ? `Showing the ${SHOWN} oldest of ${activeOrders.length} active orders` : `All ${activeOrders.length} active orders`}
+          </span>
+          <Button type="button" variant="ghost" size="sm" onClick={() => setShowAll(v => !v)} className="h-7 text-[9px] font-black uppercase tracking-widest text-primary">
+            {hidden > 0 ? `Show all ${activeOrders.length}` : 'Show fewer'}
+          </Button>
+        </div>
+      )}
     </Card>
   );
 }
