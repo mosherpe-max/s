@@ -15,6 +15,19 @@ export interface VenueSetupInput {
   adminLoginCount: number;
 }
 
+// The Koop fees a newly onboarded venue starts with. Golf starts on the standard founding pricing: a $0.99 patron
+// convenience fee and $179 a month. Koop gives up 50 cents of each convenience fee toward the venue's Stripe fee, and
+// Stripe's 2.9% is the card rate shown in reports. Bowling is not priced yet, so it keeps the earlier starting values.
+// Existing venues are never touched; this only fills in a new venue's record.
+export function defaultVenueFees(type: 'Golf Course' | 'Bowling Center') {
+  return {
+    solutionFeeFixed: 50,
+    solutionFeePercent: 2.9,
+    patronConvenienceFee: type === 'Golf Course' ? 99 : 150, // cents
+    monthlySolutionFee: type === 'Golf Course' ? 179 : 49, // dollars
+  };
+}
+
 // Checkout offers both when a venue has never chosen, so the setup screen and the checklist read it the same way.
 export const DEFAULT_PAYMENT_METHODS = ['Digital Payment', 'Pay at Delivery'];
 

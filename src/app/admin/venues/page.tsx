@@ -92,7 +92,7 @@ import { StarterModifierPicker } from '@/components/starter-modifier-picker';
 import { PrintMarketingKit } from '@/components/print-marketing-kit';
 import { fetchAsDataUrl } from '@/lib/print-assets';
 import { SeasonDataPanel } from '@/components/season-data-panel';
-import { buildVenueChecklist, venueSetupProgress, venueTypeLockReason, DEFAULT_PAYMENT_METHODS } from '@/lib/venue-setup';
+import { buildVenueChecklist, defaultVenueFees, venueSetupProgress, venueTypeLockReason, DEFAULT_PAYMENT_METHODS } from '@/lib/venue-setup';
 import { stripeAttention } from '@/lib/stripe-readiness';
 import { useRefreshStripeStatus } from '@/lib/use-refresh-stripe-status';
 import {
@@ -429,8 +429,7 @@ export default function AdminVenueRegistryPage() {
       const businessRef = doc(firestore, 'venues', venueId);
       const businessData: Venue = {
         venueId: venueId, name: data.courseName, ownerUid: data.ownerUid || '',
-        solutionFeeFixed: 50, solutionFeePercent: 2.9, patronConvenienceFee: 150,
-        monthlySolutionFee: 49, isDemo: false, stripeOnboardingComplete: false,
+        ...defaultVenueFees(data.type), isDemo: false, stripeOnboardingComplete: false,
         payoutsEnabled: false, createdAt: serverTimestamp() as any, updatedAt: serverTimestamp() as any,
       };
 
