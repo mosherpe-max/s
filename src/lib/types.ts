@@ -476,6 +476,7 @@ export interface Lead {
   zip: string;
   county: string;
   contactName: string;
+  contactTitle?: string; // the contact's job title at the venue, for example General Manager
   phone: string;
   email: string;
   venueType: 'Golf Course' | 'Bowling Center';
