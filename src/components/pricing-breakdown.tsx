@@ -30,25 +30,25 @@ export function PricingBreakdown({
 
   return (
     <div className="space-y-4">
-      <div className="space-y-3 text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+      <div className="space-y-3 text-xs font-bold uppercase tracking-wide text-slate-600">
         {/* SUBTOTAL */}
         <div className="flex justify-between items-center px-1 gap-2">
           <p className="truncate">Subtotal</p>
-          <p className="font-mono text-foreground font-bold shrink-0">${subtotal.toFixed(2)}</p>
+          <p className="font-mono text-[13px] text-foreground font-bold shrink-0">${subtotal.toFixed(2)}</p>
         </div>
 
         {/* TAX - not shown when the venue doesn't charge tax on this service */}
         {taxRate > 0 && (
           <div className="flex justify-between items-center px-1 gap-2">
             <p className="truncate">Estimated Tax ({taxRate}%)</p>
-            <p className="font-mono text-foreground font-bold shrink-0">${tax.toFixed(2)}</p>
+            <p className="font-mono text-[13px] text-foreground font-bold shrink-0">${tax.toFixed(2)}</p>
           </div>
         )}
 
         {/* TIP */}
         <div className="flex justify-between items-center px-1 gap-2">
           <p className="truncate">Gratuity / Tip</p>
-          <p className="font-mono text-foreground font-bold shrink-0">${tip.toFixed(2)}</p>
+          <p className="font-mono text-[13px] text-foreground font-bold shrink-0">${tip.toFixed(2)}</p>
         </div>
 
         {/* CONVENIENCE FEE WITH KOOP BADGE */}
@@ -59,10 +59,10 @@ export function PricingBreakdown({
               <PopoverTrigger asChild>
                 <button 
                   type="button" 
-                  className="inline-flex items-center justify-center px-1 rounded-[4px] bg-slate-100 hover:bg-slate-200 transition-all active:scale-90 shrink-0"
+                  className="inline-flex items-center justify-center px-1.5 py-0.5 rounded-[4px] bg-slate-200 hover:bg-slate-300 transition-all active:scale-90 shrink-0"
                   aria-label="Convenience fee info"
                 >
-                  <span className="text-[7px] font-black text-slate-400 tracking-tighter">KOOP</span>
+                  <span className="text-[9px] font-black text-slate-700 tracking-tight">KOOP</span>
                 </button>
               </PopoverTrigger>
               <PopoverContent 
@@ -78,7 +78,7 @@ export function PricingBreakdown({
               </PopoverContent>
             </Popover>
           </div>
-          <p className="font-mono text-foreground font-bold shrink-0">${serviceFee.toFixed(2)}</p>
+          <p className="font-mono text-[13px] text-foreground font-bold shrink-0">${serviceFee.toFixed(2)}</p>
         </div>
       </div>
 

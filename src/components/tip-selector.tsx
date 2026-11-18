@@ -41,10 +41,10 @@ export function TipSelector({ subtotal, onTipChange }: TipSelectorProps) {
   return (
     <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-500">
       <div className="flex items-center justify-between px-1 gap-2">
-        <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground truncate">
+        <h3 className="text-xs font-bold uppercase tracking-wide text-slate-600 truncate">
           Gratuity / Tip
         </h3>
-        <span className="text-[8px] font-bold text-primary uppercase tracking-tighter shrink-0">
+        <span className="text-[10px] font-bold text-primary uppercase tracking-wide shrink-0">
           100% to staff
         </span>
       </div>
