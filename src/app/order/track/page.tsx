@@ -14,7 +14,6 @@ import { useSearchParams } from 'next/navigation';
 import { 
   ShoppingBag, 
   Loader2, 
-  Info, 
   Smartphone, 
   Zap, 
   PartyPopper, 
@@ -29,6 +28,7 @@ import {
 } from 'lucide-react';
 import { cn, getNumericOrderId, calculateDistance } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { KoopFeePill } from '@/components/koop-fee-pill';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { FEE_DISCLOSURES, getDisclosureCategory } from '@/config/fee-disclosures';
@@ -419,12 +419,12 @@ function OrderTrackingContent() {
                 <div key={i.cartId} className="space-y-1">
                   <div className="flex justify-between text-xs font-medium">
                     <span className="font-bold uppercase">{i.quantity}x {i.name}</span>
-                    <span className="font-mono text-muted-foreground">${(i.price * i.quantity).toFixed(2)}</span>
+                    <span className="font-mono text-foreground">${(i.price * i.quantity).toFixed(2)}</span>
                   </div>
                   {i.selectedModifiers && Object.values(i.selectedModifiers).flat().length > 0 && (
                     <div className="flex wrap gap-1 pl-4">
                       {Object.values(i.selectedModifiers).flat().map((mod, idx) => (
-                        <span key={`${i.cartId}-mod-${idx}`} className="text-[8px] font-bold text-muted-foreground uppercase">
+                        <span key={`${i.cartId}-mod-${idx}`} className="text-[10px] font-bold text-slate-600 uppercase">
                           + {mod.name}
                         </span>
                       ))}
@@ -437,33 +437,26 @@ function OrderTrackingContent() {
             <Separator className="border-dashed" />
 
             <div className="space-y-2.5">
-               <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+               <div className="flex justify-between items-center text-xs font-bold uppercase tracking-wide text-slate-600">
                  <span>Subtotal</span>
-                 <span className="font-mono">${order.subtotal.toFixed(2)}</span>
+                 <span className="font-mono text-[13px] font-bold text-foreground">${order.subtotal.toFixed(2)}</span>
                </div>
                {order.tax > 0 && (
-                 <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                 <div className="flex justify-between items-center text-xs font-bold uppercase tracking-wide text-slate-600">
                    <span>Tax</span>
-                   <span className="font-mono">${order.tax.toFixed(2)}</span>
+                   <span className="font-mono text-[13px] font-bold text-foreground">${order.tax.toFixed(2)}</span>
                  </div>
                )}
-               <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+               <div className="flex justify-between items-center text-xs font-bold uppercase tracking-wide text-slate-600">
                  <span>Gratuity</span>
-                 <span className="font-mono">${order.tip.toFixed(2)}</span>
+                 <span className="font-mono text-[13px] font-bold text-foreground">${order.tip.toFixed(2)}</span>
                </div>
-               <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+               <div className="flex justify-between items-center text-xs font-bold uppercase tracking-wide text-slate-600">
                  <div className="flex items-center gap-1.5">
                    <span>Convenience Fee</span>
-                   <Popover>
-                    <PopoverTrigger asChild>
-                      <button className="text-slate-300 hover:text-primary"><Info className="h-3 w-3" /></button>
-                    </PopoverTrigger>
-                    <PopoverContent className="text-[10px] normal-case p-3 rounded-xl max-w-[200px]">
-                      Supports the mobile ordering solution and real-time delivery logistics.
-                    </PopoverContent>
-                   </Popover>
+                   <KoopFeePill />
                  </div>
-                 <span className="font-mono">${order.serviceFee.toFixed(2)}</span>
+                 <span className="font-mono text-[13px] font-bold text-foreground">${order.serviceFee.toFixed(2)}</span>
                </div>
             </div>
 
@@ -476,9 +469,8 @@ function OrderTrackingContent() {
           </CardContent>
         </Card>
 
-        <div className="bg-white/50 backdrop-blur-sm border border-slate-200 p-4 rounded-2xl flex items-start gap-3">
-          <Info className="h-4 w-4 text-slate-400 shrink-0 mt-0.5" />
-          <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tight leading-relaxed text-left">
+        <div className="bg-white/50 backdrop-blur-sm border border-slate-200 p-4 rounded-2xl">
+          <p className="text-xs text-slate-600 font-medium leading-relaxed text-left">
             {statusNotice}
           </p>
         </div>
