@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { Fragment, useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
@@ -31,6 +31,7 @@ import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, doc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { categories, type StarterMenuItem, type StarterModifierGroup } from '@/lib/types';
 import { seedGlobalStarterMenuLibrary } from '@/lib/seed-data';
+import { groupByCategory } from '@/lib/menu-order';
 import { ImageUploadDropzone } from '@/components/image-upload-dropzone';
 import { useToast } from '@/hooks/use-toast';
 import { CLOSE_ON_DARK,
@@ -98,6 +99,7 @@ export default function GlobalLibrariesPage() {
   const modTemplatesQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'starter_modifier_library') : null), [firestore]);
 
   const { data: menuTemplates, isLoading: isMenuLoading } = useCollection<StarterMenuItem>(menuTemplatesQuery);
+  const menuGroups = useMemo(() => groupByCategory(menuTemplates || []), [menuTemplates]);
   const { data: modTemplates, isLoading: isModLoading } = useCollection<StarterModifierGroup>(modTemplatesQuery);
 
   const handleSaveItem = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -276,7 +278,15 @@ export default function GlobalLibrariesPage() {
                     <TableRow><TableCell colSpan={6} className="py-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto text-primary opacity-20" /></TableCell></TableRow>
                   ) : (menuTemplates || []).length === 0 ? (
                     <TableRow><TableCell colSpan={6} className="py-40 text-center text-muted-foreground uppercase text-[10px] font-black opacity-30">No global products configured</TableCell></TableRow>
-                  ) : (menuTemplates || []).map(item => (
+                  ) : menuGroups.map(group => (
+                    <Fragment key={group.category}>
+                    <TableRow className="bg-slate-100/80 hover:bg-slate-100/80">
+                      <TableCell colSpan={6} className="px-8 py-2.5">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-[#213147]">{group.category}</span>
+                        <span className="ml-2 text-[9px] font-bold uppercase tracking-widest text-muted-foreground">{group.items.length} item{group.items.length === 1 ? '' : 's'}</span>
+                      </TableCell>
+                    </TableRow>
+                    {group.items.map(item => (
                     <TableRow key={item.id} className="group hover:bg-slate-50/50 transition-colors">
                       <TableCell className="px-8 py-4">
                         <div className="flex items-center gap-3">
@@ -306,6 +316,8 @@ export default function GlobalLibrariesPage() {
                         </div>
                       </TableCell>
                     </TableRow>
+                    ))}
+                    </Fragment>
                   ))}
                 </TableBody>
               </Table>
