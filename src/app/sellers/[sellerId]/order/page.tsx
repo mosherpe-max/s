@@ -20,7 +20,6 @@ import {
   Store,
   MapPin,
   AlertTriangle,
-  Info,
   ShoppingCart,
   Truck,
   UtensilsCrossed,
@@ -41,9 +40,9 @@ const serviceTypeIcons: Record<string, any> = {
 
 // One short line under each service mode's name, so a golfer can tell what each one is without tapping.
 const SERVICE_BLURBS: Record<string, string> = {
-  'Beverage Cart': 'Drinks & snacks to you',
-  'Clubhouse': 'Kitchen food & drinks',
-  'Lane Delivery': 'Food & drinks to your lane',
+  'Beverage Cart': 'Drinks & snacks delivered on course',
+  'Clubhouse': 'Kitchen food delivered on course',
+  'Lane Delivery': 'Food & drinks delivered to your lane',
 };
 
 function BuyerOrderContent({ sellerId }: { sellerId: string }) {
@@ -383,11 +382,10 @@ function BuyerOrderContent({ sellerId }: { sellerId: string }) {
             );
           })()}
 
-          <p className="text-[11px] font-semibold text-white/80 flex items-start gap-1.5 leading-snug">
-            <Info className="h-3.5 w-3.5 shrink-0 text-amber-300 mt-px" />
+          <p className="text-[11px] font-medium text-white/60 leading-snug">
             {availableModes.includes(selectedMenuType)
-              ? <span><span className="font-black text-white">A small convenience fee</span> applies to each order.</span>
-              : <span>Service currently unavailable.</span>}
+              ? 'A small convenience fee applies to each order.'
+              : 'Service currently unavailable.'}
           </p>
 
           {/* REORDER - past orders at this venue, for this service mode, before Track Active Order */}
