@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { cn, getNumericOrderId, calculateDistance } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { KoopFeePill } from '@/components/koop-fee-pill';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { FEE_DISCLOSURES, getDisclosureCategory } from '@/config/fee-disclosures';
@@ -453,7 +454,7 @@ function OrderTrackingContent() {
                <div className="flex justify-between items-center text-xs font-bold uppercase tracking-wide text-slate-600">
                  <div className="flex items-center gap-1.5">
                    <span>Convenience Fee</span>
-                   <span className="inline-flex items-center px-1.5 py-0.5 rounded-[4px] bg-slate-200 text-[9px] font-black text-slate-700 tracking-tight">KOOP</span>
+                   <KoopFeePill />
                  </div>
                  <span className="font-mono text-[13px] font-bold text-foreground">${order.serviceFee.toFixed(2)}</span>
                </div>
