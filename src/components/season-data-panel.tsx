@@ -118,7 +118,7 @@ export function SeasonDataPanel({ sellerId, orders }: { sellerId: string; orders
           <PerRoundChart title="Bev cart sales per round" months={visible} year={year} series="bev" />
           <PerRoundChart title="Clubhouse + Bev cart sales per round" months={visible} year={year} series="combined" />
           <p className="text-[10px] font-medium text-muted-foreground leading-relaxed">
-            Sales are item sales only: no tax, tips or convenience fee, and less refunds. {year - 1} sales come from the figures the venue gave us; any month that has Koop orders uses Koop&apos;s own sales.
+            Sales are item sales only: no tax, tips or convenience fee, and less refunds. Sales come from the figures the venue gave us for a month; a month with none uses Koop&apos;s own orders.
             Clubhouse sales are all new on Koop, so the {year - 1} comparison for Clubhouse + Bev cart is Bev cart alone.
             {visible.some(m => m.approximate) && ' Months marked ~ include a week that crosses two months, shared out evenly by day.'}
             {visible.some(m => m.suspect) && ' Months marked * use daily or weekly entries that add up to far less than another total entered for that month, so check them below. They are left out of the totals at the top.'}
@@ -173,8 +173,8 @@ function PerRoundChart({ title, months, year, series }: { title: string; months:
                   return (
                     <div className="rounded-lg border bg-white p-2 text-[11px] font-bold shadow-md space-y-0.5">
                       <p className="font-black uppercase text-[#213147]">{MONTH_NAMES[Number(m.month) - 1]}</p>
-                      <p style={{ color: PRIOR_COLOR }}>{year - 1}: {usd(row.prior)}{m.priorRounds ? ` · ${Math.round(m.priorRounds)} rounds` : ''}</p>
-                      <p style={{ color: currentColor }}>{year}: {usd(row.current)}{m.currentRounds ? ` · ${Math.round(m.currentRounds)} rounds` : ''}</p>
+                      <p style={{ color: PRIOR_COLOR }}>{year - 1}: {usd(row.prior)}{m.priorRounds ? ` · ${Math.round(m.priorRounds)} rounds` : ''}{m.priorBevSales != null ? ` · ${usd(m.priorBevSales)} sales (${m.priorSource === 'koop' ? 'Koop orders' : 'entered'})` : ''}</p>
+                      <p style={{ color: currentColor }}>{year}: {usd(row.current)}{m.currentRounds ? ` · ${Math.round(m.currentRounds)} rounds` : ''}{m.currentBevSales != null ? ` · ${usd(m.currentBevSales)} Bev cart sales (${m.currentSource === 'koop' ? 'Koop orders' : 'entered'})` : ''}</p>
                     </div>
                   );
                 }}
@@ -322,7 +322,7 @@ function MonthlyGrid({ sellerId, records, koop, defaultYear }: { sellerId: strin
         })}
       </div>
       <p className="text-[10px] font-medium text-muted-foreground leading-relaxed">
-        Sales are only needed for months before the venue was on Koop; months with Koop orders use Koop&apos;s own sales. Clearing both boxes for a month removes its monthly total.
+        Sales are only needed for months before the venue was on Koop. A month with sales entered here uses them; a month without uses Koop&apos;s own orders. Clearing both boxes for a month removes its monthly total.
       </p>
       <Button onClick={save} disabled={saving} className="h-10 font-black uppercase text-[10px] tracking-widest gap-2">
         {saving && <Loader2 className="h-4 w-4 animate-spin" />} Save monthly totals
