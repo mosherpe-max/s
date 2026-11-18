@@ -100,5 +100,8 @@ export default {
       },
     },
   },
+  // hover: styles only apply on devices that can really hover (a mouse). On a phone a tap otherwise leaves the
+  // last-touched button stuck in its hover look.
+  future: { hoverOnlyWhenSupported: true },
   plugins: [require('tailwindcss-animate')],
 } satisfies Config;

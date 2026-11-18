@@ -71,7 +71,7 @@ export function OrderSummary({
                   <Button 
                     variant="ghost" 
                     size="icon" 
-                    className="h-8 w-8 sm:h-9 sm:w-9 rounded-full text-destructive hover:bg-destructive/10"
+                    className="h-8 w-8 sm:h-9 sm:w-9 rounded-full text-destructive hover:bg-destructive/10 hover:text-destructive active:bg-destructive/20"
                     onClick={() => handleQuantityChange(item, -1)}
                   >
                     <MinusCircle className="h-4 w-4 sm:h-5 sm:w-5" />
@@ -79,7 +79,7 @@ export function OrderSummary({
                   <Button 
                     variant="ghost" 
                     size="icon" 
-                    className="h-8 w-8 sm:h-9 sm:w-9 rounded-full text-primary hover:bg-primary/10"
+                    className="h-8 w-8 sm:h-9 sm:w-9 rounded-full text-primary hover:bg-primary/10 hover:text-primary active:bg-primary/20"
                     onClick={() => handleQuantityChange(item, 1)}
                   >
                     <PlusCircle className="h-4 w-4 sm:h-5 sm:w-5" />
