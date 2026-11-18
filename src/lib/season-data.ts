@@ -155,21 +155,24 @@ interface SeasonSide {
   bevSales: number | null; clubSales: number; rounds: number | null; source: 'koop' | 'venue' | null; approximate: boolean; suspect: boolean;
 }
 
-// Koop's orders win for a month that has them; otherwise the sales the venue gave for that month.
+// Sales the venue gave for a month win: someone typed them on purpose, usually the venue's full month from its own
+// records, while Koop's orders only cover the days since the venue went live (or a few test orders). A month with no
+// venue figure uses Koop's own orders.
 function sideFor(year: number, mm: string, rounds: Map<string, MonthRollUp>, venueSales: Map<string, MonthRollUp>, koop: Map<string, KoopMonth>): SeasonSide {
   const key = `${year}-${mm}`;
   const k = koop.get(key);
   const r = rounds.get(key);
   const v = venueSales.get(key);
   const koopHasBev = !!k && k.bevOrders > 0;
-  const bevSales = koopHasBev ? k!.bevCents / 100 : v ? v.value : null;
+  const venueGave = !!v && v.value > 0;
+  const bevSales = venueGave ? v!.value : koopHasBev ? k!.bevCents / 100 : null;
   return {
     bevSales,
     clubSales: k ? k.clubCents / 100 : 0,
     rounds: r && r.value > 0 ? r.value : null,
-    source: koopHasBev ? 'koop' : v ? 'venue' : null,
-    approximate: !!(r?.approximate || (!koopHasBev && v?.approximate)),
-    suspect: !!(r?.suspect || (!koopHasBev && v?.suspect)),
+    source: venueGave ? 'venue' : koopHasBev ? 'koop' : null,
+    approximate: !!(r?.approximate || (venueGave && v?.approximate)),
+    suspect: !!(r?.suspect || (venueGave && v?.suspect)),
   };
 }
 
