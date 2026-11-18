@@ -18,7 +18,7 @@ import { planRating, validateRatingInput } from "./ratings.js";
 import { pickSmsTemplate, renderSmsTemplate, templateUsesField, type SmsTemplateKey } from "./sms-templates.js";
 import { accountAction, applicationFeeCents, createDirectPaymentIntent, ensureWalletDomain, fetchChargeFees, planRefund, refundStatusFor, resolveVenueCustomer } from "./stripe-direct.js";
 import { reconcileOrderQueue, syncQueueEntry } from "./order-queue.js";
-import { DEMO_SEED_MODES, DEMO_SEED_SELLER_ID, generateDemoOrders } from "./demo-seed.js";
+import { DEMO_SEED_VENUES, generateDemoOrders } from "./demo-seed.js";
 import Stripe from 'stripe';
 import twilio from 'twilio';
 import webpush from 'web-push';
@@ -887,37 +887,39 @@ export const applyStarterItems = onCall({ region: 'us-central1' }, async (reques
 });
 
 /**
- * Removes the seeded demo orders (and the daily sales locks the venue page froze from them) so a reseed or a
- * clean-up starts from nothing. Only orders marked isDemoSeed on the demo course are touched.
+ * Removes the seeded demo orders (and the daily sales locks the venue page froze from them) on the demo golf course
+ * and the demo bowling center, so a reseed or a clean-up starts from nothing. Only orders marked isDemoSeed are touched.
  */
 async function clearSeededDemoOrders(): Promise<number> {
   let removed = 0;
-  for (;;) {
-    const snap = await db.collection('orders')
-      .where('sellerId', '==', DEMO_SEED_SELLER_ID).where('isDemoSeed', '==', true).limit(400).get();
-    if (snap.empty) break;
-    const batch = db.batch();
-    snap.docs.forEach(d => batch.delete(d.ref));
-    await batch.commit();
-    removed += snap.size;
-  }
-  for (;;) {
-    const snap = await db.collection('sellers').doc(DEMO_SEED_SELLER_ID).collection('dailySalesLocks').limit(400).get();
-    if (snap.empty) break;
-    const batch = db.batch();
-    snap.docs.forEach(d => batch.delete(d.ref));
-    await batch.commit();
+  for (const { sellerId } of DEMO_SEED_VENUES) {
+    for (;;) {
+      const snap = await db.collection('orders')
+        .where('sellerId', '==', sellerId).where('isDemoSeed', '==', true).limit(400).get();
+      if (snap.empty) break;
+      const batch = db.batch();
+      snap.docs.forEach(d => batch.delete(d.ref));
+      await batch.commit();
+      removed += snap.size;
+    }
+    for (;;) {
+      const snap = await db.collection('sellers').doc(sellerId).collection('dailySalesLocks').limit(400).get();
+      if (snap.empty) break;
+      const batch = db.batch();
+      snap.docs.forEach(d => batch.delete(d.ref));
+      await batch.commit();
+    }
   }
   return removed;
 }
 
 /**
  * seedDemoOrders
- * Koop admin only. Fills the demo golf course (demo-course) with a believable run of past orders for the
- * Beverage Cart and Clubhouse (different patrons, real menu items, tips, tax, acknowledgement and delivery
- * times) so the venue admin charts have something to show in a demo. Replaces any earlier seeded orders.
- * Seeded orders are marked isDemoSeed, never trigger texts, pushes or timing records, and can be removed
- * with clearDemoOrders.
+ * Koop admin only. Fills the demo golf course (demo-course) and the demo bowling center (demo-bowling-alley) with a
+ * believable run of past orders (different patrons, real menu items, tips, tax, acknowledgement and delivery times),
+ * so the venue admin charts have something to show in a demo. Orders from the last 30 days also carry patron ratings,
+ * some already followed up on. Replaces any earlier seeded orders. Seeded orders are marked isDemoSeed, never trigger
+ * texts, pushes or timing records, and can be removed with clearDemoOrders.
  */
 export const seedDemoOrders = onCall({ region: 'us-central1', timeoutSeconds: 300, memory: '512MiB' }, async (request) => {
   try {
@@ -925,48 +927,74 @@ export const seedDemoOrders = onCall({ region: 'us-central1', timeoutSeconds: 30
     const requested = Number(request.data?.days);
     const days = Number.isFinite(requested) ? Math.min(90, Math.max(7, Math.round(requested))) : 60;
 
-    const sellerRef = db.collection('sellers').doc(DEMO_SEED_SELLER_ID);
-    const [sellerSnap, itemsSnap, staffSnap] = await Promise.all([
-      sellerRef.get(), sellerRef.collection('menuItems').get(), sellerRef.collection('staff').get(),
-    ]);
-    if (!sellerSnap.exists) throw new HttpsError('failed-precondition', 'The demo golf course (demo-course) was not found.');
-    const seller = sellerSnap.data() || {};
+    // Build every venue's orders before anything is removed or written, so a problem leaves the data as it was.
+    const built: { sellerId: string; name: string; orders: ReturnType<typeof generateDemoOrders> }[] = [];
+    for (const venue of DEMO_SEED_VENUES) {
+      const sellerRef = db.collection('sellers').doc(venue.sellerId);
+      const [sellerSnap, itemsSnap, staffSnap] = await Promise.all([
+        sellerRef.get(), sellerRef.collection('menuItems').get(), sellerRef.collection('staff').get(),
+      ]);
+      if (!sellerSnap.exists) {
+        if (venue.kind === 'golf') throw new HttpsError('failed-precondition', 'The demo golf course (demo-course) was not found.');
+        continue; // the bowling center is optional
+      }
+      const seller = sellerSnap.data() || {};
+      const label = venue.kind === 'golf' ? 'The demo golf course' : 'The demo bowling center';
 
-    const items = itemsSnap.docs
-      .map(d => ({ id: d.id, ...d.data() } as any))
-      .filter(i => i.isAvailable !== false && typeof i.price === 'number');
-    const missing = DEMO_SEED_MODES.filter(m => items.filter(i => (i.availableOn || []).includes(m)).length < 3);
-    if (missing.length) throw new HttpsError('failed-precondition', `The demo menu needs at least 3 items on: ${missing.join(', ')}.`);
+      const items = itemsSnap.docs
+        .map(d => ({ id: d.id, ...d.data() } as any))
+        .filter(i => i.isAvailable !== false && typeof i.price === 'number');
+      const missing = venue.modes.filter(m => items.filter(i => (i.availableOn || []).includes(m)).length < 3);
+      if (missing.length) throw new HttpsError('failed-precondition', `${label} menu needs at least 3 items on: ${missing.join(', ')}.`);
 
-    const serviceFees: Record<string, number> = {};
-    const taxRates: Record<string, number> = {};
-    DEMO_SEED_MODES.forEach(m => {
-      serviceFees[m] = seller.serviceFees?.[m] ?? seller.serviceFee ?? 0;
-      taxRates[m] = seller.taxRates?.[m] ?? seller.taxRate ?? 6;
-    });
+      const serviceFees: Record<string, number> = {};
+      const taxRates: Record<string, number> = {};
+      venue.modes.forEach(m => {
+        serviceFees[m] = seller.serviceFees?.[m] ?? seller.serviceFee ?? 0;
+        taxRates[m] = seller.taxRates?.[m] ?? seller.taxRate ?? 6;
+      });
 
-    const orders = generateDemoOrders({
-      now: new Date(), days, items, serviceFees, taxRates,
-      staffNames: staffSnap.docs.map(d => String(d.data().name || '')).filter(Boolean),
-    });
+      built.push({
+        sellerId: venue.sellerId,
+        name: String(seller.courseName || venue.sellerId),
+        orders: generateDemoOrders({
+          now: new Date(), days, items, serviceFees, taxRates, venue: venue.kind, laneCount: Number(seller.laneCount) || undefined,
+          staffNames: staffSnap.docs.map(d => String(d.data().name || '')).filter(Boolean),
+        }),
+      });
+    }
 
     await clearSeededDemoOrders();
     const col = db.collection('orders');
-    for (let i = 0; i < orders.length; i += 400) {
+    const all = built.flatMap(b => b.orders);
+    for (let i = 0; i < all.length; i += 400) {
       const batch = db.batch();
-      orders.slice(i, i + 400).forEach(o => {
+      all.slice(i, i + 400).forEach(o => {
         const delivered = o.deliveredAt || o.createdAt;
+        const r = o.rating;
         batch.set(col.doc(o.id), {
           ...o.data,
           createdAt: Timestamp.fromDate(o.createdAt),
-          updatedAt: Timestamp.fromDate(delivered),
+          updatedAt: Timestamp.fromDate(r ? r.handledAt || r.ratedAt : delivered),
           ...(o.acknowledgedAt ? { acknowledgedAt: Timestamp.fromDate(o.acknowledgedAt) } : {}),
           ...(o.deliveredAt ? { deliveredAt: Timestamp.fromDate(o.deliveredAt) } : {}),
+          ...(r ? {
+            rating: {
+              score: r.score,
+              ...(r.reason ? { reason: r.reason } : {}),
+              ...(r.comment ? { comment: r.comment } : {}),
+              ratedAt: Timestamp.fromDate(r.ratedAt),
+              ...(r.handledAt ? { handledAt: Timestamp.fromDate(r.handledAt), handledBy: r.handledBy, handledNote: r.handledNote } : {}),
+            },
+          } : {}),
         });
       });
       await batch.commit();
     }
-    return { orders: orders.length, days };
+    const venues = built.map(b => ({
+      sellerId: b.sellerId, name: b.name, orders: b.orders.length, ratings: b.orders.filter(o => o.rating).length,
+    }));
+    return { orders: all.length, days, ratings: venues.reduce((n, v) => n + v.ratings, 0), venues };
   } catch (err: any) {
     logger.error("seedDemoOrders Error", err);
     if (err instanceof HttpsError) throw err;
@@ -976,7 +1004,7 @@ export const seedDemoOrders = onCall({ region: 'us-central1', timeoutSeconds: 30
 
 /**
  * clearDemoOrders
- * Koop admin only. Removes the orders seedDemoOrders created on the demo golf course.
+ * Koop admin only. Removes the orders seedDemoOrders created on the demo golf course and bowling center.
  */
 export const clearDemoOrders = onCall({ region: 'us-central1', timeoutSeconds: 300 }, async (request) => {
   try {

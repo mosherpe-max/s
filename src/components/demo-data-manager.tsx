@@ -8,8 +8,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
-// Koop Admin > System Config: fill the demo golf course with past orders so the venue admin charts look
-// lived-in during a sales demo, and take them out again.
+// Koop Admin > System Config: fill the demo golf course and the demo bowling center with past orders (and a month of
+// patron ratings) so the venue admin charts and Ratings screen look lived-in during a sales demo, and take them out again.
 export function DemoDataManager() {
   const firebaseApp = useFirebaseApp();
   const { toast } = useToast();
@@ -23,12 +23,12 @@ export function DemoDataManager() {
       const functions = getFunctions(firebaseApp, 'us-central1');
       if (kind === 'seed') {
         const result = await httpsCallable(functions, 'seedDemoOrders')({ days });
-        const data = result.data as { orders: number; days: number };
-        toast({ title: 'Demo Orders Added', description: `${data.orders.toLocaleString()} orders over the last ${data.days} days on the demo golf course.` });
+        const data = result.data as { orders: number; days: number; ratings?: number };
+        toast({ title: 'Demo Orders Added', description: `${data.orders.toLocaleString()} orders over the last ${data.days} days on the demo golf course and bowling center, with ${(data.ratings ?? 0).toLocaleString()} patron ratings from the last 30 days.` });
       } else {
         const result = await httpsCallable(functions, 'clearDemoOrders')();
         const data = result.data as { removed: number };
-        toast({ title: 'Demo Orders Removed', description: `${data.removed.toLocaleString()} seeded orders removed.` });
+        toast({ title: 'Demo Orders Removed', description: `${data.removed.toLocaleString()} seeded orders (and their ratings) removed.` });
       }
     } catch (e: any) {
       toast({ variant: 'destructive', title: kind === 'seed' ? 'Could Not Add Demo Orders' : 'Could Not Remove Demo Orders', description: e?.message || 'Please try again.' });
@@ -44,9 +44,11 @@ export function DemoDataManager() {
           <Database className="h-4 w-4" /> Demo Data
         </h4>
         <p className="text-[10px] font-medium text-muted-foreground leading-relaxed max-w-xl">
-          Fills the demo golf course (Beverage Cart and Clubhouse) with past orders from made-up patrons, so the venue
-          admin charts, sales report and patron list have something to show in a demo. Running it again replaces the
-          earlier set. These orders send no texts or alerts and are all marked as demo data; the sales report days
+          Fills the demo golf course (Beverage Cart and Clubhouse) and the demo bowling center (Lane Delivery) with past
+          orders from made-up patrons, so the venue admin charts, sales report and patron list have something to show in
+          a demo. Orders from the last 30 days also carry patron ratings (about a third of deliveries rated, mostly
+          thumbs up), with a few thumbs-downs still waiting for a follow-up on the Dashboard. Running it again replaces
+          the earlier set. These orders send no texts or alerts and are all marked as demo data; the sales report days
           they create are cleared along with them.
         </p>
       </div>
