@@ -328,43 +328,35 @@ function OrderTrackingContent() {
         )}
 
         {!isDelivered && isGolf && !locationBlocked && !(order.deliveryHole && !order.deliveryLocation) && (
-          <div className={cn(
-            "rounded-2xl p-4 shadow-md border-2 transition-all duration-500 flex items-center justify-between gap-4",
-            isSignalStale ? "bg-red-50 border-red-200" : "bg-green-50 border-green-200"
-          )}>
-            <div className="flex items-center gap-3">
-              <div className={cn(
-                "p-2 rounded-xl shrink-0",
-                isSignalStale ? "bg-red-500 text-white animate-pulse" : "bg-green-500 text-white"
-              )}>
-                <Satellite className="h-5 w-5" />
+          isSignalStale ? (
+            // Only when the location has gone quiet does the patron get a card: that is when they need to act.
+            <div className="rounded-2xl p-4 shadow-md border-2 bg-red-50 border-red-200 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-xl shrink-0 bg-red-500 text-white animate-pulse">
+                  <Satellite className="h-5 w-5" />
+                </div>
+                <div className="text-left">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-red-700">
+                    Location update {secondsSinceUpdate} <span className="normal-case">{secondsSinceUpdate === 1 ? 'sec' : 'secs'}</span> ago
+                  </p>
+                  <p className="text-[8px] font-bold uppercase text-red-600/70">Driver may struggle to find you</p>
+                </div>
               </div>
-              <div className="text-left">
-                <p className={cn(
-                  "text-[10px] font-black uppercase tracking-widest",
-                  isSignalStale ? "text-red-700" : "text-green-700"
-                )}>
-                  Location update {secondsSinceUpdate} <span className="normal-case">{secondsSinceUpdate === 1 ? 'sec' : 'secs'}</span> ago
-                </p>
-                <p className={cn(
-                  "text-[8px] font-bold uppercase",
-                  isSignalStale ? "text-red-600/70" : "text-green-600/70"
-                )}>
-                  {isSignalStale ? "Driver may struggle to find you" : "High-precision lock active"}
-                </p>
-              </div>
-            </div>
-            {isSignalStale && (
-              <Button 
-                size="sm" 
-                variant="outline" 
+              <Button
+                size="sm"
+                variant="outline"
                 onClick={handleManualRefresh}
                 className="h-9 px-3 bg-white border-red-200 text-red-600 font-black uppercase text-[9px] gap-2 hover:bg-red-50"
               >
                 <RefreshCcw className="h-3 w-3" /> Refresh
               </Button>
-            )}
-          </div>
+            </div>
+          ) : (
+            <p className="flex items-center gap-2 px-1 text-xs font-medium text-slate-600" data-testid="location-sharing">
+              <span className="h-2 w-2 rounded-full bg-green-500 shrink-0" aria-hidden="true" />
+              Sharing your location
+            </p>
+          )
         )}
 
         <Card className="shadow-md border-2 border-slate-100">
