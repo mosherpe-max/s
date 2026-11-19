@@ -360,57 +360,60 @@ function OrderTrackingContent() {
         )}
 
         <Card className="shadow-md border-2 border-slate-100">
-          <CardHeader className="py-3 px-6 bg-muted/30 border-b flex flex-row items-center justify-between">
-            <div className="flex flex-col text-left">
+          <CardHeader className="py-3 px-6 bg-muted/30 border-b flex flex-row flex-wrap items-center justify-between gap-x-4 gap-y-2 space-y-0">
+            <div className="flex flex-col text-left min-w-0">
               <h3 className="text-[10px] font-black uppercase tracking-widest">Order Details</h3>
               <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5">
-                Ticket #{getNumericOrderId(order.id)}{order.menuType ? ` · ${order.menuType}` : ''}
+                {/* A bowling order's lane is shown on its own, so its service name is not repeated here. */}
+                Ticket #{getNumericOrderId(order.id)}{order.menuType && !isBowling ? ` · ${order.menuType}` : ''}
               </p>
             </div>
-            
-            <div className="flex items-center gap-4">
-              {!isDelivered && (
-                <Link 
-                  href={`/sellers/${order.sellerId}/order`} 
-                  className="flex items-center gap-1 text-[9px] font-black uppercase text-primary hover:underline transition-all"
-                >
-                  <ChevronLeft className="h-3 w-3" /> Return to Menu
-                </Link>
-              )}
-              
-              {isBowling && order.menuTypeLocation && (
-                <div className="flex items-center gap-2">
-                  <Badge className="bg-primary text-white font-black uppercase text-[10px] px-2">
-                    {order.menuTypeLocation}
-                  </Badge>
-                  {!isDelivered && (
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <button className="text-[9px] font-black uppercase text-primary underline">Edit</button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-64 p-4 rounded-[1.5rem]">
-                        <div className="space-y-3">
-                          <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest text-center">Correct Your Lane</p>
-                          <div className="grid grid-cols-5 gap-1.5">
-                            {Array.from({ length: seller?.laneCount || 20 }, (_, i) => (i + 1).toString()).map(l => (
-                              <Button 
-                                key={l} 
-                                variant={order.menuTypeLocation === `Lane ${l}` ? 'default' : 'outline'} 
-                                size="sm" 
-                                onClick={() => handleUpdateLane(l)} 
-                                className="h-8 p-0 text-[10px] font-bold"
-                              >
-                                {l}
-                              </Button>
-                            ))}
-                          </div>
+
+            {isBowling && order.menuTypeLocation && (
+              <div className="flex items-center gap-2 shrink-0 whitespace-nowrap">
+                <Badge className="bg-primary text-white font-black uppercase text-[10px] px-2 whitespace-nowrap">
+                  {order.menuTypeLocation}
+                </Badge>
+                {!isDelivered && (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button className="px-1 py-1 text-[9px] font-black uppercase text-primary underline">Edit</button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-64 p-4 rounded-[1.5rem]">
+                      <div className="space-y-3">
+                        <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest text-center">Correct Your Lane</p>
+                        <div className="grid grid-cols-5 gap-1.5">
+                          {Array.from({ length: seller?.laneCount || 20 }, (_, i) => (i + 1).toString()).map(l => (
+                            <Button
+                              key={l}
+                              variant={order.menuTypeLocation === `Lane ${l}` ? 'default' : 'outline'}
+                              size="sm"
+                              onClick={() => handleUpdateLane(l)}
+                              className="h-8 p-0 text-[10px] font-bold"
+                            >
+                              {l}
+                            </Button>
+                          ))}
                         </div>
-                      </PopoverContent>
-                    </Popover>
-                  )}
-                </div>
-              )}
-            </div>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                )}
+              </div>
+            )}
+
+            {!isDelivered && (
+              <Link
+                href={`/sellers/${order.sellerId}/order`}
+                // On a bowling order the lane takes the right side, so the link drops to its own line.
+                className={cn(
+                  "flex items-center gap-1 whitespace-nowrap text-[9px] font-black uppercase text-primary hover:underline transition-all",
+                  isBowling && order.menuTypeLocation && "basis-full"
+                )}
+              >
+                <ChevronLeft className="h-3 w-3" /> Return to Menu
+              </Link>
+            )}
           </CardHeader>
           <CardContent className="pt-6 space-y-6 text-left">
             <div className="space-y-2">
