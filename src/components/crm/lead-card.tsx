@@ -4,11 +4,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { collection, doc, serverTimestamp, setDoc, writeBatch, Timestamp } from 'firebase/firestore';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { format, parseISO } from 'date-fns';
-import { Download, Loader2, Pencil, Printer, Save, Trash2, X } from 'lucide-react';
+import { format } from 'date-fns';
+import { Download, Loader2, Printer, Save } from 'lucide-react';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { CLOSE_ON_DARK, Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -17,16 +16,15 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Textarea } from '@/components/ui/textarea';
 import type { Lead, LeadContact, LeadContactType } from '@/lib/types';
-import { CONTACT_TYPES, LEAD_STAGES, POS_SUGGESTIONS, TITLE_SUGGESTIONS, firstYearValue, latestDate } from '@/lib/crm';
+import { LEAD_STAGES, POS_SUGGESTIONS, TITLE_SUGGESTIONS, firstYearValue, latestDate } from '@/lib/crm';
 import { leadFormSchema, leadFormToFields, leadToFormValues, type LeadFormValues } from '@/lib/crm-form';
 import { US_STATES } from '@/lib/us-states';
 import { buildLeadSheet, leadSheetFileName, renderLeadSheetPdf } from '@/lib/lead-sheet';
+import { ContactLog } from '@/components/crm/contact-log';
 
 const money = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 const todayKey = () => format(new Date(), 'yyyy-MM-dd');
-const prettyDate = (key: string) => { try { return format(parseISO(key), 'EEE, MMM d, yyyy'); } catch { return key; } };
 const labelClass = 'text-[9px] font-black uppercase';
 const inputClass = 'h-11 border-2 font-bold';
 
@@ -361,55 +359,12 @@ export function LeadCard({ lead, open, onOpenChange, onSaved }: {
                         <p className="rounded-xl border-2 border-dashed p-4 text-[11px] font-bold uppercase text-muted-foreground text-center">Save the lead first, then log your calls, visits and meetings here.</p>
                       ) : (
                         <>
-                          <div className="rounded-2xl border-2 p-4 space-y-3 bg-white">
-                            <div className="grid grid-cols-2 gap-4">
-                              <div className="space-y-1.5">
-                                <Label htmlFor="entry-date" className={labelClass}>Date</Label>
-                                <Input id="entry-date" type="date" value={entryDate} max={todayKey()} onChange={(e) => setEntryDate(e.target.value)} className={inputClass} />
-                              </div>
-                              <div className="space-y-1.5">
-                                <Label className={labelClass}>Type</Label>
-                                <Select value={entryType} onValueChange={(v) => setEntryType(v as LeadContactType)}>
-                                  <SelectTrigger className={inputClass}><SelectValue /></SelectTrigger>
-                                  <SelectContent>{CONTACT_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
-                                </Select>
-                              </div>
-                            </div>
-                            <div className="space-y-1.5">
-                              <Label htmlFor="entry-notes" className={labelClass}>Notes from the meeting or discussion</Label>
-                              <Textarea id="entry-notes" value={entryNotes} onChange={(e) => setEntryNotes(e.target.value)} rows={4} placeholder="Who you spoke with, what was said, what happens next…" className="border-2 font-medium" />
-                            </div>
-                            <div className="flex gap-2 justify-end">
-                              {editingEntry && <Button type="button" variant="outline" onClick={resetEntry} className="h-10 border-2 font-black uppercase text-[10px] tracking-widest gap-1.5"><X className="h-3.5 w-3.5" /> Cancel</Button>}
-                              <Button type="button" onClick={saveEntry} disabled={savingEntry} className="h-10 font-black uppercase text-[10px] tracking-widest gap-1.5">
-                                {savingEntry ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />} {editingEntry ? 'Update Entry' : 'Add To Log'}
-                              </Button>
-                            </div>
-                          </div>
-
-                          {contactsLoading ? (
-                            <div className="py-6 text-center"><Loader2 className="h-5 w-5 animate-spin text-primary inline" /></div>
-                          ) : sortedContacts.length === 0 ? (
-                            <p className="py-6 text-center text-[10px] font-black uppercase text-muted-foreground opacity-60">No contacts logged yet</p>
-                          ) : (
-                            <ul className="space-y-3">
-                              {sortedContacts.map(c => (
-                                <li key={c.id} className="rounded-2xl border-2 p-4 bg-slate-50/60 space-y-2">
-                                  <div className="flex items-center justify-between gap-3">
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                      <span className="text-[11px] font-black uppercase text-[#213147]">{prettyDate(c.date)}</span>
-                                      <Badge variant="outline" className="text-[8px] font-black uppercase bg-white">{c.type}</Badge>
-                                    </div>
-                                    <div className="flex gap-1 shrink-0">
-                                      <Button type="button" variant="ghost" size="icon" className="h-8 w-8" aria-label="Edit entry" onClick={() => startEdit(c)}><Pencil className="h-3.5 w-3.5" /></Button>
-                                      <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" aria-label="Delete entry" onClick={() => deleteEntry(c)}><Trash2 className="h-3.5 w-3.5" /></Button>
-                                    </div>
-                                  </div>
-                                  <p className="whitespace-pre-wrap text-sm font-medium text-slate-700">{c.notes}</p>
-                                </li>
-                              ))}
-                            </ul>
-                          )}
+                          <ContactLog
+                            contacts={sortedContacts} loading={contactsLoading} editingId={editingEntry?.id ?? null}
+                            date={entryDate} type={entryType} notes={entryNotes} maxDate={todayKey()} saving={savingEntry}
+                            onDate={setEntryDate} onType={setEntryType} onNotes={setEntryNotes}
+                            onSave={saveEntry} onCancel={resetEntry} onStartEdit={startEdit} onDelete={deleteEntry}
+                          />
                         </>
                       )}
                     </section>
