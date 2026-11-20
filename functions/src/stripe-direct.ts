@@ -51,12 +51,32 @@ export async function resolveVenueCustomer(
   return { id: created.id, returning: false };
 }
 
+// Stripe sends the patron a receipt for a live payment when the payment names a receipt address, whatever the venue's own
+// email settings are, so Koop turns receipts on for every venue here instead of each venue doing it. A malformed address
+// would make Stripe refuse the whole payment, so only a plain, well-formed one is passed on; anything else is skipped
+// (the patron simply gets no receipt, and the order still goes through).
+export function receiptEmailFor(email: unknown): string | undefined {
+  if (typeof email !== 'string') return undefined;
+  const e = email.trim();
+  return e.length <= 254 && /^[^\s@<>(),;:"\[\]\\]+@[^\s@<>(),;:"\[\]\\]+\.[^\s@<>(),;:"\[\]\\]{2,}$/.test(e) ? e : undefined;
+}
+
+// What the receipt says the payment was for: the venue and the service, e.g. "Koop Golf Club · Beverage Cart order".
+export function receiptDescription(venueName: unknown, menuType: unknown): string | undefined {
+  const parts = [typeof venueName === 'string' ? venueName.trim() : '', typeof menuType === 'string' ? menuType.trim() : ''].filter(Boolean);
+  if (parts.length === 0) return undefined;
+  const text = parts.length === 2 ? `${parts[0]} · ${parts[1]} order` : `${parts[0]} order`;
+  return text.slice(0, 250);
+}
+
 export interface DirectChargeInput {
   accountId: string;
   amountCents: number;
   applicationFeeCents: number;
   customerId: string;
   metadata: Record<string, string>;
+  receiptEmail?: string; // already checked with receiptEmailFor
+  description?: string;
 }
 
 export function createDirectPaymentIntent(stripe: Stripe, input: DirectChargeInput) {
@@ -67,6 +87,8 @@ export function createDirectPaymentIntent(stripe: Stripe, input: DirectChargeInp
     automatic_payment_methods: { enabled: true },
     application_fee_amount: input.applicationFeeCents,
     metadata: input.metadata,
+    ...(input.receiptEmail ? { receipt_email: input.receiptEmail } : {}),
+    ...(input.description ? { description: input.description } : {}),
   }, { stripeAccount: input.accountId });
 }
 
