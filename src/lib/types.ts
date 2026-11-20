@@ -149,6 +149,8 @@ export interface Seller {
   holeCount?: number;
   /** Golf: also offer "Driving Range" as a place to deliver to. */
   hasDrivingRange?: boolean;
+  /** Golf: about how many minutes a group takes to play a hole (default 13). Staff see how far a patron's hole has aged by it. */
+  minutesPerHole?: number;
   streetAddress: string;
   city: string;
   state: string;
@@ -329,6 +331,8 @@ export interface Order {
   };
   /** Where the patron said they are ('7' or 'Driving Range') when they didn't share location. */
   deliveryHole?: string;
+  /** Optional: where on that hole (Tee, Fairway or Green), when the patron said. */
+  deliveryHolePosition?: 'Tee' | 'Fairway' | 'Green';
   /** Version of the Patron Terms & Conditions the patron agreed to, and when. */
   termsAcceptedVersion?: string;
   termsAcceptedAt?: Timestamp;

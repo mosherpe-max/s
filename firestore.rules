@@ -277,7 +277,7 @@ service cloud.firestore {
                        // The patron who placed it can only move where it should be brought...
                        (isSignedIn() && resource.data.buyerProfileId == request.auth.uid &&
                         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-                          'deliveryLocation', 'lastGpsUpdate', 'deliveryHole', 'deliveryHoleUpdatedAt',
+                          'deliveryLocation', 'lastGpsUpdate', 'deliveryHole', 'deliveryHolePosition', 'deliveryHoleUpdatedAt',
                           'menuTypeLocation', 'updatedAt'
                         ])) ||
 
@@ -291,7 +291,7 @@ service cloud.firestore {
                           'items', 'subtotal', 'serviceFee', 'tax', 'tip', 'total', 'status', 'paymentMethod',
                           'paymentStatus', 'stripePaymentIntentId', 'menuType', 'menuTypeLocation', 'createdAt', 'updatedAt',
                           'sellerId', 'buyerProfileId', 'customerName', 'customerPhone', 'customerEmail',
-                          'deliveryLocation', 'lastGpsUpdate', 'deliveryHole', 'deliveryHoleUpdatedAt',
+                          'deliveryLocation', 'lastGpsUpdate', 'deliveryHole', 'deliveryHolePosition', 'deliveryHoleUpdatedAt',
                           'termsAcceptedVersion', 'termsAcceptedAt'
                         ]));
 

@@ -315,7 +315,7 @@ function CheckoutContent({ sellerId }: { sellerId: string }) {
         customerName: patronName || 'Guest Patron',
         customerPhone: patronPhone.replace(/\D/g, ''),
         ...(patronLocation ? { deliveryLocation: patronLocation, lastGpsUpdate: serverTimestamp() } : {}),
-        ...(placement.hole ? { deliveryHole: placement.hole, deliveryHoleUpdatedAt: serverTimestamp() } : {}),
+        ...(placement.hole ? { deliveryHole: placement.hole, ...(placement.holePosition ? { deliveryHolePosition: placement.holePosition } : {}), deliveryHoleUpdatedAt: serverTimestamp() } : {}),
         ...terms.orderFields(),
         items: activeOrderItems,
         subtotal,

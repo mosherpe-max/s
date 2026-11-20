@@ -8,7 +8,10 @@ import { cn } from '@/lib/utils';
 import {
   DRIVING_RANGE,
   formatHole,
+  formatHolePlace,
   getHoleOptions,
+  HOLE_POSITIONS,
+  type HolePosition,
   getLocationFixSteps,
   needsPatronLocation,
   requestPatronLocation,
@@ -19,6 +22,7 @@ import {
 export interface LocationChoice {
   location?: PatronLocation;
   hole?: string;
+  holePosition?: HolePosition;
 }
 
 interface GateOptions {
@@ -79,6 +83,7 @@ function LocationGateDialog({
   const [stillBlocked, setStillBlocked] = useState(false);
   const [showSteps, setShowSteps] = useState(false);
   const [hole, setHole] = useState<string | null>(null);
+  const [position, setPosition] = useState<HolePosition | null>(null);
 
   const options = getHoleOptions(holeCount, hasDrivingRange);
   const holes = options.filter((o) => o !== DRIVING_RANGE);
@@ -89,6 +94,7 @@ function LocationGateDialog({
       setStillBlocked(false);
       setShowSteps(false);
       setHole(null);
+      setPosition(null);
     }
   }, [open]);
 
@@ -183,7 +189,7 @@ function LocationGateDialog({
               <button
                 key={h}
                 type="button"
-                onClick={() => setHole(h)}
+                onClick={() => { setHole(h); setPosition(null); }}
                 className={cn(
                   'h-10 rounded-lg border-2 text-sm font-black transition-colors',
                   hole === h ? 'bg-primary border-primary text-white' : 'bg-white border-slate-200 text-[#213147] hover:border-primary/40'
@@ -196,7 +202,7 @@ function LocationGateDialog({
           {hasDrivingRange && (
             <button
               type="button"
-              onClick={() => setHole(DRIVING_RANGE)}
+              onClick={() => { setHole(DRIVING_RANGE); setPosition(null); }}
               className={cn(
                 'w-full h-10 rounded-lg border-2 text-[11px] font-black uppercase tracking-widest transition-colors',
                 hole === DRIVING_RANGE ? 'bg-primary border-primary text-white' : 'bg-white border-slate-200 text-[#213147] hover:border-primary/40'
@@ -205,13 +211,34 @@ function LocationGateDialog({
               {DRIVING_RANGE}
             </button>
           )}
+          {hole && hole !== DRIVING_RANGE && (
+            <div className="space-y-1.5" data-testid="hole-position">
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Where on the hole? <span className="font-bold normal-case tracking-normal">(optional)</span></p>
+              <div className="grid grid-cols-3 gap-1.5">
+                {HOLE_POSITIONS.map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    aria-pressed={position === p}
+                    onClick={() => setPosition(position === p ? null : p)}
+                    className={cn(
+                      'h-10 rounded-lg border-2 text-[11px] font-black uppercase tracking-widest transition-colors',
+                      position === p ? 'bg-primary border-primary text-white' : 'bg-white border-slate-200 text-[#213147] hover:border-primary/40'
+                    )}
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <Button
             variant={hole ? 'default' : 'outline'}
             disabled={!hole}
-            onClick={() => hole && onResolve({ hole })}
+            onClick={() => hole && onResolve({ hole, ...(position ? { holePosition: position } : {}) })}
             className={cn('w-full border-2 font-black uppercase tracking-widest text-xs gap-1', hole ? 'h-12 shadow-md' : 'h-11')}
           >
-            {hole ? <>Continue from {formatHole(hole)} <ChevronRight className="h-4 w-4" /></> : 'Pick your hole'}
+            {hole ? <>Continue from {formatHolePlace(hole, position ?? undefined)} <ChevronRight className="h-4 w-4" /></> : 'Pick your hole'}
           </Button>
           {hole && (
             <p className="text-center text-[10px] font-bold uppercase tracking-widest text-primary">

@@ -136,7 +136,7 @@ export function StripeActionArea({
         const finalOrderData = {
           ...orderData,
           ...(patronLocation ? { deliveryLocation: patronLocation, lastGpsUpdate: serverTimestamp() } : {}),
-          ...(placement.hole ? { deliveryHole: placement.hole, deliveryHoleUpdatedAt: serverTimestamp() } : {}),
+          ...(placement.hole ? { deliveryHole: placement.hole, ...(placement.holePosition ? { deliveryHolePosition: placement.holePosition } : {}), deliveryHoleUpdatedAt: serverTimestamp() } : {}),
           ...terms.orderFields(),
           customerEmail: patronEmail,
           customerName: patronName,

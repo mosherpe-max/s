@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { RefreshCcw, Satellite } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { formatHole, getLocationFixSteps } from '@/lib/patron-location';
+import { cn } from '@/lib/utils';
+import { DRIVING_RANGE, formatHole, getLocationFixSteps, HOLE_POSITIONS, type HolePosition } from '@/lib/patron-location';
 
 // Shown on the order tracking screen when the phone is blocking location, so the
 // patron knows why staff can't see them and how to turn it back on.
@@ -12,12 +13,17 @@ export function LocationBlockedCard({
   hole,
   holeOptions,
   onHoleChange,
+  position,
+  onPositionChange,
 }: {
   onRetry: () => void;
   // When the patron told us which hole they're on instead, let them keep it current.
   hole?: string;
   holeOptions?: string[];
   onHoleChange?: (hole: string) => void;
+  // Where on the hole (optional); tapping the chosen one again clears it.
+  position?: HolePosition;
+  onPositionChange?: (position: HolePosition | null) => void;
 }) {
   const [showSteps, setShowSteps] = useState(false);
   return (
@@ -44,6 +50,27 @@ export function LocationBlockedCard({
             {holeOptions.map((o) => <option key={o} value={o}>{formatHole(o)}</option>)}
           </select>
         </label>
+      )}
+      {hole && hole !== DRIVING_RANGE && onPositionChange && (
+        <div className="flex items-center justify-between gap-3 rounded-xl bg-white border-2 border-red-200 px-3 py-2" data-testid="position-row">
+          <span className="text-[10px] font-black uppercase tracking-widest text-red-700">On the hole</span>
+          <div className="flex gap-1">
+            {HOLE_POSITIONS.map((p) => (
+              <button
+                key={p}
+                type="button"
+                aria-pressed={position === p}
+                onClick={() => onPositionChange(position === p ? null : p)}
+                className={cn(
+                  'h-8 px-2.5 rounded-md border-2 text-[10px] font-black uppercase tracking-wide transition-colors',
+                  position === p ? 'bg-primary border-primary text-white' : 'bg-white border-red-200 text-[#213147]'
+                )}
+              >
+                {p}
+              </button>
+            ))}
+          </div>
+        </div>
       )}
       <div className="flex flex-wrap gap-2">
         <Button size="sm" onClick={onRetry} className="h-9 px-3 font-black uppercase text-[10px] gap-2"><RefreshCcw className="h-3 w-3" /> Try again</Button>

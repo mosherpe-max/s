@@ -708,6 +708,7 @@ export default function BevCartDriverDashboardPage({ params }: { params: Promise
                     onRefreshLocation={handleRefreshLocation}
                     currentStaffId={currentStaffId}
                     currentStaffName={currentStaffName}
+                    minutesPerHole={primarySeller?.minutesPerHole}
                     thresholds={primarySeller?.orderThresholds?.[order.menuType] || solutionConfig?.orderThresholds?.[order.menuType]}
                     smsEnabled={solutionConfig?.smsNotificationsEnabled !== false}
                   />
