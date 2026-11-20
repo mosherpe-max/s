@@ -78,7 +78,7 @@ export function StarterModifierPicker({ sellerId, venueType, trigger, onImported
           </DialogTitle>
         </DialogHeader>
         <p className="px-8 pt-6 text-[9px] font-bold text-muted-foreground uppercase tracking-widest">{selected.size} Selected</p>
-        <ScrollArea className="max-h-[50vh] px-8">
+        <ScrollArea type="always" className="max-h-[50vh] px-8">
           <div className="space-y-1 py-4">
             {isLoading ? (
               <div className="py-16 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto text-primary opacity-30" /></div>

@@ -114,7 +114,7 @@ export function StarterItemPicker({ sellerId, venueType, mode, modeLabel, trigge
             <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest text-right">Adds to your menu items &mdash; not live until you add them to a mode</p>
           )}
         </div>
-        <ScrollArea className="max-h-[50vh] px-8">
+        <ScrollArea type="always" className="max-h-[50vh] px-8">
           <div className="space-y-6 pb-6">
             {isLoading ? (
               <div className="py-16 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto text-primary opacity-30" /></div>
