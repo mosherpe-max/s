@@ -8,7 +8,7 @@ import { Button } from './ui/button';
 import { Clock, AlertTriangle, ChevronRight, CheckCircle2, Truck, Timer, Satellite, User, UserPlus, UserMinus, Repeat, MapPin, MessageSquare, MoreHorizontal, Undo2 } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { cn, getNumericOrderId } from '@/lib/utils';
-import { formatHole } from '@/lib/patron-location';
+import { formatHolePlace, holeAgeStatus } from '@/lib/patron-location';
 import { RefundRequestDialog, isCardOrder, refundStatusOf } from '@/components/staff-refund-request';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
 
@@ -24,6 +24,8 @@ interface OrderCardProps {
   thresholds?: OrderFulfillmentThresholds;
   now: number;
   smsEnabled?: boolean;
+  // Golf: about how many minutes a group takes to play a hole, to tell how stale a patron's hole is (default 13).
+  minutesPerHole?: number;
 }
 
 const getStatusConfig = (status: Order['status']) => {
@@ -55,7 +57,8 @@ export function OrderCard({
   currentStaffName,
   thresholds,
   now,
-  smsEnabled
+  smsEnabled,
+  minutesPerHole
 }: OrderCardProps) {
   const statusInfo = getStatusConfig(order.status);
   const [refundOpen, setRefundOpen] = useState(false);
@@ -96,6 +99,9 @@ export function OrderCard({
   const holeTime = order.deliveryHoleUpdatedAt?.toDate?.()?.getTime() || null;
   const holeMinutesElapsed = holeTime ? Math.max(0, Math.floor((now - holeTime) / 60000)) : null;
   const showHole = !!order.deliveryHole && !order.deliveryLocation;
+  // The hole they gave is only good for about a hole's worth of time; past that, say so (amber, then red). This colours
+  // the hole text only, never the GPS signal light, which runs on a much shorter clock.
+  const holeAge = holeAgeStatus(showHole ? holeMinutesElapsed : null, order.deliveryHole, minutesPerHole);
 
   // Condition for showing the location label
   const showLocationLabel = order.menuTypeLocation || order.menuType === 'Lane Delivery';
@@ -225,9 +231,9 @@ export function OrderCard({
               </div>
             ) : showHole ? (
               <div className="flex items-center gap-1.5 text-sm font-black text-primary uppercase">
-                <MapPin className="h-3.5 w-3.5" /> {formatHole(order.deliveryHole!)}
+                <MapPin className="h-3.5 w-3.5" /> {formatHolePlace(order.deliveryHole!, order.deliveryHolePosition)}
                 {holeMinutesElapsed !== null && (
-                  <span className="text-[9px] font-black text-muted-foreground normal-case">
+                  <span className={cn('text-[9px] font-black normal-case', holeAge.level === 'ahead' ? 'text-red-600' : holeAge.level === 'moved-on' ? 'text-amber-600' : 'text-muted-foreground')}>
                     {holeMinutesElapsed < 1 ? 'just now' : `${holeMinutesElapsed}m ago`}
                   </span>
                 )}
@@ -244,6 +250,11 @@ export function OrderCard({
               <span className={cn(showHole ? 'text-amber-500' : gpsStatus.color)}>{showHole ? 'Location off' : gpsStatus.label}</span>
             </div>
           </div>
+          {showHole && holeAge.label && (
+            <p data-testid="hole-age" className={cn('mt-1 text-[9px] font-black uppercase tracking-wide', holeAge.level === 'ahead' ? 'text-red-600' : 'text-amber-600')}>
+              {holeAge.label}
+            </p>
+          )}
 
         </div>
       </CardContent>
@@ -257,7 +268,7 @@ export function OrderCard({
             onClick={() => onRefreshLocation!(order.id)}
             className={cn(
               "h-8 w-full px-2 text-[8px] font-black uppercase tracking-widest border-2 gap-1 rounded-sm transition-all",
-              gpsStatus.isStale
+              gpsStatus.isStale || (showHole && holeAge.level === 'ahead')
                 ? "bg-red-600 border-red-600 text-white animate-pulse hover:bg-red-700"
                 : "border-primary/20 text-primary hover:bg-primary/5"
             )}

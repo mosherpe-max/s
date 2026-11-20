@@ -56,3 +56,32 @@ export function getHoleOptions(holeCount?: number, hasDrivingRange?: boolean): s
 export function formatHole(hole: string): string {
   return hole === DRIVING_RANGE ? DRIVING_RANGE : `Hole ${hole}`;
 }
+
+// Where on the hole a patron is, when they told us a hole instead of sharing location. Optional: a tee box, the
+// fairway and a green are hundreds of yards apart, and a cart usually meets a group at a tee or a green.
+export const HOLE_POSITIONS = ['Tee', 'Fairway', 'Green'] as const;
+export type HolePosition = (typeof HOLE_POSITIONS)[number];
+export const isHolePosition = (v: unknown): v is HolePosition => typeof v === 'string' && (HOLE_POSITIONS as readonly string[]).includes(v);
+
+// "Hole 7 · Green", or just "Hole 7" when they didn't say where on the hole. The driving range has no tee or green.
+export function formatHolePlace(hole: string, position?: unknown): string {
+  return hole !== DRIVING_RANGE && isHolePosition(position) ? `${formatHole(hole)} · ${position}` : formatHole(hole);
+}
+
+// About how long a group takes to play one hole. A course can set its own (seller.minutesPerHole).
+export const DEFAULT_MINUTES_PER_HOLE = 13;
+
+export type HoleAge = 'fresh' | 'moved-on' | 'ahead';
+export interface HoleAgeStatus { level: HoleAge; label: string | null; holesAhead: number }
+
+// How much to trust a hole the patron gave us, by how long ago they said it. After about one hole's worth of time the group
+// has probably moved on; after two they are probably two or more holes ahead. Only an estimate (pace varies), so the wording
+// is soft. Does not apply to the driving range, where people stay put.
+export function holeAgeStatus(minutesAgo: number | null, hole?: string, minutesPerHole?: number): HoleAgeStatus {
+  const pace = minutesPerHole && minutesPerHole > 0 ? minutesPerHole : DEFAULT_MINUTES_PER_HOLE;
+  if (minutesAgo === null || !hole || hole === DRIVING_RANGE || minutesAgo < pace) return { level: 'fresh', label: null, holesAhead: 0 };
+  const holesAhead = Math.floor(minutesAgo / pace);
+  return holesAhead >= 2
+    ? { level: 'ahead', label: `Probably ${holesAhead}+ holes ahead`, holesAhead }
+    : { level: 'moved-on', label: 'May have moved on', holesAhead };
+}

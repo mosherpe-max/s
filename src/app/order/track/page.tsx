@@ -1,7 +1,7 @@
 'use client';
 
 import { Suspense, useEffect, useRef, useState, useMemo } from 'react';
-import { collection, query, doc, updateDoc, serverTimestamp, where } from 'firebase/firestore';
+import { collection, query, doc, updateDoc, serverTimestamp, where, deleteField } from 'firebase/firestore';
 import { useCollection, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import type { Order, Seller, StaffMember, SolutionConfig } from '@/lib/types';
 import { MapView } from '@/components/map-view';
@@ -35,7 +35,7 @@ import { FEE_DISCLOSURES, getDisclosureCategory } from '@/config/fee-disclosures
 import { differenceInSeconds } from 'date-fns';
 import { OrderRatingCard } from '@/components/order-rating-card';
 import { LocationBlockedCard } from '@/components/location-blocked-card';
-import { formatHole, getHoleOptions } from '@/lib/patron-location';
+import { formatHole, formatHolePlace, getHoleOptions, type HolePosition } from '@/lib/patron-location';
 
 function OrderTrackingContent() {
   const firestore = useFirestore();
@@ -193,12 +193,25 @@ function OrderTrackingContent() {
 
   const handleUpdateHole = (hole: string) => {
     if (!firestore || !order) return;
+    // A new hole clears the old "tee / fairway / green", which was about the previous hole.
     updateDoc(doc(firestore, 'orders', order.id), {
       deliveryHole: hole,
+      deliveryHolePosition: deleteField(),
       deliveryHoleUpdatedAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     }).then(() => {
       toast({ title: "Location Updated", description: `Staff will look for you at ${formatHole(hole)}.` });
+    });
+  };
+
+  const handleUpdateHolePosition = (position: HolePosition | null) => {
+    if (!firestore || !order) return;
+    updateDoc(doc(firestore, 'orders', order.id), {
+      deliveryHolePosition: position ?? deleteField(),
+      deliveryHoleUpdatedAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    }).then(() => {
+      if (position && order.deliveryHole) toast({ title: "Location Updated", description: `Staff will look for you at ${formatHolePlace(order.deliveryHole, position)}.` });
     });
   };
 
@@ -324,6 +337,8 @@ function OrderTrackingContent() {
             hole={!order.deliveryLocation ? order.deliveryHole : undefined}
             holeOptions={getHoleOptions(seller?.holeCount, seller?.hasDrivingRange)}
             onHoleChange={handleUpdateHole}
+            position={order.deliveryHolePosition}
+            onPositionChange={handleUpdateHolePosition}
           />
         )}
 
