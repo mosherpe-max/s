@@ -16,7 +16,7 @@ import { isRefundReason, REFUND_REASONS } from "./refund-reasons.js";
 import { refundSmsParts } from "./refund-text.js";
 import { planRating, validateRatingInput } from "./ratings.js";
 import { pickSmsTemplate, renderSmsTemplate, templateUsesField, type SmsTemplateKey } from "./sms-templates.js";
-import { accountAction, applicationFeeCents, createDirectPaymentIntent, ensureWalletDomain, fetchChargeFees, planRefund, refundStatusFor, resolveVenueCustomer } from "./stripe-direct.js";
+import { accountAction, applicationFeeCents, createDirectPaymentIntent, ensureWalletDomain, fetchChargeFees, planRefund, receiptDescription, receiptEmailFor, refundStatusFor, resolveVenueCustomer } from "./stripe-direct.js";
 import { reconcileOrderQueue, syncQueueEntry } from "./order-queue.js";
 import { DEMO_SEED_VENUES, generateDemoOrders } from "./demo-seed.js";
 import Stripe from 'stripe';
@@ -654,6 +654,9 @@ export const createPaymentIntent = onCall({
       amountCents: totalCents,
       applicationFeeCents: applicationFeeAmount,
       customerId: stripeCustomerId,
+      // Koop turns Stripe's receipt email on here, once, for every venue.
+      receiptEmail: receiptEmailFor(patronEmail),
+      description: receiptDescription(sellerData?.courseName, menuType),
       metadata: {
         sellerId,
         buyerUid: buyerUid || 'anonymous',
