@@ -5,25 +5,31 @@
 export interface SalesReportRow {
   date: string;
   menuType: string;
-  netPayout: number;
+  orderCount: number;
+  sales: number;          // items sold: before tax, tips, fees and refunds
+  refunds: number;        // refunded to patrons on this day's orders, live (a refund can come after the day is locked)
   tax: number;
   tip: number;
-  orderCount: number;
-  cardFees: number; // Stripe's processing fees on the card orders, already taken out of netPayout
-  refunds: number; // refunded to patrons on this day's orders, live (a refund can come after the day is locked, so it is not taken out of netPayout)
-  feesEstimated: boolean; // some of those fees are estimates, because Stripe's actual fee is not recorded yet
+  totalCollected: number; // what patrons paid: sales + convenience fee + tax + tips
+  fees: number;           // card processing and service fees together
+  deposit: number;        // what reaches the bank for card orders: total collected - refunds - fees
+  feesEstimated: boolean; // some of the card fees are estimates, because Stripe's actual fee is not recorded yet
+  nonCardOrders: number;  // orders that were not paid by card: in total collected, but not in the deposit
   isLocked: boolean;
   isToday: boolean;
 }
 
 export interface SalesReportTotals {
-  netPayout: number;
+  orderCount: number;
+  sales: number;
+  refunds: number;
   tax: number;
   tip: number;
-  orderCount: number;
-  cardFees: number;
-  refunds: number;
-  feesEstimated: boolean; // some of the card fees in these rows are estimates
+  totalCollected: number;
+  fees: number;
+  deposit: number;
+  feesEstimated: boolean; // some of the fees in these rows are estimates
+  nonCardOrders: number;
 }
 
 export function filterSalesRows(rows: SalesReportRow[], mode: string, from: string, to: string): SalesReportRow[] {
@@ -36,18 +42,64 @@ export function filterSalesRows(rows: SalesReportRow[], mode: string, from: stri
 
 // Totals are summed in cents so a long report doesn't pick up floating point drift.
 export function totalSalesRows(rows: SalesReportRow[]): SalesReportTotals {
-  const cents = rows.reduce(
-    (t, r) => ({
-      netPayout: t.netPayout + Math.round(r.netPayout * 100),
-      tax: t.tax + Math.round(r.tax * 100),
-      tip: t.tip + Math.round(r.tip * 100),
-      orderCount: t.orderCount + r.orderCount,
-      cardFees: t.cardFees + Math.round(r.cardFees * 100),
-      refunds: t.refunds + Math.round(r.refunds * 100),
-    }),
-    { netPayout: 0, tax: 0, tip: 0, orderCount: 0, cardFees: 0, refunds: 0 }
-  );
-  return { netPayout: cents.netPayout / 100, tax: cents.tax / 100, tip: cents.tip / 100, orderCount: cents.orderCount, cardFees: cents.cardFees / 100, refunds: cents.refunds / 100, feesEstimated: rows.some(r => r.feesEstimated) };
+  const sum = (pick: (r: SalesReportRow) => number) => rows.reduce((t, r) => t + Math.round(pick(r) * 100), 0) / 100;
+  return {
+    orderCount: rows.reduce((t, r) => t + r.orderCount, 0),
+    sales: sum(r => r.sales),
+    refunds: sum(r => r.refunds),
+    tax: sum(r => r.tax),
+    tip: sum(r => r.tip),
+    totalCollected: sum(r => r.totalCollected),
+    fees: sum(r => r.fees),
+    deposit: sum(r => r.deposit),
+    feesEstimated: rows.some(r => r.feesEstimated),
+    nonCardOrders: rows.reduce((t, r) => t + r.nonCardOrders, 0),
+  };
+}
+
+// One day's orders for one service mode, added up in cents. The fees are card processing plus the service fee together, so
+// total collected - fees (- later refunds) is the deposit without the two being split out. netPayout and cardFees are what
+// older versions of the report showed; they are still recorded when a day is locked.
+export interface DaySummary {
+  orderCount: number;
+  sales: number;
+  tax: number;
+  tip: number;
+  totalCollected: number;
+  fees: number;
+  depositGross: number; // the deposit before any refund
+  feesEstimated: boolean;
+  nonCardOrders: number;
+  netPayout: number;
+  cardFees: number;
+}
+
+export function summarizeDay<T extends OrderMoneyInput>(orders: T[], moneyFor: (o: T) => OrderMoney): DaySummary {
+  const t = { sales: 0, tax: 0, tip: 0, totalCollected: 0, fees: 0, depositGross: 0, netPayout: 0, cardFees: 0 };
+  let feesEstimated = false;
+  let nonCardOrders = 0;
+  for (const o of orders) {
+    const m = moneyFor(o);
+    const subtotal = c100(o.subtotal), serviceFee = c100(o.serviceFee), tax = c100(o.tax), tip = c100(o.tip);
+    t.sales += subtotal;
+    t.tax += tax;
+    t.tip += tip;
+    t.totalCollected += c100(o.total) || subtotal + serviceFee + tax + tip;
+    t.netPayout += Math.round(m.netPayout * 100);
+    t.cardFees += Math.round(m.cardFee * 100);
+    if (m.isCard) {
+      t.fees += Math.round(m.cardFee * 100) + Math.round(m.koopFee * 100);
+      t.depositGross += Math.round((m.deposit ?? 0) * 100);
+      if (m.cardFeeEstimated) feesEstimated = true;
+    } else {
+      nonCardOrders += 1;
+    }
+  }
+  const d = (n: number) => n / 100;
+  return {
+    orderCount: orders.length, sales: d(t.sales), tax: d(t.tax), tip: d(t.tip), totalCollected: d(t.totalCollected), fees: d(t.fees),
+    depositGross: d(t.depositGross), feesEstimated, nonCardOrders, netPayout: d(t.netPayout), cardFees: d(t.cardFees),
+  };
 }
 
 const csvCell = (value: string | number) => `"${String(value).replace(/"/g, '""')}"`;
@@ -55,10 +107,11 @@ const money = (n: number) => n.toFixed(2);
 
 // Dollar columns are plain numbers (no $) so they open as numbers in a spreadsheet.
 export function buildSalesReportCsv(rows: SalesReportRow[], totals: SalesReportTotals, mode: string): string {
+  const fee = (estimated: boolean, n: number) => `${estimated ? '~' : ''}${money(n)}`;
   const lines: (string | number)[][] = [
-    ['Date', 'Service Mode', 'Net Payout', 'Card Fees', 'Tax', 'Tips', 'Refunds', 'Orders', 'Status'],
-    ...rows.map(r => [r.date, r.menuType, money(r.netPayout), `${r.feesEstimated ? '~' : ''}${money(r.cardFees)}`, money(r.tax), money(r.tip), r.refunds ? money(r.refunds) : '', r.orderCount, r.isToday ? 'Today (running)' : 'Locked']),
-    ['TOTAL', mode === 'All' ? 'All service modes' : mode, money(totals.netPayout), `${totals.feesEstimated ? '~' : ''}${money(totals.cardFees)}`, money(totals.tax), money(totals.tip), money(totals.refunds), totals.orderCount, ''],
+    ['Date', 'Service Mode', 'Orders', 'Sales', 'Refunds', 'Tax', 'Tips', 'Total Collected', 'Fees (card + service)', 'Deposit', 'Status'],
+    ...rows.map(r => [r.date, r.menuType, r.orderCount, money(r.sales), r.refunds ? money(r.refunds) : '', money(r.tax), money(r.tip), money(r.totalCollected), fee(r.feesEstimated, r.fees), money(r.deposit), r.isToday ? 'Today (running)' : 'Locked']),
+    ['TOTAL', mode === 'All' ? 'All service modes' : mode, totals.orderCount, money(totals.sales), money(totals.refunds), money(totals.tax), money(totals.tip), money(totals.totalCollected), fee(totals.feesEstimated, totals.fees), money(totals.deposit), ''],
   ];
   return lines.map(line => line.map(csvCell).join(',')).join('\r\n');
 }

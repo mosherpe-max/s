@@ -417,6 +417,12 @@ export interface DailySalesLock {
   orderCount: number;
   cardFees?: number; // Stripe's processing fees on the day's card orders, already taken out of netPayout (absent on days locked before fees were tracked)
   cardFeesEstimated?: boolean; // true when some of cardFees were estimates at the moment the day was locked
+  // What the daily summary shows (absent on days locked before it was added; those are worked out from the orders):
+  sales?: number;          // items sold
+  totalCollected?: number; // what patrons paid
+  fees?: number;           // card processing and service fees together
+  depositGross?: number;   // the deposit for card orders before any refund
+  nonCardOrders?: number;  // orders not paid by card
   lockedAt: Timestamp;
 }
 
